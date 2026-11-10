@@ -1,7 +1,7 @@
 {
   "name": "lag",
   "label": "LAG",
-  "version": 1,
+  "version": 2,
   "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
   "preflop": {
     "open": "22+, A2+, K2+, Q2+, J2+, T2s+, T4o+, 92s+, 95o+, 82s+, 85o+, 72s+, 75o+, 62s+, 64o+, 52s+, 54o, 42s+, 32s",
@@ -15,38 +15,38 @@
   },
   "unopened": {
     "cbet": {
-      "AIR": {"check": 0.5, "bet_33": 0.22, "bet_75": 0.28},
+      "AIR": {"check": 0.78, "bet_33": 0.02, "bet_75": 0.2},
       "WEAK_DRAW": {"check": 0.35, "bet_33": 0.4, "bet_75": 0.25},
-      "WEAK": {"check": 0.7, "bet_33": 0.22, "bet_75": 0.08},
-      "MEDIUM": {"check": 0.55, "bet_33": 0.35, "bet_75": 0.1},
+      "WEAK": {"check": 0.96, "bet_33": 0.02, "bet_75": 0.02},
+      "MEDIUM": {"check": 0.82, "bet_33": 0.14, "bet_75": 0.04},
       "STRONG_DRAW": {"check": 0.2, "bet_33": 0.4, "bet_75": 0.4},
-      "STRONG": {"check": 0.2, "bet_33": 0.4, "bet_75": 0.4},
+      "STRONG": {"check": 0.1, "bet_33": 0.38, "bet_75": 0.52},
       "NUTS": {"check": 0.1, "bet_33": 0.25, "bet_75": 0.65}
     },
     "lead": {
-      "AIR": {"check": 0.92, "bet_33": 0.05, "bet_75": 0.03},
+      "AIR": {"check": 0.95, "bet_33": 0.02, "bet_75": 0.03},
       "WEAK_DRAW": {"check": 0.88, "bet_33": 0.08, "bet_75": 0.04},
-      "WEAK": {"check": 0.94, "bet_33": 0.05, "bet_75": 0.01},
-      "MEDIUM": {"check": 0.9, "bet_33": 0.08, "bet_75": 0.02},
+      "WEAK": {"check": 0.98, "bet_33": 0.02, "bet_75": 0.0},
+      "MEDIUM": {"check": 0.92, "bet_33": 0.07, "bet_75": 0.01},
       "STRONG_DRAW": {"check": 0.8, "bet_33": 0.12, "bet_75": 0.08},
       "STRONG": {"check": 0.75, "bet_33": 0.15, "bet_75": 0.1},
       "NUTS": {"check": 0.7, "bet_33": 0.12, "bet_75": 0.18}
     },
     "stab": {
-      "AIR": {"check": 0.45, "bet_33": 0.35, "bet_75": 0.2},
+      "AIR": {"check": 0.83, "bet_33": 0.03, "bet_75": 0.14},
       "WEAK_DRAW": {"check": 0.35, "bet_33": 0.45, "bet_75": 0.2},
-      "WEAK": {"check": 0.6, "bet_33": 0.32, "bet_75": 0.08},
-      "MEDIUM": {"check": 0.5, "bet_33": 0.38, "bet_75": 0.12},
+      "WEAK": {"check": 0.95, "bet_33": 0.03, "bet_75": 0.02},
+      "MEDIUM": {"check": 0.75, "bet_33": 0.18, "bet_75": 0.07},
       "STRONG_DRAW": {"check": 0.25, "bet_33": 0.4, "bet_75": 0.35},
-      "STRONG": {"check": 0.2, "bet_33": 0.35, "bet_75": 0.45},
+      "STRONG": {"check": 0.12, "bet_33": 0.36, "bet_75": 0.52},
       "NUTS": {"check": 0.15, "bet_33": 0.3, "bet_75": 0.55}
     }
   },
   "facing": {
     "facing_bet": {
-      "AIR": {"fold": 0.82, "call": 0.06, "raise": 0.12},
-      "WEAK_DRAW": {"fold": 0.45, "call": 0.43, "raise": 0.12},
-      "WEAK": {"fold": 0.45, "call": 0.52, "raise": 0.03},
+      "AIR": {"fold": 0.88, "call": 0.04, "raise": 0.08},
+      "WEAK_DRAW": {"fold": 0.4, "call": 0.48, "raise": 0.12},
+      "WEAK": {"fold": 0.4, "call": 0.57, "raise": 0.03},
       "MEDIUM": {"fold": 0.12, "call": 0.8, "raise": 0.08},
       "STRONG_DRAW": {"fold": 0.03, "call": 0.62, "raise": 0.35},
       "STRONG": {"fold": 0.02, "call": 0.73, "raise": 0.25},
