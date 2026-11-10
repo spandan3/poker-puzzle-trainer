@@ -1,5 +1,6 @@
 """Equity cross-checks: pinned reference values, brute force, pokerkit, error bounds, speed."""
 
+import math
 import random
 import time
 
@@ -20,17 +21,29 @@ def hand(s: str) -> tuple[int, int]:
     return (a, b)
 
 
-def pokerkit_equity(hero: str, villain: str, board: str = "", samples: int = 20_000) -> float:
-    """Hero equity vs a villain range via pokerkit (villain is pokerkit range syntax)."""
-    eq = calculate_equities(
-        (pk_parse_range(hero), pk_parse_range(villain)),
-        Card.parse(board),
-        2,
-        5,
-        Deck.STANDARD,
-        (StandardHighHand,),
-        sample_count=samples,
-    )
+def pokerkit_equity(
+    hero: str, villain: str, board: str = "", samples: int = 20_000, seed: int = 0
+) -> float:
+    """Hero equity vs a villain range via pokerkit (villain is pokerkit range syntax).
+
+    pokerkit samples with the module-level ``random``, so seed it for determinism and
+    restore the global state afterwards. (Multi-combo pokerkit ranges are sets whose
+    iteration order can vary with PYTHONHASHSEED; single-combo ranges are deterministic.)
+    """
+    state = random.getstate()
+    random.seed(seed)
+    try:
+        eq = calculate_equities(
+            (pk_parse_range(hero), pk_parse_range(villain)),
+            Card.parse(board),
+            2,
+            5,
+            Deck.STANDARD,
+            (StandardHighHand,),
+            sample_count=samples,
+        )
+    finally:
+        random.setstate(state)
     return eq[0]
 
 
@@ -55,17 +68,18 @@ def test_naive_eval_pinned():
 
 # --- reference pre-flop matchups ---------------------------------------------------------
 
+# Expected values below are the pokerkit-confirmed numbers.
 # pokerkit 0.7 (200k samples) / ours (400k samples, seed 1), hero equity:
-#   AhAs vs KdKc: 0.8136 / 0.8132   (brief 0.82)
-#   AhKh vs QQ:   0.4608 / 0.4603   (brief 0.46)
-#   2c2d vs AKo:  0.5251 / 0.5270   (brief 0.52)
-#   AhKd vs AsQc: 0.7391 / 0.7398   (brief 0.74)
+#   AhAs vs KdKc: 0.8136 / 0.8132   (plan said 0.82)
+#   AhKh vs QQ:   0.4608 / 0.4603   (plan said 0.46)
+#   2c2d vs AKo:  0.5251 / 0.5270   (plan said 0.52)
+#   AhKd vs AsQc: 0.7391 / 0.7398   (plan said 0.74)
 REFERENCE = [
-    # (hero, villain range text, expected equity); pokerkit numbers: pokerkit numbers in the comment above
-    ("AhAs", "KdKc", 0.82),
-    ("AhKh", "QQ", 0.46),
-    ("2c2d", "AKo", 0.52),
-    ("AhKd", "AsQc", 0.74),
+    # (hero, villain range text, expected equity)
+    ("AhAs", "KdKc", 0.814),
+    ("AhKh", "QQ", 0.461),
+    ("2c2d", "AKo", 0.525),
+    ("AhKd", "AsQc", 0.739),
 ]
 
 
@@ -80,12 +94,16 @@ def test_reference_preflop_matchups(hero_s, villain_s, expected):
 @pytest.mark.slow
 @pytest.mark.parametrize(("hero_s", "villain_s", "expected"), REFERENCE)
 def test_reference_values_confirmed_by_pokerkit(hero_s, villain_s, expected):
-    pk = pokerkit_equity(hero_s, villain_s, samples=60_000)
+    # Both estimates are seeded. Multi-combo pokerkit ranges (QQ, AKo) are hash-ordered,
+    # so pokerkit-vs-ours uses 4x the combined standard error rather than a fixed value.
+    n_pk, n_ours = 60_000, 200_000
+    pk = pokerkit_equity(hero_s, villain_s, samples=n_pk, seed=11)
     assert abs(pk - expected) <= 0.01, (hero_s, villain_s, pk)
     ours = equity_vs_range(
-        hand(hero_s), [], parse_range(villain_s), rng=random.Random(7), samples=60_000
+        hand(hero_s), [], parse_range(villain_s), rng=random.Random(7), samples=n_ours
     )
-    assert abs(ours.equity - pk) <= 0.01
+    se = math.sqrt(pk * (1 - pk) / n_pk + ours.std_error**2)
+    assert abs(ours.equity - pk) <= 4 * se, (hero_s, villain_s, ours.equity, pk)
 
 
 # --- brute force ------------------------------------------------------------------------
@@ -124,7 +142,7 @@ def test_matches_naive_bruteforce():
 @pytest.mark.slow
 def test_matches_pokerkit_random_flops():
     rng = random.Random(99)
-    for _ in range(50):
+    for spot in range(50):
         cards = rng.sample(range(52), 5)
         hero_s = "".join(card_str(c) for c in cards[:2])
         board_s = "".join(card_str(c) for c in cards[2:])
@@ -139,9 +157,9 @@ def test_matches_pokerkit_random_flops():
             cards[2:],
             villain,
             rng=random.Random(rng.random()),
-            samples=20_000,
+            samples=100_000,
         ).equity
-        pk = pokerkit_equity(hero_s, villain_s, board_s, samples=20_000)
+        pk = pokerkit_equity(hero_s, villain_s, board_s, samples=20_000, seed=spot)
         assert abs(ours - pk) <= 0.01, (hero_s, board_s, villain_s, ours, pk)
 
 
