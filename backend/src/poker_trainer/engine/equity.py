@@ -39,8 +39,8 @@ class EquityResult:
 
 
 def _validate(hero: Sequence[int], board: Sequence[int]) -> tuple[tuple[int, int], tuple[int, ...]]:
-    hero_t = tuple(hero)
-    board_t = tuple(board)
+    hero_t = tuple(int(c) for c in hero)
+    board_t = tuple(int(c) for c in board)
     if len(hero_t) != 2:
         raise ValueError(f"hero must have exactly 2 cards, got {len(hero_t)}")
     if len(board_t) not in _VALID_BOARD_LENGTHS:

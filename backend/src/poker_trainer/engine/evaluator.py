@@ -33,7 +33,7 @@ _BOUNDARIES = (
 
 def evaluate(cards: Sequence[int]) -> int:
     """Rank of the best 5-card hand among 5, 6 or 7 card ids; lower is stronger."""
-    return int(evaluate_cards(*cards))
+    return int(evaluate_cards(*map(int, cards)))
 
 
 def hand_class(rank: int) -> HandClass:
