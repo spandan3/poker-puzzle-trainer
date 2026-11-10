@@ -243,3 +243,18 @@
 - [ ] **Step 5: Run** `uv run pytest -m "slow or not slow" tests/analysis tests/villain` → PASS; fast suite + ruff green.
 - [ ] **Step 6: Commit** `feat(analysis): competence report and tuned profiles`
 - [ ] **Step 7:** Controller hands the final table to the user for sign-off at the end of the milestone.
+
+## Open items for M3 (from the M2 final review)
+
+- **Blocked combos:** one helper applies `remove_blocked(range, board + hero_hole)` to the tracked range. Use it for both the displayed range and the graded range so they stay identical. `RangeTracker.current` is never filtered by Hero's cards.
+- **Pot accounting:** use `total_pot` at showdown and for fold wins. When grading a bet that Villain folds to, the money won is the pot before the bet. `amount_to_call` and `pot_odds` return 0 when nobody is to act.
+- **Pre-flop sizes:** Hero pre-flop sizes are limited to opening 2.5x or 3x, 3-betting, calling, folding and going all-in. `UnsupportedSpot` means the puzzle is regenerated.
+- **Canonical actions:** pass the canonical `Action` objects (the keys of `action_distribution`, or `history[-1]`) to narrowing and response prediction. `apply` now rejects calls, folds and checks whose `to` amount isn't the canonical one.
+- **Persist puzzles, not seeds:** store the full frozen puzzle (cards, actions, profile and its version, categories version), not just the seed. Floating-point maths can differ slightly between Windows and macOS.
+- **Simplifications to show the learner:**
+  - pre-flop responses ignore the raise size;
+  - STRONG folds about 34% to oversized jams;
+  - MEDIUM raises a bet fairly often;
+  - Villain bets only 19–25% when checked to on the river (pending user sign-off).
+- **Command entry point:** add `[project.scripts]` for the competence CLI when M3 touches `pyproject.toml`.
+- **Possible future check:** whether MEDIUM raises are dominated.
