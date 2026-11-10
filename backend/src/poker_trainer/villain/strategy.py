@@ -8,8 +8,8 @@ that resolve to the same ``Action`` (two sizes clamped to the same chips) are me
 
 from __future__ import annotations
 
-import random
 from functools import lru_cache
+from typing import Protocol
 
 import numpy as np
 
@@ -283,9 +283,11 @@ def action_distribution(profile: Profile, s: HandState) -> Distribution:
     return _merge(entries)
 
 
-def sample_action(
-    profile: Profile, s: HandState, hole: tuple[int, int], rng: random.Random
-) -> Action:
+class _Uniform(Protocol):
+    def random(self) -> float: ...
+
+
+def sample_action(profile: Profile, s: HandState, hole: tuple[int, int], rng: _Uniform) -> Action:
     """Sample the seat-to-act's action for its actual hole cards (deterministic given rng)."""
     ensure_distinct(tuple(hole), s.board)
     i = combo_index(*hole)

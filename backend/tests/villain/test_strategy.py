@@ -60,6 +60,8 @@ def cats_for(board: str) -> np.ndarray:
 
 
 def act(s: HandState, kind: ActionKind, to: int = 0) -> HandState:
+    if kind == ActionKind.CALL:
+        to = s.street_bets[s.to_act] + legal_actions(s).call
     return apply(s, Action(s.to_act, kind, s.street, to))
 
 

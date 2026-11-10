@@ -177,14 +177,20 @@ def apply(s: HandState, a: Action) -> HandState:
     if a.kind == ActionKind.FOLD:
         if not lg.fold:
             raise _illegal(a, "nothing to call")
+        if a.to != 0:
+            raise _illegal(a, "fold must have to=0")
         folded = me
     elif a.kind == ActionKind.CHECK:
         if not lg.check:
             raise _illegal(a, "facing a bet")
+        if a.to != 0:
+            raise _illegal(a, "check must have to=0")
     elif a.kind == ActionKind.CALL:
         if lg.call <= 0:
             raise _illegal(a, "nothing to call")
         to = mine + lg.call
+        if a.to != to:
+            raise _illegal(a, f"call must have to={to}")
         stacks = _set(stacks, me, stacks[me] - lg.call)
         bets = _set(bets, me, to)
     else:

@@ -11,6 +11,7 @@ from poker_trainer.engine.ranges import full_range
 from poker_trainer.game.state import (
     Action,
     ActionKind,
+    Street,
     apply,
     deal,
     is_terminal,
@@ -60,13 +61,35 @@ def test_tracker_matches_strategy():
     t = RangeTracker(tag, 0)
     step = t.observe(s, raise_to(s, OPEN_MULT))
     assert np.array_equal(t.current, tag.preflop.open)
-    assert step.range is t.current or np.array_equal(step.range, t.current)
+    assert t.steps[-1] is step
+    assert step.range is t.current
 
 
 def test_tracker_wrong_seat():
     s = new_hand(0)
     with pytest.raises(ValueError):
         RangeTracker(load_profile("tag"), 1).observe(s, raise_to(s, OPEN_MULT))
+
+
+def test_tracker_guards_seat_and_street():
+    s = new_hand(0)
+    t = RangeTracker(load_profile("tag"), 0)
+    with pytest.raises(ValueError, match="action seat"):
+        t.observe(s, Action(1, ActionKind.RAISE, 0, 5))
+    with pytest.raises(ValueError, match="action street"):
+        t.observe(s, Action(0, ActionKind.RAISE, 1, 5))
+
+
+def test_range_history_read_only():
+    s = new_hand(0)
+    t = RangeTracker(load_profile("tag"), 0)
+    with pytest.raises(ValueError):
+        t.current[0] = 0.5
+    step = t.observe(s, raise_to(s, OPEN_MULT))
+    with pytest.raises(ValueError):
+        step.range[0] = 0.5
+    with pytest.raises(ValueError):
+        t.current[0] = 0.5
 
 
 def test_labels():
@@ -97,6 +120,48 @@ def test_describe_variants():
     assert describe(raise_to(s2, 3.0), s2) == "Pre-flop: 3-bets to 15"
     ai = Action(1, ActionKind.RAISE, 0, s2.stacks[1] + s2.street_bets[1])
     assert describe(ai, s2) == "Pre-flop: goes all-in"
+
+
+def _flop(stacks=(200, 200)):
+    s = new_hand(0, stacks)
+    s = apply(s, Action(0, ActionKind.CALL, 0, 2))
+    s = apply(s, Action(1, ActionKind.CHECK, 0))
+    return deal(s, (0, 5, 10))
+
+
+def test_describe_postflop_labels_and_street():
+    s = _flop()
+    s = apply(s, Action(1, ActionKind.CHECK, 1))
+    s = apply(s, Action(0, ActionKind.CHECK, 1))
+    s = deal(s, (20,))
+    assert describe(Action(1, ActionKind.CHECK, 2), s) == "Turn: checks"
+    s = apply(s, Action(1, ActionKind.BET, 2, 4))
+    assert describe(Action(0, ActionKind.RAISE, 2, 12), s) == "Turn: raises to 12"
+    assert describe(Action(0, ActionKind.RAISE, 2, 198), s) == "Turn: goes all-in"
+    s = _flop()
+    s = apply(s, Action(1, ActionKind.CHECK, 1))
+    assert describe(Action(0, ActionKind.BET, 1, 198), s) == "Flop: goes all-in"
+    # RangeStep.street follows the street of each observed action
+    t = RangeTracker(load_profile("tag"), 1)
+    assert t.steps[0].street == Street.PREFLOP
+    s = _flop()
+    assert t.observe(s, Action(1, ActionKind.CHECK, 1)).street == Street.FLOP
+
+
+def test_all_in_uses_actor_stack_not_max_to():
+    s = new_hand(0, (200, 100))
+    s = apply(s, Action(0, ActionKind.RAISE, 0, 5))
+    s = apply(s, Action(1, ActionKind.CALL, 0, 5))
+    s = deal(s, (0, 5, 10))
+    s = apply(s, Action(1, ActionKind.CHECK, 1))
+    # effective max bet is 95 (short stack's remaining chips)
+    assert describe(Action(0, ActionKind.BET, 1, 95), s) == "Flop: bets 95 (950% pot)"
+    s2 = apply(s, Action(0, ActionKind.BET, 1, 30))
+    assert describe(Action(1, ActionKind.RAISE, 1, 95), s2) == "Flop: goes all-in"
+    short_btn = new_hand(0, (100, 200))
+    assert describe(Action(0, ActionKind.RAISE, 0, 100), short_btn) == "Pre-flop: goes all-in"
+    big = new_hand(0, (200, 100))
+    assert describe(Action(0, ActionKind.RAISE, 0, 100), big) != "Pre-flop: goes all-in"
 
 
 @given(st.integers(0, 2**32), st.integers(0, 1))

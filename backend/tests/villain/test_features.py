@@ -102,7 +102,7 @@ def test_texture():
 def test_street_spr():
     s = new_hand(0)
     s = apply(s, Action(0, ActionKind.RAISE, Street.PREFLOP, 5))
-    s = apply(s, Action(1, ActionKind.CALL, Street.PREFLOP))
+    s = apply(s, Action(1, ActionKind.CALL, Street.PREFLOP, 5))
     s = deal(s, parse_cards("Kh7h2c"))
     assert street_spr(s) == 195 / 10
     with pytest.raises(ValueError):

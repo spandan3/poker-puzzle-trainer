@@ -12,7 +12,6 @@ from poker_trainer.game.state import (
     ActionKind,
     HandState,
     Street,
-    legal_actions,
     total_pot,
 )
 from poker_trainer.villain.profiles import Profile
@@ -36,12 +35,18 @@ def narrow(r: Range, dist: dict[Action, np.ndarray], action: Action) -> Range:
     return out
 
 
+def _frozen(r: Range) -> Range:
+    out = np.array(r, copy=True)
+    out.flags.writeable = False
+    return out
+
+
 def describe(action: Action, s: HandState) -> str:
     """Human label for ``action`` taken in state ``s`` (the state before the action)."""
     street = _STREET_NAMES[action.street]
     kind = action.kind
     if kind in (ActionKind.BET, ActionKind.RAISE):
-        if action.to == legal_actions(s).max_to:
+        if s.stacks[action.seat] - (action.to - s.street_bets[action.seat]) == 0:
             return f"{street}: goes all-in"
         if action.street == Street.PREFLOP:
             n_raises = sum(
@@ -74,16 +79,25 @@ class RangeTracker:
     def __init__(self, profile: Profile, seat: int):
         self.profile = profile
         self.seat = seat
-        self.steps: list[RangeStep] = [RangeStep("Start", Street.PREFLOP, None, full_range())]
+        self.steps: list[RangeStep] = [
+            RangeStep("Start", Street.PREFLOP, None, _frozen(full_range()))
+        ]
 
     @property
     def current(self) -> Range:
+        """Latest range; read-only (shared with the stored step)."""
         return self.steps[-1].range
 
     def observe(self, s: HandState, action: Action) -> RangeStep:
         if s.to_act != self.seat:
             raise ValueError(f"seat {self.seat} is not to act")
+        if action.seat != self.seat:
+            raise ValueError(f"action seat {action.seat} != tracker seat {self.seat}")
+        if action.street != s.street:
+            raise ValueError(f"action street {action.street} != state street {s.street}")
         dist = action_distribution(self.profile, s)
-        step = RangeStep(describe(action, s), s.street, action, narrow(self.current, dist, action))
+        step = RangeStep(
+            describe(action, s), s.street, action, _frozen(narrow(self.current, dist, action))
+        )
         self.steps.append(step)
         return step

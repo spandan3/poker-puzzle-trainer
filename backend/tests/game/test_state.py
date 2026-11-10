@@ -27,6 +27,8 @@ K = ActionKind
 
 def act(s: HandState, kind: ActionKind, to: int = 0) -> HandState:
     assert s.to_act is not None
+    if kind == K.CALL:
+        to = s.street_bets[s.to_act] + legal_actions(s).call
     return apply(s, Action(s.to_act, kind, s.street, to))
 
 
@@ -117,6 +119,18 @@ def test_last_aggressor():
     s = act(s, K.CALL)
     assert last_aggressor(s, Street.PREFLOP) == 0
     assert last_aggressor(s, Street.FLOP) is None
+
+
+def test_non_canonical_amounts_rejected():
+    s = new_hand(0)
+    with pytest.raises(ValueError, match="call must have to=2"):
+        apply(s, Action(0, K.CALL, Street.PREFLOP, 0))
+    with pytest.raises(ValueError, match="fold must have to=0"):
+        apply(s, Action(0, K.FOLD, Street.PREFLOP, 2))
+    s2 = act(act(s, K.CALL), K.CHECK)
+    s2 = deal(s2, parse_cards("2c 3d 4h"))
+    with pytest.raises(ValueError, match="check must have to=0"):
+        apply(s2, Action(1, K.CHECK, Street.FLOP, 2))
 
 
 def test_illegal_actions_raise():
