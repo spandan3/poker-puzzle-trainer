@@ -230,6 +230,9 @@ def _matrix(table: Table, keys: tuple[str, ...]) -> np.ndarray:
 
 def _unopened(profile: Profile, s: HandState, r: str, lg: Legal) -> list[tuple[Action, np.ndarray]]:
     m = _matrix(profile.unopened[r], UNOPENED_ACTIONS)  # check, bet_33, bet_75
+    if s.street == Street.RIVER:
+        for cat, row in profile.river_unopened.get(r, {}).items():
+            m[int(cat)] = [row[k] for k in UNOPENED_ACTIONS]
     if board_texture(s.board).wet:
         rows = [int(c) for c in _DRAWS]
         m[rows, 1:] *= _DRAW_BET_BOOST

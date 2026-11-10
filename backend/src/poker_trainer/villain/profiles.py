@@ -52,26 +52,51 @@ class Profile:
     unopened: Mapping[str, Table]
     facing: Mapping[str, Table]
     bands: Bands
+    # River-only overrides of unopened rows: role -> category -> row. Missing roles or
+    # categories fall back to ``unopened``. A river bet has no protection or draw value,
+    # so WEAK/MEDIUM/AIR rows that are sensible on the flop over-bluff there.
+    river_unopened: Mapping[str, Table] = MappingProxyType({})
 
 
 def _table(raw: Any, actions: tuple[str, ...], where: str) -> Table:
     names = {c.name for c in HandCategory}
     if not isinstance(raw, dict) or set(raw) != names:
         raise ValueError(f"{where}: categories must be exactly {sorted(names)}")
-    out: dict[HandCategory, Mapping[str, float]] = {}
-    for cat in HandCategory:
-        row = raw[cat.name]
-        if not isinstance(row, dict) or set(row) != set(actions):
-            raise ValueError(f"{where}.{cat.name}: actions must be {actions}")
-        try:
-            probs = {a: float(row[a]) for a in actions}
-        except (TypeError, ValueError) as e:
-            raise ValueError(f"{where}.{cat.name}: {e}") from e
-        if any(not 0.0 <= p <= 1.0 for p in probs.values()):
-            raise ValueError(f"{where}.{cat.name}: probabilities must be in [0, 1]")
-        if not math.isclose(sum(probs.values()), 1.0, abs_tol=1e-9):
-            raise ValueError(f"{where}.{cat.name}: row must sum to 1")
-        out[cat] = MappingProxyType(probs)
+    out = {cat: _row(raw[cat.name], actions, f"{where}.{cat.name}") for cat in HandCategory}
+    return MappingProxyType(out)
+
+
+def _row(raw: Any, actions: tuple[str, ...], where: str) -> Mapping[str, float]:
+    if not isinstance(raw, dict) or set(raw) != set(actions):
+        raise ValueError(f"{where}: actions must be {actions}")
+    try:
+        probs = {a: float(raw[a]) for a in actions}
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"{where}: {e}") from e
+    if any(not 0.0 <= p <= 1.0 for p in probs.values()):
+        raise ValueError(f"{where}: probabilities must be in [0, 1]")
+    if not math.isclose(sum(probs.values()), 1.0, abs_tol=1e-9):
+        raise ValueError(f"{where}: row must sum to 1")
+    return MappingProxyType(probs)
+
+
+def _river_overrides(raw: Any, where: str) -> Mapping[str, Table]:
+    """Optional partial unopened tables: any subset of roles and categories."""
+    if raw is None:
+        return MappingProxyType({})
+    if not isinstance(raw, dict) or not set(raw) <= set(UNOPENED_ROLES):
+        raise ValueError(f"{where}: roles must be a subset of {UNOPENED_ROLES}")
+    names = {c.name for c in HandCategory}
+    out = {}
+    for role, rows in raw.items():
+        if not isinstance(rows, dict) or not set(rows) <= names:
+            raise ValueError(f"{where}.{role}: categories must be a subset of {sorted(names)}")
+        out[role] = MappingProxyType(
+            {
+                HandCategory[cat]: _row(row, UNOPENED_ACTIONS, f"{where}.{role}.{cat}")
+                for cat, row in rows.items()
+            }
+        )
     return MappingProxyType(out)
 
 
@@ -141,6 +166,7 @@ def _profile_from_dict(name: str, raw: Any) -> Profile:
             preflop=_ranges(raw["preflop"], f"{name}.preflop"),
             unopened=unopened,
             facing=facing,
+            river_unopened=_river_overrides(raw.get("river_unopened"), f"{name}.river_unopened"),
             bands=Bands(
                 bluff_offset=_band(raw["bands"]["bluff_offset"], f"{name}.bands.bluff_offset"),
                 defence_ratio=_band(raw["bands"]["defence_ratio"], f"{name}.bands.defence_ratio"),

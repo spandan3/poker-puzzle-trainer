@@ -461,3 +461,63 @@ def test_distribution_keys_are_legal():
             for a in action_distribution(p, s):
                 apply(s, a)
                 assert a.seat == s.to_act
+
+
+def _cbet_row(dist: dict[Action, np.ndarray], s: HandState, i: int) -> list[float]:
+    """[check, bet_33, bet_75] probabilities of combo i in an unopened state."""
+    check = next(a for a in dist if a.kind == X)
+    return [dist[check][i], dist[bet_to(s, 0.33)][i], dist[bet_to(s, 0.75)][i]]
+
+
+def river_cbet(board: str = DRY + "4s9c") -> HandState:
+    """BTN bets the turn and is called; river, BB checks: BTN (seat 0) to act as c-bettor."""
+    s = act(flop(board[:6]), X)
+    s = act(s, X)
+    s = deal(s, parse_cards(board[6:8]))
+    s = act(s, X)
+    s = apply(s, bet_to(s, 0.75))
+    s = act(s, C)
+    s = deal(s, parse_cards(board[8:]))
+    return act(s, X)
+
+
+def test_river_override_applies_on_river_only():
+    from dataclasses import replace
+
+    tag = load_profile("tag")
+    override = {"cbet": {HandCategory.AIR: {"check": 0.0, "bet_33": 1.0, "bet_75": 0.0}}}
+    p = replace(tag, river_unopened=override)
+    shared = tag.unopened["cbet"]
+
+    flop_s = act(flop(), X)  # BTN c-bets the flop
+    assert role(flop_s) == "cbet"
+    river_s = river_cbet()
+    assert role(river_s) == "cbet" and river_s.street == Street.RIVER
+
+    flop_air = int(np.flatnonzero(cats_for(DRY) == HandCategory.AIR)[0])
+    row = shared[HandCategory.AIR]
+    want = [row["check"], row["bet_33"], row["bet_75"]]
+    assert _cbet_row(action_distribution(p, flop_s), flop_s, flop_air) == pytest.approx(want)
+
+    river_cats = cats_for(DRY + "4s9c")
+    river_dist = action_distribution(p, river_s)
+    air = int(np.flatnonzero(river_cats == HandCategory.AIR)[0])
+    assert _cbet_row(river_dist, river_s, air) == pytest.approx([0.0, 1.0, 0.0])
+    # Categories without an override fall back to the shared table on the river.
+    strong = int(np.flatnonzero(river_cats == HandCategory.STRONG)[0])
+    row = shared[HandCategory.STRONG]
+    want = [row["check"], row["bet_33"], row["bet_75"]]
+    assert _cbet_row(river_dist, river_s, strong) == pytest.approx(want)
+
+
+@pytest.mark.parametrize("name", PROFILE_NAMES)
+def test_shipped_river_overrides_are_used(name):
+    p = load_profile(name)
+    assert p.river_unopened["cbet"][HandCategory.AIR] != p.unopened["cbet"][HandCategory.AIR]
+    s = river_cbet()
+    cats = cats_for(DRY + "4s9c")
+    dist = action_distribution(p, s)
+    for cat, row in p.river_unopened["cbet"].items():
+        i = int(np.flatnonzero(cats == cat)[0])
+        want = [row["check"], row["bet_33"], row["bet_75"]]
+        assert _cbet_row(dist, s, i) == pytest.approx(want)

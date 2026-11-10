@@ -1,6 +1,12 @@
 import pytest
 
-from poker_trainer.analysis.competence import CHECK_NAMES, CheckResult, competence_report, main
+from poker_trainer.analysis.competence import (
+    CHECK_NAMES,
+    CheckResult,
+    break_even_bluff_share,
+    competence_report,
+    main,
+)
 from poker_trainer.villain.profiles import PROFILE_NAMES
 
 EXPECTED = (
@@ -13,6 +19,7 @@ EXPECTED = (
     "strong_fold_max",
     "air_call_max",
     "thin_value_dominated",
+    "cbet_flop",
 )
 
 
@@ -41,8 +48,25 @@ def test_cli_header(capsys):
     assert "bluff_share_75" in capsys.readouterr().out
 
 
+def test_break_even_from_bet_size():
+    assert break_even_bluff_share(0.75) == pytest.approx(0.30)
+    assert break_even_bluff_share(0.33) == pytest.approx(0.33 / 1.66)
+    assert break_even_bluff_share(1.0) == pytest.approx(1 / 3)
+
+
+@pytest.fixture(scope="module")
+def full_reports() -> dict[str, list[CheckResult]]:
+    return {p: competence_report(p, n_hands=400) for p in PROFILE_NAMES}
+
+
 @pytest.mark.slow
 @pytest.mark.parametrize("profile", PROFILE_NAMES)
-def test_all_profiles_competent(profile):
-    failed = [r for r in competence_report(profile, n_hands=400) if not r.passed]
+def test_all_profiles_competent(full_reports, profile):
+    failed = [r for r in full_reports[profile] if not r.passed]
     assert not failed, failed
+
+
+@pytest.mark.slow
+def test_cbet_flop_ordering(full_reports):
+    cbet = {p: next(r.value for r in rs if r.name == "cbet_flop") for p, rs in full_reports.items()}
+    assert cbet["lag"] > cbet["tag"] > cbet["tight"], cbet

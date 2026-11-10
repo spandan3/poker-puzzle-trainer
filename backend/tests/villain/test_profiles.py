@@ -94,6 +94,8 @@ def test_tables_are_immutable(profile: Profile):
         profile.unopened["lead"] = {}  # type: ignore[index]
     with pytest.raises(ValueError):
         profile.preflop.open[0] = 1.0
+    with pytest.raises(TypeError):
+        profile.river_unopened["cbet"][HandCategory.AIR]["check"] = 0.0  # type: ignore[index]
 
 
 def _raw(name: str = "tag") -> dict:
@@ -104,7 +106,7 @@ def _raw(name: str = "tag") -> dict:
 
 
 def test_loader_accepts_raw_profile():
-    assert _profile_from_dict("tag", _raw()).version == 2
+    assert _profile_from_dict("tag", _raw()).version == 3
 
 
 def test_bad_row_sum_raises():
@@ -130,6 +132,10 @@ def test_missing_category_raises():
         lambda r: r["bands"].update(defence_ratio=[1.2, 0.8]),
         lambda r: r["facing"].pop("facing_raise"),
         lambda r: r.update(version=0),
+        lambda r: r["river_unopened"].update(facing_bet={}),
+        lambda r: r["river_unopened"]["cbet"].update(BOGUS={}),
+        lambda r: r["river_unopened"]["cbet"]["AIR"].update(check=0.5),
+        lambda r: r["river_unopened"]["cbet"]["AIR"].pop("bet_75"),
     ],
 )
 def test_structural_errors_raise_value_error(mutate):
@@ -148,3 +154,16 @@ def test_profiles_ship_as_package_data():
     root = files("poker_trainer.villain") / "profiles"
     for name in PROFILE_NAMES:
         assert (root / f"{name}.json").is_file()
+
+
+def test_river_overrides_optional():
+    raw = copy.deepcopy(_raw())
+    del raw["river_unopened"]
+    assert dict(_profile_from_dict("tag", raw).river_unopened) == {}
+
+
+def test_river_overrides_partial(profile: Profile):
+    for role, rows in profile.river_unopened.items():
+        assert role in ROLES
+        for row in rows.values():
+            assert sum(row.values()) == pytest.approx(1.0)

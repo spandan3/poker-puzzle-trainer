@@ -1,7 +1,7 @@
 {
   "name": "tag",
   "label": "TAG",
-  "version": 2,
+  "version": 3,
   "description": "Solid tight-aggressive regular: value-heavy, bluffs in balance.",
   "preflop": {
     "open": "22+, A2+, K2+, Q2s+, Q5o+, J2s+, J7o+, T2s+, T7o+, 92s+, 97o+, 82s+, 86o+, 72s+, 76o, 62s+, 65o, 52s+, 54o, 42s+, 32s",
@@ -15,31 +15,48 @@
   },
   "unopened": {
     "cbet": {
-      "AIR": {"check": 0.83, "bet_33": 0.02, "bet_75": 0.15},
+      "AIR": {"check": 0.5, "bet_33": 0.28, "bet_75": 0.22},
       "WEAK_DRAW": {"check": 0.5, "bet_33": 0.35, "bet_75": 0.15},
-      "WEAK": {"check": 0.98, "bet_33": 0.01, "bet_75": 0.01},
-      "MEDIUM": {"check": 0.85, "bet_33": 0.12, "bet_75": 0.03},
+      "WEAK": {"check": 0.7, "bet_33": 0.27, "bet_75": 0.03},
+      "MEDIUM": {"check": 0.5, "bet_33": 0.45, "bet_75": 0.05},
       "STRONG_DRAW": {"check": 0.3, "bet_33": 0.35, "bet_75": 0.35},
       "STRONG": {"check": 0.12, "bet_33": 0.38, "bet_75": 0.5},
       "NUTS": {"check": 0.1, "bet_33": 0.25, "bet_75": 0.65}
     },
     "lead": {
-      "AIR": {"check": 0.97, "bet_33": 0.01, "bet_75": 0.02},
+      "AIR": {"check": 0.95, "bet_33": 0.03, "bet_75": 0.02},
       "WEAK_DRAW": {"check": 0.92, "bet_33": 0.06, "bet_75": 0.02},
-      "WEAK": {"check": 0.99, "bet_33": 0.01, "bet_75": 0.0},
-      "MEDIUM": {"check": 0.94, "bet_33": 0.05, "bet_75": 0.01},
+      "WEAK": {"check": 0.96, "bet_33": 0.04, "bet_75": 0.0},
+      "MEDIUM": {"check": 0.92, "bet_33": 0.07, "bet_75": 0.01},
       "STRONG_DRAW": {"check": 0.85, "bet_33": 0.1, "bet_75": 0.05},
       "STRONG": {"check": 0.8, "bet_33": 0.12, "bet_75": 0.08},
       "NUTS": {"check": 0.75, "bet_33": 0.1, "bet_75": 0.15}
     },
     "stab": {
-      "AIR": {"check": 0.87, "bet_33": 0.03, "bet_75": 0.1},
+      "AIR": {"check": 0.55, "bet_33": 0.3, "bet_75": 0.15},
       "WEAK_DRAW": {"check": 0.45, "bet_33": 0.4, "bet_75": 0.15},
-      "WEAK": {"check": 0.97, "bet_33": 0.02, "bet_75": 0.01},
-      "MEDIUM": {"check": 0.78, "bet_33": 0.17, "bet_75": 0.05},
+      "WEAK": {"check": 0.7, "bet_33": 0.25, "bet_75": 0.05},
+      "MEDIUM": {"check": 0.55, "bet_33": 0.35, "bet_75": 0.1},
       "STRONG_DRAW": {"check": 0.35, "bet_33": 0.35, "bet_75": 0.3},
       "STRONG": {"check": 0.15, "bet_33": 0.37, "bet_75": 0.48},
       "NUTS": {"check": 0.2, "bet_33": 0.3, "bet_75": 0.5}
+    }
+  },
+  "river_unopened": {
+    "cbet": {
+      "AIR": {"check": 0.83, "bet_33": 0.02, "bet_75": 0.15},
+      "WEAK": {"check": 0.98, "bet_33": 0.01, "bet_75": 0.01},
+      "MEDIUM": {"check": 0.85, "bet_33": 0.12, "bet_75": 0.03}
+    },
+    "lead": {
+      "AIR": {"check": 0.97, "bet_33": 0.01, "bet_75": 0.02},
+      "WEAK": {"check": 0.99, "bet_33": 0.01, "bet_75": 0.0},
+      "MEDIUM": {"check": 0.94, "bet_33": 0.05, "bet_75": 0.01}
+    },
+    "stab": {
+      "AIR": {"check": 0.87, "bet_33": 0.03, "bet_75": 0.1},
+      "WEAK": {"check": 0.97, "bet_33": 0.02, "bet_75": 0.01},
+      "MEDIUM": {"check": 0.78, "bet_33": 0.17, "bet_75": 0.05}
     }
   },
   "facing": {

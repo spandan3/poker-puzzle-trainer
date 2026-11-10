@@ -17,10 +17,17 @@ Where the data comes from:
   - Defence ratios use the 33% / 75% probes, each weighted by how often Hero's tracked
     range makes that bet there. This estimates the average over the facing-a-bet spots
     self-play reaches without the noise (and the thin river sample) of using only the
-    bets Hero happened to make.
+    bets Hero happened to make. A defence probe counts toward ``samples`` only when that
+    weight is at least MIN_PROBE_WEIGHT; lighter probes still enter the mean.
   - The fold/call checks use every probe. The Villain tables only bet 33% / 75% and
     raise 3x, so a pot-size bet is almost never faced in self-play; the 100% probe (a
-    Hero size shortcut in the trainer) gives ``strong_fold_max`` its spots.
+    Hero size shortcut in the trainer) gives ``strong_fold_max`` its spots. These are
+    max-over-spots checks, so every probe counts as a sample whatever Hero's frequency.
+* ``cbet_flop``: Villain's whole-range bet frequency (any size) at each flop decision
+  in the c-bettor role, averaged over spots.
+* INFO_NAMES are printed for review but are not checks: ``river_stab`` (whole-range
+  river stab frequency) and ``air_continue_max`` (AIR call+raise facing river bets of
+  75% pot or more; ``air_call_max`` counts calls only).
 
 River equity is exact: per-combo hand ranks on the river board, each Villain combo
 against the weighted calling range, skipping Hero combos that share a card with it.
@@ -78,13 +85,17 @@ CHECK_NAMES = (
     "strong_fold_max",
     "air_call_max",
     "thin_value_dominated",
+    "cbet_flop",
 )
+# Printed for information only; never pass/fail.
+INFO_NAMES = ("river_stab", "air_continue_max")
 MIN_SAMPLES = 30
+# A defence probe counts toward ``samples`` only if Hero makes that bet at least this
+# often there; rarer probes still enter the weighted mean.
+MIN_PROBE_WEIGHT = 0.05
 VILLAIN_SEAT, HERO_SEAT = 0, 1
 
-# Break-even bluff share f / (1 + 2f) of a bet of f pot, at the nominal sizes.
 _BET_SIZES = {"33": 0.33, "75": 0.75}
-_BREAK_EVEN = {"33": 0.20, "75": 0.30}
 _PROBE_SIZES = (0.33, 0.75, 1.0)
 _BLUFF_EQUITY = 0.5
 _DOMINATED_EQUITY = 0.4
@@ -93,8 +104,9 @@ _FIXED_BANDS = {
     "strong_fold_max": (0.0, 0.10),
     "air_call_max": (0.0, 0.10),
     "thin_value_dominated": (0.0, 0.10),
+    "cbet_flop": (0.45, 0.70),
 }
-_MAX_CHECKS = ("nuts_fold_max", "strong_fold_max", "air_call_max")
+_MAX_CHECKS = ("nuts_fold_max", "strong_fold_max", "air_call_max", "air_continue_max")
 _STREET_NAMES = {Street.FLOP: "flop", Street.TURN: "turn", Street.RIVER: "river"}
 _TOL = 1e-9
 
@@ -109,10 +121,15 @@ class CheckResult:
     samples: int
 
 
-# One record per spot: (check name, numerator, denominator). A check's value is
-# sum(numerators) / sum(denominators), except the *_max checks, which take the largest
-# numerator (their denominators are 1).
-Record = tuple[str, float, float]
+# One record per spot: (check name, numerator, denominator, counts toward samples). A
+# check's value is sum(numerators) / sum(denominators), except the *_max checks, which
+# take the largest numerator (their denominators are 1).
+Record = tuple[str, float, float, bool]
+
+
+def break_even_bluff_share(frac: float) -> float:
+    """Bluff share that makes a caller indifferent to a bet of ``frac`` pot: f / (1 + 2f)."""
+    return frac / (1.0 + 2.0 * frac)
 
 
 # ---------------------------------------------------------------------------
@@ -214,22 +231,25 @@ def _facing_records(
         mdf = prior / (prior + call)  # 1 / (1 + f)
         rate = float(villain @ cont) / float(villain.sum())
         name = f"defence_{_STREET_NAMES[s.street]}"
-        out.append((name, defence_weight * rate / mdf, defence_weight))
+        counted = defence_weight >= MIN_PROBE_WEIGHT
+        out.append((name, defence_weight * rate / mdf, defence_weight, counted))
 
     nuts = _share(villain, cats == HandCategory.NUTS, fold)
     if nuts is not None:
-        out.append(("nuts_fold_max", nuts, 1.0))
+        out.append(("nuts_fold_max", nuts, 1.0, True))
     # Half a chip of slack: bet_to rounds the nominal size to whole chips. Bets only:
     # folding a STRONG hand to a pot-plus all-in check-raise can be correct, and the
     # facing_raise tables deliberately fold more than facing_bet.
     if call + 0.5 >= prior and role(s) == "facing_bet":
         strong = _share(villain, cats == HandCategory.STRONG, fold)
         if strong is not None:
-            out.append(("strong_fold_max", strong, 1.0))
+            out.append(("strong_fold_max", strong, 1.0, True))
     if s.street == Street.RIVER and call + 0.5 >= 0.75 * prior:
         air = _share(villain, cats == HandCategory.AIR, calls)
-        if air is not None:
-            out.append(("air_call_max", air, 1.0))
+        air_cont = _share(villain, cats == HandCategory.AIR, cont)
+        if air is not None and air_cont is not None:
+            out.append(("air_call_max", air, 1.0, True))
+            out.append(("air_continue_max", air_cont, 1.0, True))
 
 
 def _river_bet_records(
@@ -261,10 +281,17 @@ def _river_bet_records(
             bluffs = float(betting[eq < _BLUFF_EQUITY].sum())
             value = betting * value_mask
             dominated = float(value[eq < _DOMINATED_EQUITY].sum())
-        out.append((f"bluff_share_{name}", bluffs / range_total, bet_total / range_total))
+        out.append((f"bluff_share_{name}", bluffs / range_total, bet_total / range_total, True))
         value_total = float(value.sum())
         if value_total > 0.0:
-            out.append(("thin_value_dominated", dominated / range_total, value_total / range_total))
+            out.append(
+                ("thin_value_dominated", dominated / range_total, value_total / range_total, True)
+            )
+
+
+def _bet_frequency(dist: dict[Action, np.ndarray], villain: np.ndarray) -> float:
+    """Whole-range probability of betting (any size)."""
+    return float(villain @ _sum_kind(dist, ActionKind.BET)) / float(villain.sum())
 
 
 def _probe_records(
@@ -329,9 +356,14 @@ def _play_hand(
             r = role(s)
             if seat == VILLAIN_SEAT:
                 dist = action_distribution(villain_profile, s)
+                can_bet = legal_actions(s).aggressive == ActionKind.BET
                 if r.startswith("facing"):
                     _facing_records(out, s, dist, villain, cats, defence_weight=0.0)
-                elif s.street == Street.RIVER and legal_actions(s).aggressive == ActionKind.BET:
+                elif can_bet and s.street == Street.FLOP and r == "cbet":
+                    out.append(("cbet_flop", _bet_frequency(dist, villain), 1.0, True))
+                elif can_bet and s.street == Street.RIVER:
+                    if r == "stab":
+                        out.append(("river_stab", _bet_frequency(dist, villain), 1.0, True))
                     hero = trackers[HERO_SEAT].current * live
                     _river_bet_records(out, s, dist, hero_profile, villain, hero, cats)
             elif not r.startswith("facing") and legal_actions(s).aggressive == ActionKind.BET:
@@ -345,7 +377,7 @@ def _play_hand(
 
 def _band(profile: Profile, name: str) -> tuple[float, float]:
     if name.startswith("bluff_share_"):
-        base = _BREAK_EVEN[name.removeprefix("bluff_share_")]
+        base = break_even_bluff_share(_BET_SIZES[name.removeprefix("bluff_share_")])
         lo, hi = profile.bands.bluff_offset
         return round(base + lo, 6), round(base + hi, 6)
     if name.startswith("defence_"):
@@ -359,6 +391,13 @@ def competence_report(profile_name: str, n_hands: int = 400, seed: int = 0) -> l
     A check with fewer than MIN_SAMPLES spots fails ("insufficient samples"); a check with
     none reports nan.
     """
+    return competence_details(profile_name, n_hands, seed)[0]
+
+
+def competence_details(
+    profile_name: str, n_hands: int = 400, seed: int = 0
+) -> tuple[list[CheckResult], dict[str, float]]:
+    """``competence_report`` plus the INFO_NAMES values (printed, never checked)."""
     villain_profile = load_profile(profile_name)
     hero_profile = load_profile(HERO_PROFILE)
     rng = np.random.default_rng(seed)
@@ -371,21 +410,26 @@ def competence_report(profile_name: str, n_hands: int = 400, seed: int = 0) -> l
 
     results = []
     for name in CHECK_NAMES:
-        mine = [(num, den) for n, num, den in records if n == name]
-        if not mine:
-            value = math.nan
-        elif name in _MAX_CHECKS:
-            value = max(num for num, _ in mine)
-        else:
-            value = sum(num for num, _ in mine) / sum(den for _, den in mine)
+        value, samples = _aggregate(records, name)
         band = _band(villain_profile, name)
         passed = (
-            len(mine) >= MIN_SAMPLES
+            samples >= MIN_SAMPLES
             and not math.isnan(value)
             and band[0] - _TOL <= value <= band[1] + _TOL
         )
-        results.append(CheckResult(profile_name, name, value, band, passed, len(mine)))
-    return results
+        results.append(CheckResult(profile_name, name, value, band, passed, samples))
+    info = {name: _aggregate(records, name)[0] for name in INFO_NAMES}
+    return results, info
+
+
+def _aggregate(records: list[Record], name: str) -> tuple[float, int]:
+    mine = [(num, den, counted) for n, num, den, counted in records if n == name]
+    samples = sum(1 for *_, counted in mine if counted)
+    if not mine:
+        return math.nan, samples
+    if name in _MAX_CHECKS:
+        return max(num for num, _, _ in mine), samples
+    return sum(num for num, _, _ in mine) / sum(den for _, den, _ in mine), samples
 
 
 # ---------------------------------------------------------------------------
@@ -417,8 +461,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args(argv)
     names = PROFILE_NAMES if args.profile == "all" else (args.profile,)
-    results = [r for n in names for r in competence_report(n, args.hands, args.seed)]
+    results: list[CheckResult] = []
+    infos: dict[str, dict[str, float]] = {}
+    for n in names:
+        checks, infos[n] = competence_details(n, args.hands, args.seed)
+        results.extend(checks)
     print(format_table(results))
+    print()
+    print("info (not checks): river_stab = whole-range river stab bet frequency;")
+    print("air_continue_max = AIR call+raise share facing river bets >= 75% pot (max).")
+    for n, info in infos.items():
+        print(f"{n:<8} " + "  ".join(f"{k}={v:.3f}" for k, v in info.items()))
     return 0 if all(r.passed for r in results) else 1
 
 
