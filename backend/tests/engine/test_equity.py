@@ -1,3 +1,4 @@
+import itertools
 import math
 import random
 
@@ -5,12 +6,14 @@ import numpy as np
 import pytest
 
 from poker_trainer.engine.cards import parse_cards
+from poker_trainer.engine.combos import COMBOS
 from poker_trainer.engine.equity import (
     EquityResult,
     ahead_now,
     equity_by_combo,
     equity_vs_range,
 )
+from poker_trainer.engine.evaluator import evaluate
 from poker_trainer.engine.ranges import parse_range
 
 
@@ -137,3 +140,44 @@ def test_equity_by_combo_nan_only_for_blocked():
 def test_equity_by_combo_rejects_early_streets():
     with pytest.raises(ValueError):
         equity_by_combo(hand("AhKd"), parse_cards("Ac7s2d"), parse_range("QQ"))
+
+
+def exact_flop_reference(hero, board, villain):
+    """Independent exact flop equity: enumerate turn+river for every unblocked combo,
+    excluding Hero, board and that combo's cards; average weighted by the range."""
+    dead = set(hero) | set(board)
+    num = den = 0.0
+    for i, (a, b) in enumerate(COMBOS):
+        w = float(villain[i])
+        if w == 0.0 or a in dead or b in dead:
+            continue
+        rest = [c for c in range(52) if c not in dead and c != a and c != b]
+        share = n = 0
+        for t, r in itertools.combinations(rest, 2):
+            h = evaluate(hero + board + (t, r))
+            v = evaluate((a, b) + board + (t, r))
+            share += 2 if h < v else 1 if h == v else 0  # in half-pot units
+            n += 2
+        num += w * share / n
+        den += w
+    return num / den
+
+
+@pytest.mark.parametrize(
+    ("hero_s", "board_s", "range_s"),
+    [
+        # Skewed weights: exact 0.890; an unweighted average would give 0.614.
+        ("AhKd", "Ac7s2d", "QQ, 77:0.05"),
+        # Mixed weights: exact 0.592; unweighted 0.704; without villain-card removal 0.550.
+        ("AhKd", "Ac7s2d", "QQ:0.7, 77, 98s:0.3"),
+        # Villain holds Hero's straight outs (nines, fours): exact 0.343; letting the
+        # runout reuse villain's cards would give 0.377.
+        ("6h5h", "8c7d2s", "99, 44"),
+    ],
+)
+def test_monte_carlo_matches_exact_flop_reference(hero_s, board_s, range_s):
+    hero, board, villain = hand(hero_s), parse_cards(board_s), parse_range(range_s)
+    expected = exact_flop_reference(hero, board, villain)
+    res = equity_vs_range(hero, board, villain, rng=random.Random(2026))
+    assert res.exact is False
+    assert abs(res.equity - expected) < 4 * res.std_error
