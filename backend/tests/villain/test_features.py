@@ -119,3 +119,10 @@ def test_features_fast():
     t0 = time.perf_counter()
     range_features(parse_cards("Qs8d3h"))
     assert time.perf_counter() - t0 < 0.5
+
+
+def test_cached_arrays_read_only():
+    f = range_features(parse_cards("Kh9d2c"))
+    for arr in (f.strength, f.beaten_by, f.outs):
+        with pytest.raises(ValueError):
+            arr[0] = 5

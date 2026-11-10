@@ -87,6 +87,8 @@ def _range_features(board: tuple[int, ...]) -> RangeFeatures:
                     continue
                 count += 1
             outs[i] = count
+    for arr in (strength, beaten_by, outs):
+        arr.flags.writeable = False
     return RangeFeatures(board, strength, beaten_by, outs)
 
 
