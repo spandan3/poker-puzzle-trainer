@@ -1,19 +1,17 @@
-import itertools
 import math
 import random
 
 import numpy as np
 import pytest
+from reference.exact_flop import exact_flop_reference
 
 from poker_trainer.engine.cards import parse_cards
-from poker_trainer.engine.combos import COMBOS
 from poker_trainer.engine.equity import (
     EquityResult,
     ahead_now,
     equity_by_combo,
     equity_vs_range,
 )
-from poker_trainer.engine.evaluator import evaluate
 from poker_trainer.engine.ranges import parse_range
 
 
@@ -140,27 +138,6 @@ def test_equity_by_combo_nan_only_for_blocked():
 def test_equity_by_combo_rejects_early_streets():
     with pytest.raises(ValueError):
         equity_by_combo(hand("AhKd"), parse_cards("Ac7s2d"), parse_range("QQ"))
-
-
-def exact_flop_reference(hero, board, villain):
-    """Independent exact flop equity: enumerate turn+river for every unblocked combo,
-    excluding Hero, board and that combo's cards; average weighted by the range."""
-    dead = set(hero) | set(board)
-    num = den = 0.0
-    for i, (a, b) in enumerate(COMBOS):
-        w = float(villain[i])
-        if w == 0.0 or a in dead or b in dead:
-            continue
-        rest = [c for c in range(52) if c not in dead and c != a and c != b]
-        share = n = 0
-        for t, r in itertools.combinations(rest, 2):
-            h = evaluate(hero + board + (t, r))
-            v = evaluate((a, b) + board + (t, r))
-            share += 2 if h < v else 1 if h == v else 0  # in half-pot units
-            n += 2
-        num += w * share / n
-        den += w
-    return num / den
 
 
 @pytest.mark.parametrize(

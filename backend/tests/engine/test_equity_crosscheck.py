@@ -7,6 +7,7 @@ import time
 import pytest
 from pokerkit import Card, Deck, StandardHighHand, calculate_equities
 from pokerkit import parse_range as pk_parse_range
+from reference.exact_flop import exact_flop_reference
 from reference.naive_equity import naive_turn_equity
 from reference.naive_eval import best_hand_key
 
@@ -26,9 +27,10 @@ def pokerkit_equity(
 ) -> float:
     """Hero equity vs a villain range via pokerkit (villain is pokerkit range syntax).
 
-    pokerkit samples with the module-level ``random``, so seed it for determinism and
-    restore the global state afterwards. (Multi-combo pokerkit ranges are sets whose
-    iteration order can vary with PYTHONHASHSEED; single-combo ranges are deterministic.)
+    pokerkit samples with the module-level ``random``. Seeding it is harmless (global state
+    is restored afterwards) but does NOT make pokerkit reproducible across processes or
+    platforms: it iterates hash-ordered collections, so results depend on PYTHONHASHSEED.
+    Callers must therefore use a statistical tolerance, never a fixed expected value.
     """
     state = random.getstate()
     random.seed(seed)
@@ -152,15 +154,28 @@ def test_matches_pokerkit_random_flops():
         villain_s = card_str(a) + card_str(b)
         villain = empty_range()
         villain[combo_index(a, b)] = 1.0
-        ours = equity_vs_range(
+        exact = exact_flop_reference((cards[0], cards[1]), cards[2:], villain)
+        res = equity_vs_range(
             (cards[0], cards[1]),
             cards[2:],
             villain,
             rng=random.Random(rng.random()),
             samples=100_000,
-        ).equity
-        pk = pokerkit_equity(hero_s, villain_s, board_s, samples=20_000, seed=spot)
-        assert abs(ours - pk) <= 0.01, (hero_s, board_s, villain_s, ours, pk)
+        )
+        # Primary check: our seeded Monte Carlo vs the exact enumeration, at 4 sigma.
+        assert abs(res.equity - exact) <= 4 * res.std_error, (
+            hero_s,
+            board_s,
+            villain_s,
+            res.equity,
+            exact,
+        )
+        # Independent sanity check: pokerkit (not hash-seed deterministic) vs exact, 4 sigma
+        # of its own sampling error.
+        n_pk = 20_000
+        pk = pokerkit_equity(hero_s, villain_s, board_s, samples=n_pk, seed=spot)
+        pk_se = math.sqrt(exact * (1 - exact) / n_pk)
+        assert abs(pk - exact) <= 4 * pk_se, (hero_s, board_s, villain_s, pk, exact)
 
 
 # --- honesty of the standard error --------------------------------------------------------
