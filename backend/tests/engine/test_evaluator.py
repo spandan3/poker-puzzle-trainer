@@ -70,3 +70,7 @@ def test_matches_naive_on_random_7card():
         key_a, key_b = best_hand_key(a), best_hand_key(b)
         expected = _sign((key_a > key_b) - (key_a < key_b))
         assert _sign(evaluate(b) - evaluate(a)) == expected
+
+
+def test_six_card_evaluate():
+    assert evaluate(parse_cards("AhKhQhJhTh2c")) == 1

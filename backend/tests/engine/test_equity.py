@@ -181,3 +181,25 @@ def test_monte_carlo_matches_exact_flop_reference(hero_s, board_s, range_s):
     res = equity_vs_range(hero, board, villain, rng=random.Random(2026))
     assert res.exact is False
     assert abs(res.equity - expected) < 4 * res.std_error
+
+
+def test_ahead_now_turn_hand_verifiable():
+    # Hero has top pair (aces) on Ac7d2s9h: beats every QQ (6 combos), loses to 99
+    # (3 unblocked combos, each makes trips).
+    hero, board = hand("AhKd"), parse_cards("Ac7d2s9h")
+    assert ahead_now(hero, board, parse_range("QQ")) == 1.0
+    assert ahead_now(hero, board, parse_range("99")) == 0.0
+    assert ahead_now(hero, board, parse_range("QQ,99")) == pytest.approx(6 / 9)
+
+
+@pytest.mark.parametrize(
+    ("hero", "villain", "expected"),
+    [
+        ("AhKd", "AsQc", 1.0),  # same high card, better kicker
+        ("AhKd", "KsQc", 1.0),  # higher high card
+        ("QhQd", "JJ", 1.0),  # higher pair
+        ("AhKd", "QQ", 0.0),  # pair beats unpaired
+    ],
+)
+def test_ahead_now_preflop_ordering(hero, villain, expected):
+    assert ahead_now(hand(hero), [], parse_range(villain)) == expected
