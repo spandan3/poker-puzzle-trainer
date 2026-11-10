@@ -1,11 +1,18 @@
+import copy
+import json
 from importlib.resources import files
 
 import numpy as np
 import pytest
 
-from poker_trainer.engine.ranges import total_weight
+from poker_trainer.engine.ranges import parse_range, total_weight
 from poker_trainer.villain.features import HandCategory
-from poker_trainer.villain.profiles import PROFILE_NAMES, Profile, load_profile
+from poker_trainer.villain.profiles import (
+    PROFILE_NAMES,
+    Profile,
+    _profile_from_dict,
+    load_profile,
+)
 
 ROLES = ("cbet", "lead", "stab")
 FACING = ("facing_bet", "facing_raise")
@@ -65,6 +72,71 @@ def test_preflop_ranges_consistent(profile: Profile):
     p = profile.preflop
     assert np.all(p.bb_call + p.bb_threebet <= 1 + 1e-9)
     assert np.all(p.btn_call_threebet + p.btn_jam <= 1 + 1e-9)
+    # Later spots are conditional on reaching them: no weight outside the parent range.
+    for child in (p.btn_call_threebet, p.btn_jam, p.btn_call_jam):
+        assert not np.any((child > 0) & (p.open == 0))
+    assert not np.any((p.bb_call_jam > 0) & (p.bb_threebet == 0))
+
+
+def test_btn_jam_is_value_only(profile: Profile):
+    # A 100bb jam over a 3-bet risks ~97.5bb to win ~10bb, so bluffs need ~91% folds.
+    value = parse_range("TT+, AQs+, AKo")
+    jam = profile.preflop.btn_jam
+    assert not np.any((jam > 0) & (value == 0))
+
+
+def test_tables_are_immutable(profile: Profile):
+    with pytest.raises(TypeError):
+        profile.unopened["cbet"][HandCategory.AIR]["check"] = 0.0  # type: ignore[index]
+    with pytest.raises(TypeError):
+        profile.facing["facing_bet"][HandCategory.AIR] = {}  # type: ignore[index]
+    with pytest.raises(TypeError):
+        profile.unopened["lead"] = {}  # type: ignore[index]
+    with pytest.raises(ValueError):
+        profile.preflop.open[0] = 1.0
+
+
+def _raw(name: str = "tag") -> dict:
+    text = (files("poker_trainer.villain") / "profiles" / f"{name}.json").read_text(
+        encoding="utf-8"
+    )
+    return json.loads(text)
+
+
+def test_loader_accepts_raw_profile():
+    assert _profile_from_dict("tag", _raw()).version == 1
+
+
+def test_bad_row_sum_raises():
+    raw = copy.deepcopy(_raw())
+    raw["unopened"]["cbet"]["AIR"]["check"] = 0.9
+    with pytest.raises(ValueError, match="cbet.AIR"):
+        _profile_from_dict("tag", raw)
+
+
+def test_missing_category_raises():
+    raw = copy.deepcopy(_raw())
+    del raw["facing"]["facing_bet"]["NUTS"]
+    with pytest.raises(ValueError, match="facing_bet"):
+        _profile_from_dict("tag", raw)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda r: r.pop("preflop"),
+        lambda r: r["preflop"].pop("btn_jam"),
+        lambda r: r["bands"].update(bluff_offset=[0.1]),
+        lambda r: r["bands"].update(defence_ratio=[1.2, 0.8]),
+        lambda r: r["facing"].pop("facing_raise"),
+        lambda r: r.update(version=0),
+    ],
+)
+def test_structural_errors_raise_value_error(mutate):
+    raw = copy.deepcopy(_raw())
+    mutate(raw)
+    with pytest.raises(ValueError):
+        _profile_from_dict("tag", raw)
 
 
 def test_unknown_profile_raises():

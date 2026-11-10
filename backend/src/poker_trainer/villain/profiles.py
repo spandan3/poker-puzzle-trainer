@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from importlib.resources import files
+from types import MappingProxyType
+from typing import Any
 
 from poker_trainer.engine.ranges import Range, parse_range
 from poker_trainer.villain.features import HandCategory
@@ -18,7 +21,7 @@ UNOPENED_ACTIONS = ("check", "bet_33", "bet_75")
 FACING_SPOTS = ("facing_bet", "facing_raise")
 FACING_ACTIONS = ("fold", "call", "raise")
 
-Table = dict[HandCategory, dict[str, float]]
+Table = Mapping[HandCategory, Mapping[str, float]]
 
 
 @dataclass(frozen=True)
@@ -46,40 +49,51 @@ class Profile:
     description: str
     version: int
     preflop: PreflopRanges
-    unopened: dict[str, Table]
-    facing: dict[str, Table]
+    unopened: Mapping[str, Table]
+    facing: Mapping[str, Table]
     bands: Bands
 
 
-def _table(raw: dict, actions: tuple[str, ...], where: str) -> Table:
+def _table(raw: Any, actions: tuple[str, ...], where: str) -> Table:
     names = {c.name for c in HandCategory}
-    if set(raw) != names:
+    if not isinstance(raw, dict) or set(raw) != names:
         raise ValueError(f"{where}: categories must be exactly {sorted(names)}")
-    out: Table = {}
+    out: dict[HandCategory, Mapping[str, float]] = {}
     for cat in HandCategory:
         row = raw[cat.name]
-        if set(row) != set(actions):
+        if not isinstance(row, dict) or set(row) != set(actions):
             raise ValueError(f"{where}.{cat.name}: actions must be {actions}")
-        probs = {a: float(row[a]) for a in actions}
+        try:
+            probs = {a: float(row[a]) for a in actions}
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"{where}.{cat.name}: {e}") from e
         if any(not 0.0 <= p <= 1.0 for p in probs.values()):
             raise ValueError(f"{where}.{cat.name}: probabilities must be in [0, 1]")
         if not math.isclose(sum(probs.values()), 1.0, abs_tol=1e-9):
             raise ValueError(f"{where}.{cat.name}: row must sum to 1")
-        out[cat] = probs
-    return out
+        out[cat] = MappingProxyType(probs)
+    return MappingProxyType(out)
 
 
-def _band(raw: list) -> tuple[float, float]:
-    lo, hi = (float(x) for x in raw)
+def _band(raw: Any, where: str) -> tuple[float, float]:
+    if not isinstance(raw, list) or len(raw) != 2:
+        raise ValueError(f"{where}: band must be a [lo, hi] pair")
+    try:
+        lo, hi = (float(x) for x in raw)
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"{where}: {e}") from e
     if lo > hi:
-        raise ValueError(f"band lower bound {lo} exceeds upper bound {hi}")
+        raise ValueError(f"{where}: lower bound {lo} exceeds upper bound {hi}")
     return lo, hi
 
 
-def _ranges(raw: dict) -> PreflopRanges:
+def _ranges(raw: Any, where: str) -> PreflopRanges:
     out = {}
     for name in PreflopRanges.__dataclass_fields__:
-        r = parse_range(raw[name])
+        try:
+            r = parse_range(raw[name])
+        except (KeyError, TypeError, ValueError) as e:
+            raise ValueError(f"{where}.{name}: {e}") from e
         r.setflags(write=False)
         out[name] = r
     return PreflopRanges(**out)
@@ -96,27 +110,43 @@ def _load(name: str) -> Profile:
     text = (files("poker_trainer.villain") / "profiles" / f"{name}.json").read_text(
         encoding="utf-8"
     )
-    raw = json.loads(text)
-    if raw["name"] != name:
-        raise ValueError(f"profile file {name}.json declares name {raw['name']!r}")
-    unopened = {
-        role: _table(raw["unopened"][role], UNOPENED_ACTIONS, f"{name}.unopened.{role}")
-        for role in UNOPENED_ROLES
-    }
-    facing = {
-        spot: _table(raw["facing"][spot], FACING_ACTIONS, f"{name}.facing.{spot}")
-        for spot in FACING_SPOTS
-    }
-    return Profile(
-        name=name,
-        label=str(raw["label"]),
-        description=str(raw["description"]),
-        version=int(raw["version"]),
-        preflop=_ranges(raw["preflop"]),
-        unopened=unopened,
-        facing=facing,
-        bands=Bands(
-            bluff_offset=_band(raw["bands"]["bluff_offset"]),
-            defence_ratio=_band(raw["bands"]["defence_ratio"]),
-        ),
-    )
+    return _profile_from_dict(name, json.loads(text))
+
+
+def _profile_from_dict(name: str, raw: Any) -> Profile:
+    """Build and validate a Profile; every structural problem raises ValueError."""
+    try:
+        if raw["name"] != name:
+            raise ValueError(f"profile file {name}.json declares name {raw['name']!r}")
+        version = int(raw["version"])
+        if version < 1:
+            raise ValueError(f"{name}.version must be >= 1, got {version}")
+        unopened = MappingProxyType(
+            {
+                role: _table(raw["unopened"][role], UNOPENED_ACTIONS, f"{name}.unopened.{role}")
+                for role in UNOPENED_ROLES
+            }
+        )
+        facing = MappingProxyType(
+            {
+                spot: _table(raw["facing"][spot], FACING_ACTIONS, f"{name}.facing.{spot}")
+                for spot in FACING_SPOTS
+            }
+        )
+        return Profile(
+            name=name,
+            label=str(raw["label"]),
+            description=str(raw["description"]),
+            version=version,
+            preflop=_ranges(raw["preflop"], f"{name}.preflop"),
+            unopened=unopened,
+            facing=facing,
+            bands=Bands(
+                bluff_offset=_band(raw["bands"]["bluff_offset"], f"{name}.bands.bluff_offset"),
+                defence_ratio=_band(raw["bands"]["defence_ratio"], f"{name}.bands.defence_ratio"),
+            ),
+        )
+    except KeyError as e:
+        raise ValueError(f"{name}: missing key {e}") from e
+    except TypeError as e:
+        raise ValueError(f"{name}: malformed profile data: {e}") from e
