@@ -1,6 +1,6 @@
 import pytest
 
-from poker_trainer.engine.cards import rank_of, suit_of
+from poker_trainer.engine.cards import parse_card, rank_of, suit_of
 from poker_trainer.engine.combos import (
     COMBOS,
     HAND_CLASSES,
@@ -78,3 +78,11 @@ def test_hand_classes_grid_order():
     for idx, label in enumerate(HAND_CLASSES):
         r, c = grid_position(label)
         assert idx == r * 13 + c
+
+
+def test_combo_order_is_pinned():
+    # Frozen puzzle state stores 1326-arrays in this order; changing it breaks stored data.
+    assert COMBOS[0] == (1, 0)
+    assert COMBOS[1] == (2, 0)
+    assert COMBOS[-1] == (51, 50)
+    assert combo_index(parse_card("As"), parse_card("Ah")) == 1325
