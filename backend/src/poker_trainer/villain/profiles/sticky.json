@@ -1,0 +1,66 @@
+{
+  "name": "sticky",
+  "label": "Sticky",
+  "version": 1,
+  "description": "Competent, but defends wide and calls down lighter than most.",
+  "preflop": {
+    "open": "22+, A2+, K2+, Q2s+, Q4o+, J2s+, J7o+, T2s+, T7o+, 92s+, 97o+, 83s+, 86o+, 73s+, 76o, 62s+, 65o, 52s+, 54o, 42s+, 32s",
+    "bb_call": "22+, A2+, K2+, Q2+, J2+, T2s+, T4o+, 92s+, 95o+, 82s+, 84o+, 72s+, 74o+, 62s+, 63o+, 52s+, 53o+, 42s+, 43o, 32s, QQ+:0, JJ:0.4, AQ+:0, AJs:0.4, KQs:0.5, A2s-A5s:0.7, 87s:0.8, 76s:0.8",
+    "bb_threebet": "QQ+, JJ:0.6, AQ+, AJs:0.6, KQs:0.5, A2s-A5s:0.3, 87s:0.2, 76s:0.2",
+    "bb_call_open_jam": "99+, AQ+, AJs, KQs:0.5",
+    "btn_call_threebet": "22-TT, JJ:0.8, A2s-AQs, AQs:0.8, A2s-A5s:0.8, A2o-AQo, K2s+, K8o+, Q4s+, Q9o+, J6s+, J8o+, T6s+, T8o+, 96s+, 97o+, 85s+, 87o, 74s+, 63s+, 53s+, 43s",
+    "btn_jam": "QQ+, AK, JJ:0.2, AQs:0.2, A2s-A5s:0.2",
+    "btn_call_jam": "TT+, 99:0.5, AQ+, AJs:0.5",
+    "bb_call_jam": "TT+, 99:0.5, AQ+"
+  },
+  "unopened": {
+    "cbet": {
+      "AIR": {"check": 0.7, "bet_33": 0.15, "bet_75": 0.15},
+      "WEAK_DRAW": {"check": 0.5, "bet_33": 0.35, "bet_75": 0.15},
+      "WEAK": {"check": 0.82, "bet_33": 0.15, "bet_75": 0.03},
+      "MEDIUM": {"check": 0.62, "bet_33": 0.32, "bet_75": 0.06},
+      "STRONG_DRAW": {"check": 0.32, "bet_33": 0.36, "bet_75": 0.32},
+      "STRONG": {"check": 0.28, "bet_33": 0.4, "bet_75": 0.32},
+      "NUTS": {"check": 0.12, "bet_33": 0.3, "bet_75": 0.58}
+    },
+    "lead": {
+      "AIR": {"check": 0.95, "bet_33": 0.03, "bet_75": 0.02},
+      "WEAK_DRAW": {"check": 0.92, "bet_33": 0.06, "bet_75": 0.02},
+      "WEAK": {"check": 0.95, "bet_33": 0.05, "bet_75": 0.0},
+      "MEDIUM": {"check": 0.92, "bet_33": 0.07, "bet_75": 0.01},
+      "STRONG_DRAW": {"check": 0.86, "bet_33": 0.1, "bet_75": 0.04},
+      "STRONG": {"check": 0.82, "bet_33": 0.12, "bet_75": 0.06},
+      "NUTS": {"check": 0.78, "bet_33": 0.1, "bet_75": 0.12}
+    },
+    "stab": {
+      "AIR": {"check": 0.6, "bet_33": 0.27, "bet_75": 0.13},
+      "WEAK_DRAW": {"check": 0.48, "bet_33": 0.38, "bet_75": 0.14},
+      "WEAK": {"check": 0.72, "bet_33": 0.24, "bet_75": 0.04},
+      "MEDIUM": {"check": 0.58, "bet_33": 0.34, "bet_75": 0.08},
+      "STRONG_DRAW": {"check": 0.38, "bet_33": 0.35, "bet_75": 0.27},
+      "STRONG": {"check": 0.28, "bet_33": 0.35, "bet_75": 0.37},
+      "NUTS": {"check": 0.22, "bet_33": 0.3, "bet_75": 0.48}
+    }
+  },
+  "facing": {
+    "facing_bet": {
+      "AIR": {"fold": 0.72, "call": 0.23, "raise": 0.05},
+      "WEAK_DRAW": {"fold": 0.4, "call": 0.56, "raise": 0.04},
+      "WEAK": {"fold": 0.3, "call": 0.69, "raise": 0.01},
+      "MEDIUM": {"fold": 0.07, "call": 0.9, "raise": 0.03},
+      "STRONG_DRAW": {"fold": 0.03, "call": 0.82, "raise": 0.15},
+      "STRONG": {"fold": 0.02, "call": 0.85, "raise": 0.13},
+      "NUTS": {"fold": 0.0, "call": 0.65, "raise": 0.35}
+    },
+    "facing_raise": {
+      "AIR": {"fold": 0.92, "call": 0.08, "raise": 0.0},
+      "WEAK_DRAW": {"fold": 0.55, "call": 0.45, "raise": 0.0},
+      "WEAK": {"fold": 0.55, "call": 0.45, "raise": 0.0},
+      "MEDIUM": {"fold": 0.25, "call": 0.75, "raise": 0.0},
+      "STRONG_DRAW": {"fold": 0.1, "call": 0.9, "raise": 0.0},
+      "STRONG": {"fold": 0.07, "call": 0.83, "raise": 0.1},
+      "NUTS": {"fold": 0.0, "call": 0.55, "raise": 0.45}
+    }
+  },
+  "bands": {"bluff_offset": [-0.1, 0.06], "defence_ratio": [1.0, 1.35]}
+}
