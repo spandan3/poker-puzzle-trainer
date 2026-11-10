@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "nuts_max_beaten": 0.005,
+  "strong_min": 0.80,
+  "strong_draw_outs": 8,
+  "medium_min": 0.60,
+  "weak_draw_outs": 4,
+  "weak_min": 0.35
+}
