@@ -26,6 +26,10 @@
 - **Pre-flop equity uses Monte Carlo at runtime**, not a precomputed 169×169 table: exact blocker handling, meets the ±0.5pt bound, no data file. (Spec §6 allowed approximating; this is more accurate.)
 - **Flop equity uses Monte Carlo** (exact flop enumeration is ~2M evaluations in Python, too slow).
 - **"Ahead now" definition:** post-flop = weighted fraction of Villain combos Hero's current best hand beats (ties count half). Pre-flop = the same idea with hole cards only (pair beats unpaired, then high cards), so "22 vs AK" counts as ahead and "AK vs QQ" as behind. Not computed on the river (spec hides it there).
+- **pokerkit cross-check scale:** 50 single-combo flop spots + 4 pre-flop references, not "thousands of hand-vs-range spots" (spec §12). pokerkit has no weighted ranges; weighted-range logic is checked exactly against the independent brute force on turn spots.
+- **Pre-flop reference values** replaced by pokerkit-confirmed values (0.814 / 0.461 / 0.525 / 0.739).
+- **Slow cross-checks run on ubuntu** on main/schedule/dispatch only (CI cost on a private repo); fast tests run on windows + macos for every PR.
+- **Open item for M3:** `class_grid` averages over all combos in a class, so a class partly blocked by Hero's cards shows a lower weight; M3 decides whether the display averages over unblocked combos only.
 
 ## Review Focus
 
