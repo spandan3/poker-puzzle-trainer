@@ -122,23 +122,138 @@ def equity_vs_range(
     uniformly from the cards not held by Hero, the board or that combo.
     ``std_error = sqrt(p(1-p)/n)`` with ``p`` the estimated equity and ``n`` = ``samples``.
     Deterministic for a seeded ``rng``; ``None`` uses a fresh unseeded ``random.Random()``.
+
+    Equivalent to ``combo_equity(hero, board, villain, ...).vs(villain)``.
+    """
+    return combo_equity(hero, board, villain, rng=rng, samples=samples).vs(villain)
+
+
+class UnsampledRange(ValueError):
+    """A Monte Carlo sub-range none of whose positive-weight combos was ever sampled."""
+
+
+@dataclass(frozen=True, eq=False)
+class ComboEquity:
+    """Per-combo outcome table from one equity run, re-weightable to sub-ranges of ``base``.
+
+    All arrays are read-only float64, shape (1326,), indexed like ``COMBOS``.
+
+    - ``base``: the villain range of the run, blocked combos set to 0.
+    - Exact (turn/river): ``wins``/``ties`` are each combo's exact win/tie fractions and
+      ``count`` is 1 on every combo with ``base > 0`` (0 elsewhere).
+    - Monte Carlo (pre-flop/flop): ``count`` is how many samples drew the combo, and
+      ``wins``/``ties`` how many of those Hero won/tied.
+    """
+
+    hero: tuple[int, int]
+    board: tuple[int, ...]
+    base: np.ndarray
+    wins: np.ndarray
+    ties: np.ndarray
+    count: np.ndarray
+    exact: bool
+
+    def vs(self, weights: Range) -> EquityResult:
+        """Hero's equity against the sub-range ``weights`` of ``base``.
+
+        Weights on combos blocked by Hero or the board are ignored. With ``r = weights``
+        (exact) or ``r = weights / base`` (Monte Carlo importance ratio),
+        ``win = sum(r*wins) / sum(r*count)``, ``tie`` likewise, ``equity = win + tie/2``.
+        Monte Carlo ``std_error = sqrt(p(1-p)/n_eff)`` with Kish
+        ``n_eff = sum(r*count)**2 / sum(r*r*count)``.
+
+        Raises ``ValueError("empty range")`` if no unblocked weight is positive,
+        ``ValueError("weights outside base range")`` for a positive unblocked weight
+        where ``base == 0``, and ``UnsampledRange`` if ``sum(r*count) == 0``.
+        """
+        w = np.asarray(weights, dtype=np.float64)
+        if w.shape != (len(COMBOS),):
+            raise ValueError(f"weights must have shape ({len(COMBOS)},), got {w.shape}")
+        if not np.all(np.isfinite(w)) or np.any(w < 0.0):
+            raise ValueError("weights must be finite and non-negative")
+        w = np.where(_live_mask(self.hero, self.board), w, 0.0)
+        if not np.any(w > 0.0):
+            raise ValueError("empty range")
+        in_base = self.base > 0.0
+        if np.any((w > 0.0) & ~in_base):
+            raise ValueError("weights outside base range")
+        if self.exact:
+            r = w
+        else:
+            r = np.zeros_like(w)
+            np.divide(w, self.base, out=r, where=in_base)
+        n = math.fsum(r * self.count)
+        if n == 0.0:
+            raise UnsampledRange("no sampled combo of the sub-range has positive weight")
+        win = math.fsum(r * self.wins) / n
+        tie = math.fsum(r * self.ties) / n
+        p = win + tie / 2
+        if self.exact:
+            return EquityResult(equity=p, win=win, tie=tie, exact=True, std_error=0.0)
+        n_eff = n * n / math.fsum(r * r * self.count)
+        return EquityResult(
+            equity=p, win=win, tie=tie, exact=False, std_error=math.sqrt(p * (1 - p) / n_eff)
+        )
+
+
+def _live_mask(hero: tuple[int, int], board: tuple[int, ...]) -> np.ndarray:
+    """Boolean (1326,): combos sharing no card with Hero or the board."""
+    mask = np.zeros(len(COMBOS), dtype=bool)
+    mask[_unblocked(set(hero) | set(board))] = True
+    return mask
+
+
+def _read_only(a: np.ndarray) -> np.ndarray:
+    a.setflags(write=False)
+    return a
+
+
+def combo_equity(
+    hero: tuple[int, int],
+    board: Sequence[int],
+    villain: Range,
+    *,
+    rng: random.Random | None = None,
+    samples: int = 40_000,
+) -> ComboEquity:
+    """Run one equity computation against ``villain`` and keep the per-combo outcomes.
+
+    Turn/river: exact per-combo fractions for every unblocked positive-weight combo.
+    Pre-flop/flop: Monte Carlo with the same draws as ``equity_vs_range``. Re-weight to
+    any sub-range of ``villain`` with ``ComboEquity.vs``.
+    Deterministic for a seeded ``rng``; ``None`` uses a fresh unseeded ``random.Random()``.
     """
     hero_t, board_t = _validate(hero, board)
     dead = set(hero_t) | set(board_t)
     idx, weights = _weighted_live(villain, dead)
+    base = np.zeros(len(COMBOS), dtype=np.float64)
+    base[idx] = weights
 
     if len(board_t) >= 4:
-        wins, ties = _exact_win_tie(hero_t, board_t, idx)
-        total = math.fsum(weights)
-        win = math.fsum(w * x for w, x in zip(weights, wins, strict=True)) / total
-        tie = math.fsum(w * x for w, x in zip(weights, ties, strict=True)) / total
-        return EquityResult(equity=win + tie / 2, win=win, tie=tie, exact=True, std_error=0.0)
-
-    if samples <= 0:
-        raise ValueError("samples must be positive")
-    if rng is None:
-        rng = random.Random()
-    return _monte_carlo(hero_t, board_t, idx, weights, rng, samples)
+        wins_l, ties_l = _exact_win_tie(hero_t, board_t, idx)
+        wins = np.zeros(len(COMBOS), dtype=np.float64)
+        ties = np.zeros(len(COMBOS), dtype=np.float64)
+        count = np.zeros(len(COMBOS), dtype=np.float64)
+        wins[idx] = wins_l
+        ties[idx] = ties_l
+        count[idx] = 1.0
+        exact = True
+    else:
+        if samples <= 0:
+            raise ValueError("samples must be positive")
+        if rng is None:
+            rng = random.Random()
+        wins, ties, count = _monte_carlo(hero_t, board_t, idx, weights, rng, samples)
+        exact = False
+    return ComboEquity(
+        hero=hero_t,
+        board=board_t,
+        base=_read_only(base),
+        wins=_read_only(wins),
+        ties=_read_only(ties),
+        count=_read_only(count),
+        exact=exact,
+    )
 
 
 def _monte_carlo(
@@ -148,16 +263,22 @@ def _monte_carlo(
     weights: list[float],
     rng: random.Random,
     samples: int,
-) -> EquityResult:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Per-combo sample tallies (wins, ties, count), each float64 of shape (1326,)."""
     dead = set(hero) | set(board)
     live = [c for c in range(52) if c not in dead]
     need = 5 - len(board)
-    picks = rng.choices([COMBOS[i] for i in idx], cum_weights=list(accumulate(weights)), k=samples)
+    # Choosing over the index list consumes the RNG exactly as choosing over the combos.
+    picks = rng.choices(idx, cum_weights=list(accumulate(weights)), k=samples)
     sample = rng.sample
     # On the flop Hero's rank depends only on the unordered (turn, river) pair: cache it.
     hero_cache: dict[tuple[int, ...], int] = {}
-    wins = ties = 0
-    for a, b in picks:
+    n_combos = len(COMBOS)
+    wins = [0] * n_combos
+    ties = [0] * n_combos
+    count = [0] * n_combos
+    for i in picks:
+        a, b = COMBOS[i]
         # The first `need` cards of a uniform ordered draw, after deleting the villain's
         # (at most 2) cards, are a uniform draw from the cards not held by anyone.
         drawn = sample(live, need + 2)
@@ -171,15 +292,15 @@ def _monte_carlo(
         else:
             h = evaluate(hero + full)
         v = evaluate((a, b) + full)
+        count[i] += 1
         if h < v:
-            wins += 1
+            wins[i] += 1
         elif h == v:
-            ties += 1
-    win = wins / samples
-    tie = ties / samples
-    p = win + tie / 2
-    return EquityResult(
-        equity=p, win=win, tie=tie, exact=False, std_error=math.sqrt(p * (1 - p) / samples)
+            ties[i] += 1
+    return (
+        np.asarray(wins, dtype=np.float64),
+        np.asarray(ties, dtype=np.float64),
+        np.asarray(count, dtype=np.float64),
     )
 
 
