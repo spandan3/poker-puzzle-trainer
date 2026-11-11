@@ -1,0 +1,147 @@
+.panel {
+  --history-hero: var(--color-accent);
+  --history-villain: var(--color-warning);
+
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  font-variant-numeric: tabular-nums;
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.street {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-panel-border);
+}
+
+.streetHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 2.45rem; /* the height of a small card, so headers with and without cards match */
+}
+
+.streetName {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.board {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.card {
+  --card-w-sm: 1.75rem;
+}
+
+.list {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, auto) 1fr;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 0.25rem var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+.entry[data-actor='hero'] {
+  --who: var(--history-hero);
+
+  background: var(--color-accent-soft);
+}
+
+.entry[data-actor='villain'] {
+  --who: var(--history-villain);
+}
+
+.who {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--who);
+  border-radius: var(--radius-pill);
+}
+
+.entry[data-actor='villain'] .dot {
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.name {
+  color: var(--who);
+  font-weight: var(--weight-semibold);
+}
+
+.position {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.text {
+  color: var(--color-text);
+}
+
+.none {
+  margin: 0;
+  padding: 0.25rem var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.toAct {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: var(--space-1) 0 0;
+  padding: 0.3rem var(--space-2);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-seat-hero-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.toActDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 0 3px var(--color-seat-hero-glow);
+}
