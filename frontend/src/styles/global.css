@@ -31,8 +31,10 @@ textarea {
   color: inherit;
 }
 
+/* The transparent outline keeps a visible ring in forced-colours mode, where box-shadow is dropped. */
 :focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   box-shadow: var(--focus-ring);
 }
 

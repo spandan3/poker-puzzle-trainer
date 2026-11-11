@@ -2,22 +2,36 @@
   color-scheme: dark;
 
   /* surfaces */
-  --color-bg: #0e1116;
-  --color-bg-raised: #161b22;
-  --color-bg-sunken: #0a0d12;
-  --color-panel: #1a2029;
-  --color-panel-border: #2a3340;
-  --color-felt: #135c3f;
-  --color-felt-dark: #0b3d2a;
-  --color-felt-light: #1b7a55;
-  --color-rail: #3a2a1c;
-  --color-rail-light: #5a4330;
+  --color-bg: #0c0f14;
+  --color-bg-raised: #151a21;
+  --color-bg-sunken: #080a0e;
+  --color-panel: #171c24;
+  --color-panel-border: #283140;
+  --color-bg-glow: rgb(26 92 70 / 18%);
+
+  /* table: felt */
+  --color-felt: #0f5c44;
+  --color-felt-dark: #0a3b2c;
+  --color-felt-light: #156a4f;
+  --color-felt-edge: #062619;
+  --color-felt-line: rgb(255 255 255 / 9%);
+  --color-felt-shade: rgb(0 0 0 / 55%);
+
+  /* table: rail (dark leather with a lit upper edge) */
+  --color-rail: #2b1e15;
+  --color-rail-light: #4a3424;
+  --color-rail-dark: #150e09;
+  --color-rail-highlight: rgb(255 226 186 / 16%);
+  --color-rail-trim: rgb(214 176 112 / 28%);
 
   /* text */
   --color-text: #e8edf3;
   --color-text-muted: #a3adba;
-  --color-text-faint: #7c8796;
+  --color-text-faint: #8691a0;
   --color-text-on-accent: #07140e;
+  /* text drawn on the felt (AA on its lightest point) */
+  --color-text-on-felt: #f4f8f6;
+  --color-text-on-felt-muted: #d3e6dc;
 
   /* accents and states */
   --color-accent: #3ddc97;
@@ -36,22 +50,54 @@
 
   /* cards */
   --color-card-face: #fbfaf6;
+  --color-card-face-shade: #efece3;
   --color-card-edge: #c9c4b6;
   --color-suit-red: #c8202f;
   --color-suit-black: #17202b;
-  --color-card-back: #1d3f8f;
-  --color-card-back-pattern: #5b82d6;
-  --color-slot-outline: rgb(255 255 255 / 22%);
+  --color-card-back: #1b3a7a;
+  --color-card-back-dark: #12285a;
+  --color-card-back-pattern: rgb(140 170 235 / 38%);
+  --color-card-back-frame: #e9eef8;
+  --color-slot-outline: rgb(255 255 255 / 30%);
+  --color-slot-fill: rgb(0 0 0 / 14%);
+
+  /* seats */
+  --color-seat-bg: #121820;
+  --color-seat-bg-top: #1b232e;
+  --color-seat-border: rgb(255 255 255 / 10%);
+  --color-seat-hero-border: rgb(61 220 151 / 55%);
+  --color-seat-hero-glow: rgb(61 220 151 / 18%);
+  --color-badge-bg: rgb(255 255 255 / 8%);
+  --color-badge-border: rgb(255 255 255 / 14%);
+  --color-badge-text: #c9d1dc;
+  --color-profile-bg: rgb(245 184 74 / 14%);
+  --color-profile-border: rgb(245 184 74 / 45%);
+  --color-profile-text: #f6c873;
+  --color-allin-bg: rgb(255 107 107 / 16%);
+  --color-allin-text: #ff9a9a;
+  --color-tooltip-bg: #f1f4f8;
+  --color-tooltip-text: #121820;
+  --color-dealer-face: #f7f5ef;
+  --color-dealer-ring: #c9c4b6;
+  --color-dealer-text: #141a22;
+  --color-bet-bg: rgb(6 20 14 / 72%);
+  --color-bet-text: #f2f5f8;
 
   /* chips */
   --color-chip: #e9edf2;
   --color-chip-edge: #c23b3b;
+  --color-chip-side: #9b2c2c;
   --color-chip-text: #1a2029;
+  --color-chip-alt: #2f6fd0;
+  --color-chip-alt-side: #224f96;
+  --color-chip-stripe: rgb(255 255 255 / 85%);
 
   /* typography */
   --font-sans:
     system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  --font-card: 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --text-2xs: 0.6875rem;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-md: 1rem;
@@ -59,7 +105,10 @@
   --text-xl: 1.625rem;
   --weight-regular: 400;
   --weight-medium: 500;
+  --weight-semibold: 600;
   --weight-bold: 700;
+  --weight-black: 800;
+  --tracking-caps: 0.06em;
 
   /* spacing */
   --space-1: 0.25rem;
@@ -76,10 +125,28 @@
   --radius-lg: 14px;
   --radius-pill: 999px;
 
+  /* card sizes (width; height follows the 5:7 card ratio) */
+  --card-w-sm: 2.5rem;
+  --card-w-md: 3.5rem;
+  --card-w-lg: 4.5rem;
+
+  /* table geometry (em, scaled with the table's width) */
+  --table-max-w: 76rem;
+  --table-font-min: 11px;
+  --table-font-fluid: 1.6cqi;
+  --table-font-max: 17px;
+  --table-rail: 1.45em;
+  --seat-w: 10.5em;
+
   /* shadows */
   --shadow-card: 0 2px 6px rgb(0 0 0 / 45%);
+  --shadow-card-drop: 0 0.12em 0.3em rgb(0 0 0 / 45%);
   --shadow-panel: 0 6px 24px rgb(0 0 0 / 35%);
   --shadow-raised: 0 10px 30px rgb(0 0 0 / 50%);
+  --shadow-table: 0 2.2em 4em rgb(0 0 0 / 55%), 0 0.4em 1em rgb(0 0 0 / 45%);
+  --shadow-seat: 0 0.45em 1.2em rgb(0 0 0 / 50%), 0 0.1em 0.25em rgb(0 0 0 / 40%);
+  --shadow-dealer: 0 0.12em 0.3em rgb(0 0 0 / 55%);
+  --shadow-tooltip: 0 6px 18px rgb(0 0 0 / 45%);
   --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-focus);
 
   /* motion */
@@ -87,6 +154,7 @@
   --duration-base: 200ms;
   --duration-slow: 350ms;
   --duration-deal: 120ms;
+  --duration-deal-in: 320ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 

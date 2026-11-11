@@ -1,0 +1,128 @@
+/*
+ * The table scales as a drawing: its font size follows the container width (within bounds) and
+ * everything inside is sized in em. Card size tokens are re-declared in em here, so cards drawn
+ * on the table (seats and board) scale with it.
+ *
+ * Centre budget (for the board, pot and pot odds): `.centre` is a box between Villain's bet and
+ * Hero's bet, from 6em below the rail's top edge to 10.8em above its bottom edge. The rail is
+ * at least 27em tall, so the box is at least 10.2em tall. Content centred in it that is at most
+ * 22em wide and 10em tall never touches a seat, its cards, bet or dealer button, in any slot
+ * (heads-up or five seats), at any table width. Five md board cards in a row are 19.6em wide and
+ * 5em tall, which leaves room for a pot line and a pot-odds line.
+ */
+.table {
+  container-type: inline-size;
+  width: 100%;
+  max-width: var(--table-max-w);
+  margin-inline: auto;
+}
+
+.scale {
+  --card-w-sm: 2.6em;
+  --card-w-md: 3.6em;
+  --card-w-lg: 4.6em;
+
+  padding: 6.1em 2.6em 2.9em;
+  font-size: clamp(var(--table-font-min), var(--table-font-fluid), var(--table-font-max));
+}
+
+.rail {
+  position: relative;
+  min-height: 27em;
+  aspect-ratio: 1.9 / 1;
+  background: linear-gradient(
+    180deg,
+    var(--color-rail-light) 0%,
+    var(--color-rail) 28%,
+    var(--color-rail-dark) 100%
+  );
+  border-radius: var(--radius-pill);
+  box-shadow:
+    var(--shadow-table),
+    inset 0 0.12em 0 var(--color-rail-highlight),
+    inset 0 -0.15em 0.3em var(--color-felt-shade);
+}
+
+/* a soft lit edge along the inside of the rail */
+.rail::before {
+  position: absolute;
+  inset: calc(var(--table-rail) * 0.45);
+  pointer-events: none;
+  content: '';
+  border-top: 1px solid var(--color-rail-highlight);
+  border-radius: var(--radius-pill);
+}
+
+.felt {
+  position: absolute;
+  inset: var(--table-rail);
+  overflow: hidden;
+  background: radial-gradient(
+    ellipse 72% 80% at 50% 42%,
+    var(--color-felt-light) 0%,
+    var(--color-felt) 42%,
+    var(--color-felt-dark) 82%,
+    var(--color-felt-edge) 100%
+  );
+  border-radius: var(--radius-pill);
+  box-shadow:
+    0 0 0 1px var(--color-rail-trim),
+    inset 0 0.5em 2.2em var(--color-felt-shade),
+    inset 0 0 0.3em var(--color-felt-shade);
+}
+
+/* the betting line */
+.felt::before {
+  position: absolute;
+  inset: 2.4em 3.2em;
+  pointer-events: none;
+  content: '';
+  border: 1px solid var(--color-felt-line);
+  border-radius: var(--radius-pill);
+}
+
+.centre {
+  position: absolute;
+  top: calc(6em - var(--table-rail));
+  right: 0;
+  bottom: calc(10.8em - var(--table-rail));
+  left: 0;
+  display: grid;
+  place-items: center;
+}
+
+.seat {
+  position: absolute;
+  z-index: var(--z-seat);
+  transform: translate(-50%, -50%);
+}
+
+.seat[data-slot='bottom'] {
+  top: calc(100% - var(--table-rail) / 2);
+  left: 50%;
+}
+
+.seat[data-slot='top'] {
+  top: calc(var(--table-rail) / 2);
+  left: 50%;
+}
+
+.seat[data-slot='top-left'] {
+  top: 14%;
+  left: 15%;
+}
+
+.seat[data-slot='top-right'] {
+  top: 14%;
+  left: 85%;
+}
+
+.seat[data-slot='bottom-left'] {
+  top: 86%;
+  left: 15%;
+}
+
+.seat[data-slot='bottom-right'] {
+  top: 86%;
+  left: 85%;
+}

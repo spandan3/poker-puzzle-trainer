@@ -1,0 +1,37 @@
+.stack {
+  display: block;
+  width: 1.75em;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(var(--shadow-dealer));
+}
+
+.main {
+  --chip-face: var(--color-chip-edge);
+  --chip-side: var(--color-chip-side);
+}
+
+.alt {
+  --chip-face: var(--color-chip-alt);
+  --chip-side: var(--color-chip-alt-side);
+}
+
+.side {
+  fill: var(--chip-side);
+}
+
+.top {
+  fill: var(--chip-face);
+}
+
+.stripes {
+  fill: none;
+  stroke: var(--color-chip-stripe);
+  stroke-width: 1.4;
+  stroke-dasharray: 2.6 3.4;
+}
+
+.inlay {
+  fill: var(--color-chip);
+  opacity: 0.9;
+}
