@@ -294,6 +294,14 @@ def option_view(o: OptionEV, *, best: bool, chosen: bool, dead: Collection[int])
     }
 
 
+def _action_view(stored: dict[str, Any]) -> dict[str, Any]:
+    """The stored action JSON with ``street`` as a name, like every other street in the API."""
+    out = dict(stored)
+    if isinstance(out.get("street"), int):
+        out["street"] = _street_name(Street(out["street"]))
+    return out
+
+
 def _range_step(v: RangeView, dead: Collection[int]) -> dict[str, Any]:
     return {
         "label": v.label,
@@ -347,7 +355,7 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
         "answer": {
             "option_index": a["option_index"],
             "custom_to": a["custom_to"],
-            "action": dict(a["action"]),
+            "action": _action_view(a["action"]),
             "equity_guess": float(a["equity_guess"]),
             "range_read_guess": _opt_float(a["range_read_guess"]),
             "intent": a["intent"],

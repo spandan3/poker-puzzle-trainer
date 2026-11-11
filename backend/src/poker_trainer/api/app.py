@@ -191,6 +191,14 @@ def _service_error(_request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
 
+def _internal_error(_request: Request, _exc: Exception) -> JSONResponse:
+    """Unexpected errors keep the ``{"detail": ...}`` shape (Starlette's default is plain text).
+
+    Starlette still re-raises the exception after sending this, so the server logs the traceback.
+    """
+    return JSONResponse({"detail": "internal server error"}, status_code=500)
+
+
 def _json_safe(obj: Any) -> Any:
     """Non-finite floats become strings (a 422 echoes the rejected input, e.g. NaN)."""
     if isinstance(obj, float) and not math.isfinite(obj):
@@ -230,6 +238,7 @@ def create_app(
     app.state.puzzle_factory = puzzle_factory or service.default_factory
     app.add_exception_handler(ServiceError, _service_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
+    app.add_exception_handler(Exception, _internal_error)
     app.include_router(router)
     app.add_api_route(
         "/{full_path:path}",

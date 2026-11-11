@@ -3,16 +3,19 @@ import zlib
 from dataclasses import replace
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import select, update
 
 import poker_trainer
 from poker_trainer.api import service, views
+from poker_trainer.api.app import create_app
 from poker_trainer.db import DEFAULT_USER_ID, AttemptRow, PuzzleRow, User, UserSettings
 from poker_trainer.engine.cards import card_str
 from poker_trainer.game.state import Street
 from poker_trainer.puzzle.grade import Answer, grade
 from poker_trainer.puzzle.model import load_config
 from poker_trainer.puzzle.options import custom_action
+from poker_trainer.settings import AppSettings
 from poker_trainer.villain.features import load_thresholds
 from poker_trainer.villain.profiles import load_profile
 
@@ -149,6 +152,13 @@ def test_submit_listed_option(client, cached_puzzles):
     assert res["attempt"]["attempt_no"] == 1
     assert res["attempt"]["puzzle_id"] == pid
     assert res["answer"]["option_index"] == 1 and res["answer"]["custom_to"] is None
+    act = p.solution.options[1].option.action
+    assert res["answer"]["action"] == {
+        "seat": act.seat,
+        "kind": act.kind.value,
+        "street": "flop",  # a name, like every other street in the API (stored as an int)
+        "to": act.to,
+    }
     assert res["reveal"]["villain_cards"] == [card_str(c) for c in p.spot.villain_hole]
     assert sum(o["is_chosen"] for o in res["options"]) == 1
     assert len(res["options"]) == len(p.solution.options)
@@ -418,3 +428,19 @@ def test_concurrent_submit_exhausted_retry_409(client, monkeypatch):
     r = _submit(client, pid, option=0)
     assert r.status_code == 409
     assert r.json() == {"detail": "concurrent submit, try again"}
+
+
+def test_unexpected_error_is_json_500(tmp_path):
+    """Any unhandled error still answers ``{"detail": ...}`` as JSON, never plain text."""
+
+    def broken(seed, street, profile):
+        raise ValueError("boom")
+
+    settings = AppSettings(
+        _env_file=None, database_url=f"sqlite:///{(tmp_path / 'e.db').as_posix()}"
+    )
+    app = create_app(settings, puzzle_factory=broken)
+    with TestClient(app, raise_server_exceptions=False) as c:
+        r = c.post("/api/puzzles", json={})
+    assert r.status_code == 500
+    assert r.json() == {"detail": "internal server error"}

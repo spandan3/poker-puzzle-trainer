@@ -38,9 +38,5 @@ HAND_CLASS_NAMES: Mapping[HandClass, str] = MappingProxyType(
 JUDGED_ON_RANGE = "Graded against Villain's whole range, not this run-out."
 
 
-def category_name(code: str) -> str:
-    return CATEGORY_NAMES[code]
-
-
 def simplification_text(code: str) -> str:
     return SIMPLIFICATIONS[code]
