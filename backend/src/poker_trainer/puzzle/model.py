@@ -59,6 +59,11 @@ class TrivialConfig:
 
 
 @dataclass(frozen=True)
+class IntentConfig:
+    semi_bluff_equity: float
+
+
+@dataclass(frozen=True)
 class PuzzleConfig:
     version: int
     street_weights: Mapping[str, float]
@@ -68,6 +73,7 @@ class PuzzleConfig:
     score: ScoreConfig
     trivial: TrivialConfig
     max_attempts: int
+    intent: IntentConfig
 
 
 @lru_cache(maxsize=1)
@@ -84,6 +90,7 @@ def load_config() -> PuzzleConfig:
         score=ScoreConfig(**raw["score"]),
         trivial=TrivialConfig(**raw["trivial"]),
         max_attempts=raw["max_attempts"],
+        intent=IntentConfig(**raw["intent"]),
     )
 
 

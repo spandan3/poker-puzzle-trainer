@@ -23,7 +23,16 @@ _INTENT_REASON = {
     "bluff": "only better hands continue",
     "semi_bluff": "better hands continue but you still have real equity",
 }
-_SEMI_BLUFF_EQUITY = 0.30
+_NEVER_CONTINUES_REASON = {
+    "bluff": (
+        "Villain always folds here, so this bet wins the pot uncontested; "
+        "it's a bluff with fold equity only"
+    ),
+    "value": (
+        "Villain always folds here, so this bet wins the pot uncontested, "
+        "though your hand would also be ahead if called"
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -79,7 +88,11 @@ def _intent_truth(chosen: OptionEV, street: Street, overall_equity: float) -> In
         return "bluff" if overall_equity < 0.5 else "value"
     if (ahead if ahead is not None else eq) >= 0.5 - _EPS:  # type: ignore[operator]
         return "value"
-    if street < Street.RIVER and eq is not None and eq >= _SEMI_BLUFF_EQUITY - _EPS:
+    if (
+        street < Street.RIVER
+        and eq is not None
+        and eq >= load_config().intent.semi_bluff_equity - _EPS
+    ):
         return "semi_bluff"
     return "bluff"
 
@@ -113,6 +126,11 @@ def _resolve(p: Puzzle, action: Action, respond: Respond | None) -> OptionEV:
 
 
 def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
+    """Grade ``a`` against ``p``.
+
+    The profile-version check runs only for custom sizes with the default ``respond``;
+    callers that inject ``respond`` own that check.
+    """
     sol = p.solution
     s = p.spot.state
     chosen = _resolve(p, a.action, respond)
@@ -124,7 +142,7 @@ def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
     rr_error: float | None = None
     rr_score: Score | None = None
     if s.street != Street.RIVER and a.range_read_guess is not None and sol.ahead_now is not None:
-        rr_error = abs(a.range_read_guess - sol.ahead_now)
+        rr_error = float(abs(a.range_read_guess - sol.ahead_now))
         rr_score = _score(rr_error)
 
     truth: str | None = None
@@ -133,9 +151,9 @@ def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
     if a.action.kind in _AGGRESSIVE:
         truth = _intent_truth(chosen, s.street, sol.equity)
         if a.intent is not None and a.intent != truth:
-            flag = (
-                f"You called this {_INTENT_TEXT[a.intent]}, but {_INTENT_REASON[truth]} ({truth})."
-            )
+            never = chosen.ahead_vs_continue is None and chosen.equity_vs_continue is None
+            reason = _NEVER_CONTINUES_REASON[truth] if never else _INTENT_REASON[truth]
+            flag = f"You labelled this {_INTENT_TEXT[a.intent]}, but {reason} ({truth})."
         if chosen.required_fold_equity is not None and chosen.fold_freq is not None:
             bluff = (chosen.required_fold_equity, chosen.fold_freq)
 

@@ -115,6 +115,7 @@ def test_config_and_simplifications():
     c = load_config()
     assert c.samples == 40000 and c.verdict.best_bb == 0.25 and c.max_attempts == 200
     assert c.street_weights["flop"] == 0.30
+    assert c.version == 2 and c.intent.semi_bluff_equity == 0.30
     assert set(SIMPLIFICATIONS) == {"realisation", "reraise_reply", "preflop_size"}
 
 

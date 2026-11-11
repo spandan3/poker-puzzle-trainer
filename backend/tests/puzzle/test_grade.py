@@ -150,9 +150,12 @@ def test_intent_truths_and_flag():
     p, bet = _intent_puzzle(ahead=0.1, eq_c=0.1)  # river: no semi-bluff
     g = grade(p, Answer(bet, 0.5, intent="value"))
     assert g.intent_truth == "bluff"
-    assert g.intent_flag == "You called this a value bet, but only better hands continue (bluff)."
+    assert g.intent_flag == "You labelled this a value bet, but only better hands continue (bluff)."
     p, bet = _intent_puzzle(ahead=None, eq_c=None, equity=0.3)
-    assert grade(p, Answer(bet, 0.5)).intent_truth == "bluff"
+    g = grade(p, Answer(bet, 0.5, intent="value"))
+    assert g.intent_truth == "bluff"
+    assert g.intent_flag is not None
+    assert "always folds" in g.intent_flag and "better" not in g.intent_flag
     p, bet = _intent_puzzle(ahead=None, eq_c=None, equity=0.7)
     g = grade(p, Answer(bet, 0.5))
     assert g.intent_truth == "value" and g.intent_flag is None
@@ -225,3 +228,39 @@ def test_listed_option_needs_no_profile():
     p, _ = _puzzle(profile_version=999)
     opt = p.solution.options[0]
     assert grade(p, Answer(opt.option.action, 0.5)).chosen is opt
+
+
+def test_best_by_two_percent_of_pot():
+    s = river_spot("checked")
+    big = replace(s, pot=100)  # P well above 50, so 2% of P > best margin
+    p, _ = _puzzle(
+        evs=[
+            _ev("check", Action(0, ActionKind.CHECK, Street.RIVER), 5.0),
+            _ev("bet", Action(0, ActionKind.BET, Street.RIVER, 5), 4.1),
+        ]
+    )
+    p = Puzzle(replace(p.spot, state=big), p.solution)
+    assert total_pot(big) >= 50
+    bet = Action(0, ActionKind.BET, Street.RIVER, 5)
+    assert grade(p, Answer(bet, 0.5)).verdict == "best"  # loss 0.9 > 0.5 but <= 2% of P
+
+
+def test_best_margin_plus_a_little_is_fine():
+    p, bet = _verdict_puzzle(0.51)
+    assert grade(p, Answer(bet, 0.5)).verdict == "fine"
+
+
+def test_semi_bluff_at_exact_cutoff():
+    bet = Action(0, ActionKind.BET, Street.FLOP, 5)
+    chk = Action(0, ActionKind.CHECK, Street.FLOP)
+    p = _flop_puzzle(
+        [_ev("bet", bet, 2.0, fold=0.4, eq_c=0.30, ahead_c=0.2, req=0.25, put=5), _ev("c", chk, 1)]
+    )
+    assert grade(p, Answer(bet, 0.5)).intent_truth == "semi_bluff"
+
+
+def test_intent_with_ahead_none_uses_equity():
+    p, bet = _intent_puzzle(ahead=None, eq_c=0.7)
+    assert grade(p, Answer(bet, 0.5)).intent_truth == "value"
+    p, bet = _intent_puzzle(ahead=None, eq_c=0.1)
+    assert grade(p, Answer(bet, 0.5)).intent_truth == "bluff"
