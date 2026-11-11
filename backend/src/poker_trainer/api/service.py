@@ -30,6 +30,8 @@ from poker_trainer.puzzle.generate import generate_puzzle, parse_street
 from poker_trainer.puzzle.grade import Answer, Grade, grade
 from poker_trainer.puzzle.model import FORMAT, Puzzle, load_config
 from poker_trainer.puzzle.options import custom_action
+from poker_trainer.settings import AppSettings
+from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile
 
 PuzzleFactory = Callable[[int, Street | None, str | None], Puzzle]
 
@@ -59,6 +61,10 @@ class InvalidAnswer(ServiceError):
 
 
 class StaleModel(ServiceError):
+    status_code = 409
+
+
+class ConcurrentSubmit(ServiceError):
     status_code = 409
 
 
@@ -278,7 +284,7 @@ def submit_attempt(
         except IntegrityError:
             db.rollback()
             if retry:
-                raise
+                raise ConcurrentSubmit("concurrent submit, try again") from None
             continue
         return row, p
     raise AssertionError("unreachable")
@@ -331,3 +337,126 @@ def attempt_result_for(
     return attempt_result(
         attempt=attempt_dict(row), puzzle=p, chosen=option_ev_from_dict(row.chosen)
     )
+
+
+# ---------------------------------------------------------------------------
+# Replay, history
+# ---------------------------------------------------------------------------
+
+
+def current_puzzle(db: Session, user_id: int) -> tuple[int, Puzzle]:
+    """The user's newest puzzle with no attempts (to resume after a reload), else 404."""
+    answered = select(AttemptRow.puzzle_id).where(AttemptRow.user_id == user_id)
+    pid = db.scalar(
+        select(PuzzleRow.id)
+        .where(PuzzleRow.user_id == user_id, PuzzleRow.id.not_in(answered))
+        .order_by(PuzzleRow.id.desc())
+        .limit(1)
+    )
+    if pid is None:
+        raise NotFound("no unanswered puzzle")
+    return pid, load_puzzle(db, user_id, pid)[1]
+
+
+def _summary(m: Any) -> dict[str, Any]:
+    return {
+        "attempt_id": m.id,
+        "puzzle_id": m.puzzle_id,
+        "attempt_no": m.attempt_no,
+        "is_first": m.is_first,
+        "created_at": m.created_at.isoformat(),
+        "street": m.street,
+        "profile": m.profile,
+        "chosen_label": m.chosen["label"],
+        "verdict": m.verdict,
+        "ev_loss_bb": m.ev_loss_chips / 2,
+        "equity_error": m.equity_error,
+        "range_read_error": m.range_read_error,
+    }
+
+
+def _summary_query(user_id: int) -> Any:
+    """Attempt columns joined to the puzzle's street and profile; never the puzzle blob."""
+    return (
+        select(
+            AttemptRow.id,
+            AttemptRow.puzzle_id,
+            AttemptRow.attempt_no,
+            AttemptRow.is_first,
+            AttemptRow.created_at,
+            AttemptRow.chosen,
+            AttemptRow.verdict,
+            AttemptRow.ev_loss_chips,
+            AttemptRow.equity_error,
+            AttemptRow.range_read_error,
+            PuzzleRow.street,
+            PuzzleRow.profile,
+        )
+        .join(PuzzleRow, PuzzleRow.id == AttemptRow.puzzle_id)
+        .where(AttemptRow.user_id == user_id, PuzzleRow.user_id == user_id)
+    )
+
+
+def puzzle_attempts(db: Session, user_id: int, puzzle_id: int) -> list[dict[str, Any]]:
+    """Attempt summaries of one puzzle, oldest first (404 if it isn't the user's)."""
+    if not 0 < puzzle_id <= MAX_ID:
+        raise NotFound("puzzle not found")
+    owned = db.scalar(
+        select(PuzzleRow.id).where(PuzzleRow.id == puzzle_id, PuzzleRow.user_id == user_id)
+    )
+    if owned is None:
+        raise NotFound("puzzle not found")
+    q = _summary_query(user_id).where(AttemptRow.puzzle_id == puzzle_id)
+    return [_summary(m) for m in db.execute(q.order_by(AttemptRow.attempt_no)).all()]
+
+
+def history(
+    db: Session, user_id: int, *, limit: int, offset: int, first_only: bool
+) -> dict[str, Any]:
+    q = _summary_query(user_id)
+    if first_only:
+        q = q.where(AttemptRow.is_first.is_(True))
+    total = db.scalar(select(func.count()).select_from(q.subquery())) or 0  # same rows as items
+    rows = db.execute(q.order_by(AttemptRow.id.desc()).limit(limit).offset(offset)).all()
+    return {"items": [_summary(m) for m in rows], "total": total}
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+
+def _settings_row(db: Session, user_id: int) -> UserSettings:
+    row = db.get(UserSettings, user_id)
+    if row is None:
+        row = UserSettings(user_id=user_id)
+        db.add(row)
+        db.flush()
+    return row
+
+
+def settings_view(db: Session, user_id: int, app_settings: AppSettings) -> dict[str, Any]:
+    row = _settings_row(db, user_id)
+    profiles = []
+    for name in PROFILE_NAMES:
+        prof = load_profile(name)
+        profiles.append({"name": name, "label": prof.label, "description": prof.description})
+    return {
+        "show_pot_odds": bool(row.show_pot_odds),
+        "show_profile": bool(row.show_profile),
+        "profile": row.profile,
+        "daily_goal": int(row.daily_goal),
+        "llm_provider": app_settings.llm_provider,
+        "llm_status": "off" if app_settings.llm_provider == "none" else "on",
+        "profiles": profiles,
+    }
+
+
+def patch_settings(db: Session, user_id: int, changes: dict[str, Any]) -> None:
+    """Apply only the fields the client sent; an empty patch changes nothing."""
+    row = _settings_row(db, user_id)
+    for key, value in changes.items():
+        setattr(row, key, value)
+    if changes:
+        row.updated_at = utcnow()
+    db.commit()
