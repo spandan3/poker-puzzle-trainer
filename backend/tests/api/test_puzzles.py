@@ -111,6 +111,18 @@ def test_new_puzzle_uses_settings_profile(client, sessions, factory):
     assert factory.calls[-1][2] == "sticky"
     _new(client, profile="tag")  # an explicit profile wins
     assert factory.calls[-1][2] == "tag"
+    _new(client, profile="random")  # random, whatever the settings say
+    assert factory.calls[-1][2] is None
+
+
+def test_new_puzzle_stale_settings_profile_is_random(client, sessions, factory):
+    """A settings profile that no longer exists falls back to random instead of a 500."""
+    with sessions() as db:
+        db.execute(update(UserSettings).values(profile="retired"))
+        db.commit()
+    _new(client)
+    assert factory.calls[-1][2] is None
+    assert client.get("/api/settings").json()["profile"] is None
 
 
 def test_new_puzzle_bad_street_422(client):
@@ -444,3 +456,35 @@ def test_unexpected_error_is_json_500(tmp_path):
         r = c.post("/api/puzzles", json={})
     assert r.status_code == 500
     assert r.json() == {"detail": "internal server error"}
+
+
+@pytest.mark.parametrize("raw", ['"0.5"', "true", "false"])
+def test_equity_guess_strict(client, raw):
+    pid = _new(client, street="flop")["id"]
+    for field in ("equity_guess", "range_read_guess"):
+        fields = {"option": "0", "equity_guess": "0.4", field: raw}
+        body = "{" + ", ".join(f'"{k}": {v}' for k, v in fields.items()) + "}"
+        r = client.post(
+            f"/api/puzzles/{pid}/attempts",
+            content=body,
+            headers={"content-type": "application/json"},
+        )
+        assert r.status_code == 422, (field, raw)
+    assert _submit(client, pid, option=0, equity_guess=1).status_code == 201  # ints are fine
+
+
+def test_ignored_inputs_stored_as_none(client, sessions, cached_puzzles):
+    """A river range read and an intent on a passive action aren't graded, so aren't kept."""
+    river = _new(client, street="river")
+    passive = next(o["index"] for o in river["options"] if o["kind"] in ("check", "fold"))
+    res = _submit(client, river["id"], option=passive, range_read_guess=0.3, intent="bluff").json()
+    assert res["answer"]["range_read_guess"] is None and res["grade"]["range_read_guess"] is None
+    assert res["answer"]["intent"] is None and res["grade"]["intent"] is None
+    with sessions() as db:
+        row = db.get(AttemptRow, res["attempt"]["id"])
+        assert row.range_read_guess is None and row.intent is None
+
+    flop = _new(client, street="flop")
+    bet = next(o["index"] for o in flop["options"] if o["kind"] in ("bet", "raise"))
+    res = _submit(client, flop["id"], option=bet, range_read_guess=0.3, intent="bluff").json()
+    assert res["answer"]["range_read_guess"] == 0.3 and res["answer"]["intent"] == "bluff"

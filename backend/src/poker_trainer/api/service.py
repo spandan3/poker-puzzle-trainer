@@ -16,7 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from poker_trainer.api.schemas import AttemptIn
+from poker_trainer.api.schemas import RANDOM_PROFILE, AttemptIn
 from poker_trainer.api.views import (
     attempt_result,
     option_ev_from_dict,
@@ -25,7 +25,7 @@ from poker_trainer.api.views import (
 )
 from poker_trainer.db.blob import decode_puzzle, encode_puzzle
 from poker_trainer.db.models import AttemptRow, PuzzleRow, UserSettings, utcnow
-from poker_trainer.game.state import Action, Street
+from poker_trainer.game.state import Action, ActionKind, Street
 from poker_trainer.puzzle.generate import generate_puzzle, parse_street
 from poker_trainer.puzzle.grade import Answer, Grade, grade
 from poker_trainer.puzzle.model import FORMAT, Puzzle, load_config
@@ -89,10 +89,19 @@ def new_seed() -> int:
 # ---------------------------------------------------------------------------
 
 
+_AGGRESSIVE = (ActionKind.BET, ActionKind.RAISE)
+
+
+def _known_profile(name: str | None) -> str | None:
+    """``name`` if it is still a profile, else None (random): a stored profile that has since
+    been renamed or removed must not break generation or the settings view."""
+    return name if name in PROFILE_NAMES else None
+
+
 def settings_profile(db: Session, user_id: int) -> str | None:
-    """The user's preferred Villain profile, or None for random."""
+    """The user's preferred Villain profile, or None for random (also when it no longer exists)."""
     row = db.get(UserSettings, user_id)
-    return None if row is None else row.profile
+    return None if row is None else _known_profile(row.profile)
 
 
 def new_puzzle(
@@ -103,9 +112,15 @@ def new_puzzle(
     street: str | None,
     profile: str | None,
 ) -> tuple[int, Puzzle]:
-    """Generate and store a frozen puzzle; up to ``GENERATION_TRIES`` fresh seeds, then 503."""
+    """Generate and store a frozen puzzle; up to ``GENERATION_TRIES`` fresh seeds, then 503.
+
+    ``profile`` None uses the user's settings profile (then random); ``"random"`` is random
+    whatever the settings say.
+    """
     if profile is None:
         profile = settings_profile(db, user_id)
+    elif profile == RANDOM_PROFILE:
+        profile = None
     db.rollback()  # don't hold a transaction open during CPU-bound generation
     target = None if street is None else parse_street(street)
     for _ in range(GENERATION_TRIES):
@@ -216,13 +231,16 @@ def _opt(x: float | None) -> float | None:
 
 
 def _grade_fields(p: Puzzle, inp: AttemptIn, action: Action, g: Grade) -> dict[str, Any]:
+    """The attempt's stored columns. Inputs the grader ignores are stored as None: a range read
+    on the river (it equals equity there) and an intent on a fold, check or call."""
+    on_river = p.spot.state.street == Street.RIVER
     fields: dict[str, Any] = {
         "option_index": inp.option,
         "custom_to": inp.custom_to,
         "action": _action_dict(action),
         "equity_guess": float(inp.equity_guess),
-        "range_read_guess": _opt(inp.range_read_guess),
-        "intent": inp.intent,
+        "range_read_guess": None if on_river else _opt(inp.range_read_guess),
+        "intent": inp.intent if action.kind in _AGGRESSIVE else None,
         "verdict": g.verdict,
         "action_kind": g.chosen.option.action.kind.value,
         "best_kind": g.best.option.action.kind.value,
@@ -236,6 +254,7 @@ def _grade_fields(p: Puzzle, inp: AttemptIn, action: Action, g: Grade) -> dict[s
         "bluff_required": None if g.bluff_check is None else float(g.bluff_check[0]),
         "bluff_actual": None if g.bluff_check is None else float(g.bluff_check[1]),
         "chosen": option_ev_to_dict(g.chosen),
+        "chosen_label": g.chosen.option.label,
         "best_label": g.best.option.label,
         "best_ev_chips": float(g.best.ev_chips),
         "config_version": load_config().version,
@@ -345,15 +364,18 @@ def attempt_result_for(
 
 
 def current_puzzle(db: Session, user_id: int) -> tuple[int, Puzzle]:
-    """The user's newest puzzle with no attempts (to resume after a reload), else 404."""
-    answered = select(AttemptRow.puzzle_id).where(AttemptRow.user_id == user_id)
+    """The user's newest puzzle if it is still unanswered (to resume after a reload), else 404.
+
+    Only the newest puzzle counts: an older unanswered puzzle was skipped by asking for a new
+    one, and must not come back.
+    """
     pid = db.scalar(
         select(PuzzleRow.id)
-        .where(PuzzleRow.user_id == user_id, PuzzleRow.id.not_in(answered))
+        .where(PuzzleRow.user_id == user_id)
         .order_by(PuzzleRow.id.desc())
         .limit(1)
     )
-    if pid is None:
+    if pid is None or count_attempts(db, user_id, pid) > 0:
         raise NotFound("no unanswered puzzle")
     return pid, load_puzzle(db, user_id, pid)[1]
 
@@ -367,7 +389,10 @@ def _summary(m: Any) -> dict[str, Any]:
         "created_at": m.created_at.isoformat(),
         "street": m.street,
         "profile": m.profile,
-        "chosen_label": m.chosen["label"],
+        "chosen_label": m.chosen_label,
+        "action_kind": m.action_kind,
+        "best_label": m.best_label,
+        "best_kind": m.best_kind,
         "verdict": m.verdict,
         "ev_loss_bb": m.ev_loss_chips / 2,
         "equity_error": m.equity_error,
@@ -376,7 +401,8 @@ def _summary(m: Any) -> dict[str, Any]:
 
 
 def _summary_query(user_id: int) -> Any:
-    """Attempt columns joined to the puzzle's street and profile; never the puzzle blob."""
+    """Attempt columns joined to the puzzle's street and profile; never the puzzle blob, nor
+    the ``chosen`` JSON (about 20 KB per bet option)."""
     return (
         select(
             AttemptRow.id,
@@ -384,7 +410,10 @@ def _summary_query(user_id: int) -> Any:
             AttemptRow.attempt_no,
             AttemptRow.is_first,
             AttemptRow.created_at,
-            AttemptRow.chosen,
+            AttemptRow.chosen_label,
+            AttemptRow.action_kind,
+            AttemptRow.best_label,
+            AttemptRow.best_kind,
             AttemptRow.verdict,
             AttemptRow.ev_loss_chips,
             AttemptRow.equity_error,
@@ -411,11 +440,29 @@ def puzzle_attempts(db: Session, user_id: int, puzzle_id: int) -> list[dict[str,
 
 
 def history(
-    db: Session, user_id: int, *, limit: int, offset: int, first_only: bool
+    db: Session,
+    user_id: int,
+    *,
+    limit: int,
+    offset: int,
+    first_only: bool,
+    street: str | None = None,
+    verdict: str | None = None,
+    action_kind: str | None = None,
+    profile: str | None = None,
 ) -> dict[str, Any]:
+    """Attempt summaries, newest first. Every filter is optional and they combine with AND."""
     q = _summary_query(user_id)
     if first_only:
         q = q.where(AttemptRow.is_first.is_(True))
+    if street is not None:
+        q = q.where(PuzzleRow.street == street)
+    if verdict is not None:
+        q = q.where(AttemptRow.verdict == verdict)
+    if action_kind is not None:
+        q = q.where(AttemptRow.action_kind == action_kind)
+    if profile is not None:
+        q = q.where(PuzzleRow.profile == profile)
     total = db.scalar(select(func.count()).select_from(q.subquery())) or 0  # same rows as items
     rows = db.execute(q.order_by(AttemptRow.id.desc()).limit(limit).offset(offset)).all()
     return {"items": [_summary(m) for m in rows], "total": total}
@@ -444,7 +491,7 @@ def settings_view(db: Session, user_id: int, app_settings: AppSettings) -> dict[
     return {
         "show_pot_odds": bool(row.show_pot_odds),
         "show_profile": bool(row.show_profile),
-        "profile": row.profile,
+        "profile": _known_profile(row.profile),
         "daily_goal": int(row.daily_goal),
         "llm_provider": app_settings.llm_provider,
         "llm_status": "off" if app_settings.llm_provider == "none" else "on",

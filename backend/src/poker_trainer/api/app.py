@@ -18,12 +18,26 @@ import uvicorn
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from poker_trainer import __version__
 from poker_trainer.api import service, views
-from poker_trainer.api.schemas import AttemptIn, Health, NewPuzzleIn, SettingsPatch
+from poker_trainer.api.schemas import (
+    ActionKindName,
+    AttemptIn,
+    AttemptResult,
+    AttemptSummary,
+    Health,
+    HistoryPage,
+    NewPuzzleIn,
+    PuzzleView,
+    SettingsPatch,
+    SettingsView,
+    StreetName,
+    VerdictName,
+)
 from poker_trainer.api.service import PuzzleFactory, ServiceError
 from poker_trainer.db.models import DEFAULT_USER_ID
 from poker_trainer.db.session import (
@@ -78,7 +92,11 @@ def health() -> Health:
     return Health(status="ok", version=__version__)
 
 
-@router.post("/puzzles", status_code=201)
+# HEAD for uptime checks; kept out of the schema (one operation per route there)
+router.add_api_route("/health", health, methods=["HEAD"], include_in_schema=False)
+
+
+@router.post("/puzzles", status_code=201, response_model=PuzzleView)
 def new_puzzle(
     db: Db, user_id: UserId, factory: Factory, body: NewPuzzleIn | None = None
 ) -> dict[str, Any]:
@@ -91,52 +109,67 @@ def new_puzzle(
     )
 
 
-@router.get("/puzzles/current")  # before /puzzles/{puzzle_id}
+@router.get("/puzzles/current", response_model=PuzzleView)  # before /puzzles/{puzzle_id}
 def current_puzzle(db: Db, user_id: UserId) -> dict[str, Any]:
     puzzle_id, p = service.current_puzzle(db, user_id)
     return _puzzle_view(db, user_id, puzzle_id, p)
 
 
-@router.get("/puzzles/{puzzle_id}")
+@router.get("/puzzles/{puzzle_id}", response_model=PuzzleView)
 def get_puzzle(puzzle_id: int, db: Db, user_id: UserId) -> dict[str, Any]:
     _, p = service.load_puzzle(db, user_id, puzzle_id)
     return _puzzle_view(db, user_id, puzzle_id, p)
 
 
-@router.get("/puzzles/{puzzle_id}/attempts")
+@router.get("/puzzles/{puzzle_id}/attempts", response_model=list[AttemptSummary])
 def puzzle_attempts(puzzle_id: int, db: Db, user_id: UserId) -> list[dict[str, Any]]:
     return service.puzzle_attempts(db, user_id, puzzle_id)
 
 
-@router.post("/puzzles/{puzzle_id}/attempts", status_code=201)
+@router.post("/puzzles/{puzzle_id}/attempts", status_code=201, response_model=AttemptResult)
 def submit_attempt(puzzle_id: int, body: AttemptIn, db: Db, user_id: UserId) -> dict[str, Any]:
     row, p = service.submit_attempt(db, user_id, puzzle_id, body)
     return service.attempt_result_for(db, user_id, row, p)
 
 
-@router.get("/attempts/{attempt_id}")
+@router.get("/attempts/{attempt_id}", response_model=AttemptResult)
 def get_attempt(attempt_id: int, db: Db, user_id: UserId) -> dict[str, Any]:
     row = service.load_attempt(db, user_id, attempt_id)
     return service.attempt_result_for(db, user_id, row)
 
 
-@router.get("/history")
+@router.get("/history", response_model=HistoryPage)
 def history(
     db: Db,
     user_id: UserId,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     first_only: bool = False,
+    street: StreetName | None = None,
+    verdict: VerdictName | None = None,
+    action_kind: ActionKindName | None = None,
+    # any stored name, so puzzles of a since-removed profile can still be listed
+    profile: Annotated[str | None, Query(min_length=1, max_length=16)] = None,
 ) -> dict[str, Any]:
-    return service.history(db, user_id, limit=limit, offset=offset, first_only=first_only)
+    return service.history(
+        db,
+        user_id,
+        limit=limit,
+        offset=offset,
+        first_only=first_only,
+        street=street,
+        verdict=verdict,
+        action_kind=action_kind,
+        profile=profile,
+    )
 
 
-@router.get("/settings")
+@router.get("/settings", response_model=SettingsView)
 def get_user_settings(request: Request, db: Db, user_id: UserId) -> dict[str, Any]:
     return service.settings_view(db, user_id, request.app.state.settings)
 
 
-@router.patch("/settings")
+@router.patch("/settings", response_model=SettingsView)
 def patch_user_settings(
     body: SettingsPatch, request: Request, db: Db, user_id: UserId
 ) -> dict[str, Any]:
@@ -236,6 +269,8 @@ def create_app(
     app = FastAPI(title="Poker Puzzle Trainer", version=__version__, lifespan=lifespan)
     app.state.settings = settings
     app.state.puzzle_factory = puzzle_factory or service.default_factory
+    # Results are about 75 KB of very repetitive JSON (grids, combo lists): gzip shrinks them a lot.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_exception_handler(ServiceError, _service_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.add_exception_handler(Exception, _internal_error)

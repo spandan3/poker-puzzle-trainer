@@ -35,7 +35,7 @@ def test_migrate_creates_tables(tmp_path):
         head = ScriptDirectory.from_config(alembic_config(url)).get_current_head()
         with engine.connect() as conn:
             assert MigrationContext.configure(conn).get_current_revision() == head
-        assert head == "0001_initial"
+        assert head == "0002_chosen_label"
     finally:
         engine.dispose()
 
@@ -80,7 +80,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "9999_batch_probe"
-down_revision = "0001_initial"
+down_revision = "0002_chosen_label"
 branch_labels = None
 depends_on = None
 
@@ -132,5 +132,42 @@ def test_batch_recreate_of_referenced_table(tmp_path):
         assert "probe" in cols
         with engine.connect() as conn:
             assert conn.exec_driver_sql("SELECT count(*) FROM puzzles").scalar() == 1
+    finally:
+        engine.dispose()
+
+
+def test_chosen_label_backfilled(tmp_path):
+    """0002 adds ``attempts.chosen_label`` and fills it from the stored ``chosen`` JSON."""
+    url = _url(tmp_path / "a.db")
+    command.upgrade(alembic_config(url), "0001_initial")
+    engine = make_engine(url)
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "INSERT INTO users (id, name, created_at) VALUES (1, 'local', '2026-01-01')"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO puzzles (id, user_id, created_at, seed, street, profile,"
+                " profile_version, categories_version, config_version, format, data)"
+                " VALUES (1, 1, '2026-01-01', 1, 'flop', 'tag', 1, 1, 1, 1, x'00')"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO attempts (user_id, puzzle_id, attempt_no, is_first, created_at,"
+                " action, equity_guess, verdict, action_kind, best_kind, ev_loss_chips,"
+                " equity_error, equity_score, chosen, best_label, best_ev_chips,"
+                " config_version) VALUES (1, 1, 1, 1, '2026-01-01', '{}', 0.5, 'best', 'bet',"
+                " 'bet', 0, 0, 'great', '{\"label\": \"bet 33% \u2014 x\"}', 'bet', 0, 1)"
+            )
+    finally:
+        engine.dispose()
+
+    migrate(url)
+    engine = make_engine(url)
+    try:
+        with engine.connect() as conn:
+            label = conn.exec_driver_sql("SELECT chosen_label FROM attempts").scalar()
+        assert label == "bet 33% \u2014 x"
+        cols = {c["name"]: c for c in inspect(engine).get_columns("attempts")}
+        assert cols["chosen_label"]["nullable"] is False
     finally:
         engine.dispose()

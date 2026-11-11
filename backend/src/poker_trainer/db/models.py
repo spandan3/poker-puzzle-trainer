@@ -137,6 +137,7 @@ class AttemptRow(Base):
     bluff_required: Mapped[float | None] = mapped_column()
     bluff_actual: Mapped[float | None] = mapped_column()
     chosen: Mapped[dict[str, Any]] = mapped_column(JSON)  # OptionEV dict, puzzle_to_dict shape
+    chosen_label: Mapped[str] = mapped_column(String(64))  # history reads this, never ``chosen``
     best_label: Mapped[str] = mapped_column(String(64))
     best_ev_chips: Mapped[float] = mapped_column()
     config_version: Mapped[int] = mapped_column(Integer)  # live load_config().version at grading
