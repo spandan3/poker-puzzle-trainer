@@ -4,6 +4,10 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = ["phevaluator>=0.6,<0.7", "numpy>=2"]
 
+[project.scripts]
+competence = "poker_trainer.analysis.competence:main"
+puzzle-sample = "poker_trainer.puzzle.cli:main"
+
 [dependency-groups]
 dev = ["pytest", "hypothesis", "ruff", "pokerkit>=0.7,<0.8"]
 
