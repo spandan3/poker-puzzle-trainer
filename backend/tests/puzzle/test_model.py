@@ -1,0 +1,117 @@
+import json
+
+import numpy as np
+import pytest
+
+from poker_trainer.engine.combos import combo_index
+from poker_trainer.engine.equity import ComboEquity
+from poker_trainer.engine.ranges import full_range
+from poker_trainer.game.state import Action, ActionKind, Street, apply, deal, new_hand
+from poker_trainer.puzzle.model import (
+    SIMPLIFICATIONS,
+    Branch,
+    CategoryRow,
+    Option,
+    OptionEV,
+    Puzzle,
+    RangeView,
+    Solution,
+    Spot,
+    load_config,
+    puzzle_from_dict,
+    puzzle_to_dict,
+    visible_range,
+)
+
+
+def _arr(seed):
+    a = np.random.default_rng(seed).random(1326)
+    a.setflags(write=False)
+    return a
+
+
+def _puzzle():
+    s = new_hand(0)
+    s = apply(s, Action(0, ActionKind.RAISE, Street.PREFLOP, 5))
+    s = apply(s, Action(1, ActionKind.CALL, Street.PREFLOP, 5))
+    s = deal(s, (4, 9, 20))
+    steps = (
+        RangeView("Opens", Street.PREFLOP, _arr(1)),
+        RangeView("Calls", Street.PREFLOP, _arr(2)),
+    )
+    spot = Spot(7, 3, s, 1, (0, 1), (30, 31), (4, 9, 20, 40, 45), "tag", 1, 1, steps)
+    ce = ComboEquity((0, 1), (4, 9, 20), _arr(3), _arr(4), _arr(5), _arr(6), False)
+    act = Action(1, ActionKind.BET, Street.FLOP, 4)
+    ev = OptionEV(
+        Option("bet 33%", act),
+        1.5,
+        0.4,
+        0.55,
+        None,
+        0.01,
+        0.3,
+        4,
+        _arr(8),
+        (Branch("Villain folds", 0.4, None, 10.0),),
+        ("realisation",),
+    )
+    check = Option("check", Action(1, ActionKind.CHECK, Street.FLOP))
+    ev0 = OptionEV(check, 0.0, None, None, None, None, None, 0, None, (), ())
+    sol = Solution(
+        0.5,
+        0.002,
+        False,
+        0.6,
+        0.25,
+        (ev0, ev),
+        1,
+        ce,
+        (CategoryRow("nuts", 0.1, 0.9, 0.8),),
+        ("realisation",),
+    )
+    return Puzzle(spot, sol)
+
+
+def _same(a, b):
+    if isinstance(a, np.ndarray):
+        assert isinstance(b, np.ndarray) and np.array_equal(a, b) and not b.flags.writeable
+    elif hasattr(a, "__dataclass_fields__"):
+        assert type(a) is type(b)
+        for f in a.__dataclass_fields__:
+            _same(getattr(a, f), getattr(b, f))
+    elif isinstance(a, tuple):
+        assert type(a) is type(b) and len(a) == len(b)
+        for x, y in zip(a, b, strict=True):
+            _same(x, y)
+    else:
+        assert a == b and type(a) is type(b)
+
+
+def test_round_trip():
+    p = _puzzle()
+    d = puzzle_to_dict(p)
+    assert d["format"] == 1
+    q = puzzle_from_dict(json.loads(json.dumps(d)))
+    _same(p, q)
+    assert q.spot.range is q.spot.steps[-1].range
+
+
+def test_unknown_format_rejected():
+    d = puzzle_to_dict(_puzzle())
+    d["format"] = 2
+    with pytest.raises(ValueError):
+        puzzle_from_dict(d)
+
+
+def test_visible_range_removes_hero_and_board():
+    r = visible_range(full_range(), (0, 1), (4, 9, 20))
+    assert r[combo_index(0, 1)] == 0.0 and r[combo_index(4, 30)] == 0.0
+    assert r[combo_index(30, 31)] == 1.0
+    assert not r.flags.writeable
+
+
+def test_config_and_simplifications():
+    c = load_config()
+    assert c.samples == 40000 and c.verdict.best_bb == 0.25 and c.max_attempts == 200
+    assert c.street_weights["flop"] == 0.30
+    assert set(SIMPLIFICATIONS) == {"realisation", "reraise_reply", "preflop_size"}

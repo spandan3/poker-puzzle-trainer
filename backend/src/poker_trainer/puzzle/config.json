@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "street_weights": {"preflop": 0.15, "flop": 0.30, "turn": 0.30, "river": 0.25},
+  "stop_prob": 0.6,
+  "samples": 40000,
+  "verdict": {"best_bb": 0.25, "best_pot": 0.02, "fine_pot": 0.10, "mistake_pot": 0.25},
+  "score": {"great": 0.05, "good": 0.10},
+  "trivial": {
+    "eq_hi": 0.92,
+    "eq_lo": 0.04,
+    "gap_pot": 0.5,
+    "gap_eq_hi": 0.85,
+    "gap_eq_lo": 0.10
+  },
+  "max_attempts": 200
+}
