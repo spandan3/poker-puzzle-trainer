@@ -2,7 +2,7 @@
 
 This is for working on the Villain model while the main line of work (M3, the puzzle generator and grader) continues on its own branch.
 
-Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M3 merge (2026-11-10). M3 (the puzzle generator and grader) is done. M4 (API and database) is next.
+Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M4 merge (2026-11-11). M3 (the puzzle generator and grader) and M4 (API and storage) are done. M5 (table UI) is next.
 
 ## 1. What the project is
 
@@ -33,7 +33,7 @@ So any improvement you make to that function automatically improves all three. I
 # install uv first: https://docs.astral.sh/uv/
 cd backend
 uv sync
-uv run pytest -m "not slow"            # fast suite, about 15 s, 267 tests
+uv run pytest -m "not slow"            # fast suite, about 40 s, 484 tests
 uv run pytest -m slow                  # slow cross-checks, about 10 min
 uv run ruff check . && uv run ruff format --check .
 uv run python -m poker_trainer.analysis.competence --profile all --hands 400   # about 2 min
@@ -59,13 +59,13 @@ uv run python -m poker_trainer.analysis.competence --profile all --hands 400   #
 |---|---|
 | `src/poker_trainer/villain/narrowing.py` | Puzzles store the `RangeTracker` steps and the `describe` labels. |
 | `src/poker_trainer/game/state.py` | The hand engine everything uses. Avoid changing it. If you must, keep every existing test passing. |
-| `backend/pyproject.toml`, `uv.lock` | M4 will add dependencies (FastAPI, SQLAlchemy). If you add one too, tell us. It must have wheels for Windows and macOS on Python 3.13. |
+| `backend/pyproject.toml`, `uv.lock` | M4 added FastAPI, uvicorn, SQLAlchemy, Alembic and pydantic-settings. If you add a dependency, tell us. It must have wheels for Windows and macOS on Python 3.13. |
 
 ### Off-limits: the main line owns these
 
 - `src/poker_trainer/engine/**` (equity engine)
 - `src/poker_trainer/puzzle/**` (generator, solver, grader, `config.json`)
-- anything M4 adds: the API, the database, migrations
+- the API, the database and migrations (`src/poker_trainer/api/**`, `db/**`, `settings.py`, `tests/api/**`, `tests/db/**`)
 - `tests/engine/**`, `tests/puzzle/**`
 - `docs/superpowers/**` (plans and spec)
 
@@ -109,7 +109,9 @@ Old puzzles are frozen with the `profile_version` they were generated under. Tha
 
 ## 5. Current status
 
-M1 (equity engine) and M2 (game state plus Villain) are done, reviewed, and merged.
+M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader) and M4 (API and storage) are done and reviewed.
+
+M4 note for Villain work: custom bet sizes on a stored puzzle are refused (409) once its profile or `categories.json` version changes, so version bumps are still the right way to change data.
 
 The competence report checks 10 things per profile over 400 simulated hands against the TAG Hero (seed 0). All 40 checks pass:
 
