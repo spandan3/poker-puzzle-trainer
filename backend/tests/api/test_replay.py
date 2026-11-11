@@ -73,3 +73,15 @@ def test_current_puzzle(client):
     _new(client, street="turn")  # unanswered, older
     newer = _new(client, street="river")
     assert client.get("/api/puzzles/current").json() == newer
+
+
+def test_current_puzzle_never_returns_a_skipped_one(client):
+    """Asking for a new puzzle skips the unanswered one; once the newer is answered, the
+    skipped puzzle must not come back as "current"."""
+    skipped = _new(client, street="flop")
+    answered = _new(client, street="turn")
+    assert _submit(client, answered["id"], option=0).status_code == 201
+    r = client.get("/api/puzzles/current")
+    assert r.status_code == 404, f"skipped puzzle {skipped['id']} came back"
+    # a replay of the skipped puzzle is still reachable by id
+    assert client.get(f"/api/puzzles/{skipped['id']}").status_code == 200

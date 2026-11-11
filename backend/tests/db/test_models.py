@@ -59,6 +59,7 @@ def _attempt_row(puzzle_id: int, attempt_no: int = 1) -> AttemptRow:
         equity_error=0.01,
         equity_score="great",
         chosen={"label": "check"},
+        chosen_label="check",
         best_label="check",
         best_ev_chips=1.5,
         config_version=1,
