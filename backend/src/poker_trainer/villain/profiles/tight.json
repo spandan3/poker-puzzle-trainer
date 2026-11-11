@@ -1,7 +1,7 @@
 {
   "name": "tight",
   "label": "Tight",
-  "version": 3,
+  "version": 4,
   "description": "Tight and solid: narrow ranges, value-heavy, rarely bluffs.",
   "preflop": {
     "open": "22+, A2+, K2s+, K5o+, Q2s+, Q8o+, J4s+, J8o+, T6s+, T8o+, 95s+, 98o, 85s+, 87o, 74s+, 64s+, 53s+, 43s",
@@ -54,9 +54,11 @@
       "MEDIUM": {"check": 0.95, "bet_33": 0.04, "bet_75": 0.01}
     },
     "stab": {
-      "AIR": {"check": 0.9, "bet_33": 0.02, "bet_75": 0.08},
+      "AIR": {"check": 0.88, "bet_33": 0.02, "bet_75": 0.1},
       "WEAK": {"check": 0.98, "bet_33": 0.02, "bet_75": 0.0},
-      "MEDIUM": {"check": 0.86, "bet_33": 0.12, "bet_75": 0.02}
+      "MEDIUM": {"check": 0.62, "bet_33": 0.32, "bet_75": 0.06},
+      "STRONG": {"check": 0.12, "bet_33": 0.36, "bet_75": 0.52},
+      "NUTS": {"check": 0.06, "bet_33": 0.22, "bet_75": 0.72}
     }
   },
   "facing": {

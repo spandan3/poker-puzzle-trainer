@@ -1,7 +1,7 @@
 {
   "name": "lag",
   "label": "LAG",
-  "version": 3,
+  "version": 4,
   "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
   "preflop": {
     "open": "22+, A2+, K2+, Q2+, J2+, T2s+, T4o+, 92s+, 95o+, 82s+, 85o+, 72s+, 75o+, 62s+, 64o+, 52s+, 54o, 42s+, 32s",
@@ -54,9 +54,11 @@
       "MEDIUM": {"check": 0.92, "bet_33": 0.07, "bet_75": 0.01}
     },
     "stab": {
-      "AIR": {"check": 0.83, "bet_33": 0.03, "bet_75": 0.14},
+      "AIR": {"check": 0.78, "bet_33": 0.04, "bet_75": 0.18},
       "WEAK": {"check": 0.95, "bet_33": 0.03, "bet_75": 0.02},
-      "MEDIUM": {"check": 0.75, "bet_33": 0.18, "bet_75": 0.07}
+      "MEDIUM": {"check": 0.28, "bet_33": 0.57, "bet_75": 0.15},
+      "STRONG": {"check": 0.04, "bet_33": 0.3, "bet_75": 0.66},
+      "NUTS": {"check": 0.04, "bet_33": 0.18, "bet_75": 0.78}
     }
   },
   "facing": {

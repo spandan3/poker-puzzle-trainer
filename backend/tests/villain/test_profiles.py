@@ -106,7 +106,7 @@ def _raw(name: str = "tag") -> dict:
 
 
 def test_loader_accepts_raw_profile():
-    assert _profile_from_dict("tag", _raw()).version == 3
+    assert _profile_from_dict("tag", _raw()).version == 4
 
 
 def test_bad_row_sum_raises():
