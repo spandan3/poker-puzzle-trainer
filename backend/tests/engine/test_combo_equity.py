@@ -111,7 +111,9 @@ def test_flop_subrange_within_4se():
     live = np.flatnonzero(ce.base > 0)
     keep = np.zeros(len(COMBOS), dtype=bool)
     keep[live[::2]] = True  # about half the range
-    w = np.where(keep, ce.base, 0.0)
+    # Indicator weights over a non-uniform base: r = 1 / base varies (1/0.3 .. 1).
+    w = keep.astype(float)
+    assert len(set(ce.base[keep].tolist())) > 1
     res = ce.vs(w)
     expected = exact_flop_reference(hero, board, w)
     assert res.exact is False
@@ -162,3 +164,18 @@ def test_n_eff_shrinks_for_subrange():
     n = float(ce.count[parse_range("98s") > 0].sum())
     p = sub.equity
     assert sub.std_error == pytest.approx(math.sqrt(p * (1 - p) / n), rel=1e-12)
+
+
+def test_invalid_weights_checked_on_live_combos_only():
+    hero, board = hand("AhKd"), parse_cards("Ac7s2d")
+    d = parse_range("QQ")
+    ce = combo_equity(hero, board, d, rng=random.Random(3), samples=500)
+    blocked = combo_index(*parse_cards("AcAs"))
+    for bad in (-1.0, np.nan, np.inf):
+        w = d.copy()
+        w[blocked] = bad
+        assert ce.vs(w).equity == ce.vs(d).equity
+        w = d.copy()
+        w[combo_index(*parse_cards("JcJd"))] = bad
+        with pytest.raises(ValueError, match="finite and non-negative"):
+            ce.vs(w)

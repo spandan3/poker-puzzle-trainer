@@ -123,7 +123,9 @@ def equity_vs_range(
     ``std_error = sqrt(p(1-p)/n)`` with ``p`` the estimated equity and ``n`` = ``samples``.
     Deterministic for a seeded ``rng``; ``None`` uses a fresh unseeded ``random.Random()``.
 
-    Equivalent to ``combo_equity(hero, board, villain, ...).vs(villain)``.
+    Equivalent to ``combo_equity(hero, board, villain, ...).vs(villain)``. Negative or
+    non-finite weights on live (unblocked) combos raise ``ValueError``; weights on
+    blocked combos are ignored.
     """
     return combo_equity(hero, board, villain, rng=rng, samples=samples).vs(villain)
 
@@ -169,9 +171,10 @@ class ComboEquity:
         w = np.asarray(weights, dtype=np.float64)
         if w.shape != (len(COMBOS),):
             raise ValueError(f"weights must have shape ({len(COMBOS)},), got {w.shape}")
-        if not np.all(np.isfinite(w)) or np.any(w < 0.0):
+        live = _live_mask(self.hero, self.board)
+        if not np.all(np.isfinite(w[live])) or np.any(w[live] < 0.0):
             raise ValueError("weights must be finite and non-negative")
-        w = np.where(_live_mask(self.hero, self.board), w, 0.0)
+        w = np.where(live, w, 0.0)
         if not np.any(w > 0.0):
             raise ValueError("empty range")
         in_base = self.base > 0.0
