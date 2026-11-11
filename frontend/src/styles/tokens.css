@@ -1,0 +1,100 @@
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --color-bg: #0e1116;
+  --color-bg-raised: #161b22;
+  --color-bg-sunken: #0a0d12;
+  --color-panel: #1a2029;
+  --color-panel-border: #2a3340;
+  --color-felt: #135c3f;
+  --color-felt-dark: #0b3d2a;
+  --color-felt-light: #1b7a55;
+  --color-rail: #3a2a1c;
+  --color-rail-light: #5a4330;
+
+  /* text */
+  --color-text: #e8edf3;
+  --color-text-muted: #a3adba;
+  --color-text-faint: #7c8796;
+  --color-text-on-accent: #07140e;
+
+  /* accents and states */
+  --color-accent: #3ddc97;
+  --color-accent-strong: #27b87b;
+  --color-accent-soft: rgb(61 220 151 / 16%);
+  --color-focus: #8ab4ff;
+  --color-danger: #ff6b6b;
+  --color-warning: #f5b84a;
+  --color-info: #6cb6ff;
+
+  /* verdicts */
+  --color-verdict-best: #3ddc97;
+  --color-verdict-fine: #8ecbff;
+  --color-verdict-mistake: #f5b84a;
+  --color-verdict-blunder: #ff6b6b;
+
+  /* cards */
+  --color-card-face: #fbfaf6;
+  --color-card-edge: #c9c4b6;
+  --color-suit-red: #c8202f;
+  --color-suit-black: #17202b;
+  --color-card-back: #1d3f8f;
+  --color-card-back-pattern: #5b82d6;
+  --color-slot-outline: rgb(255 255 255 / 22%);
+
+  /* chips */
+  --color-chip: #e9edf2;
+  --color-chip-edge: #c23b3b;
+  --color-chip-text: #1a2029;
+
+  /* typography */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  /* spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* radii */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* shadows */
+  --shadow-card: 0 2px 6px rgb(0 0 0 / 45%);
+  --shadow-panel: 0 6px 24px rgb(0 0 0 / 35%);
+  --shadow-raised: 0 10px 30px rgb(0 0 0 / 50%);
+  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-focus);
+
+  /* motion */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 350ms;
+  --duration-deal: 120ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* z-index */
+  --z-table: 1;
+  --z-seat: 2;
+  --z-cards: 3;
+  --z-bar: 10;
+  --z-overlay: 100;
+  --z-toast: 110;
+}

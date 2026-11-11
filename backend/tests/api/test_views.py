@@ -17,6 +17,7 @@ from poker_trainer.game.state import (
     apply,
     deal,
     legal_actions,
+    needs_board,
     new_hand,
     total_pot,
 )
@@ -47,6 +48,7 @@ SEEDS = {
     "turn": (1, "turn"),
     "river": (1, "river"),
     "river_b": (2, "river"),
+    "river_all_in": (52, "river"),  # Villain's last action is an all-in bet
 }
 HERO = parse_cards("KhQh")
 BOARD = parse_cards("Ks7h2c4d9s")
@@ -187,7 +189,16 @@ def test_puzzle_view_hides_villain(puzzles):
         v = _view(p)
         assert set(v) == VIEW_KEYS
         assert {k for o in v["options"] for k in o} == {"index", "label", "kind", "to"}
-        assert {k for e in v["history"] for k in e} <= {"street", "actor", "kind", "to", "text"}
+        assert {k for e in v["history"] for k in e} <= {
+            "street",
+            "actor",
+            "kind",
+            "to",
+            "text",
+            "pot_before",
+            "amount",
+            "all_in",
+        }
         assert set(v["custom"]) == {"allowed", "min_to", "max_to"}
         assert set(v["villain_profile"]) == {"name", "label", "description"}
         assert len(v["board"]) == len(sp.state.board)
@@ -213,6 +224,30 @@ def test_action_log_replays_to_state(puzzles):
     log, _ = views._replay(p.spot)
     assert log[0]["text"] == describe(p.spot.state.history[0], new_hand(p.spot.state.button))
     assert any("% pot)" in e["text"] for e in views.action_log(puzzles["river"].spot))
+
+
+def test_history_pot_amount_allin(puzzles):
+    for p in puzzles.values():
+        sp = p.spot
+        s = new_hand(sp.state.button)
+        log = views.action_log(sp)
+        assert len(log) == len(sp.state.history)
+        for e, a in zip(log, sp.state.history, strict=True):
+            while needs_board(s) and len(s.board) < len(sp.state.board):
+                n = 3 if s.street == Street.PREFLOP else 1
+                s = deal(s, tuple(sp.runout[len(s.board) : len(s.board) + n]))
+            nxt = apply(s, a)
+            assert e["pot_before"] == total_pot(s)
+            assert e["amount"] == s.stacks[a.seat] - nxt.stacks[a.seat]
+            assert e["all_in"] == (nxt.stacks[a.seat] == 0)
+            s = nxt
+    first = views.action_log(puzzles["pre_facing"].spot)[0]
+    assert first["pot_before"] == 3  # the blinds
+    assert views.action_log(puzzles["river_all_in"].spot)[-1]["all_in"] is True
+    for p in puzzles.values():
+        for e in views.action_log(p.spot):
+            assert isinstance(e["all_in"], bool)
+            assert (e["amount"] == 0) == (e["kind"] in ("check", "fold"))
 
 
 def test_puzzle_view_numbers(puzzles):

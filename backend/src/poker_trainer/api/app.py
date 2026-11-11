@@ -7,8 +7,10 @@ the engine.
 
 from __future__ import annotations
 
+import json
 import math
 import mimetypes
+import sys
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -288,3 +290,14 @@ def main() -> None:
     """``uv run serve``: run the app with uvicorn on ``PPT_HOST`` / ``PPT_PORT``."""
     settings = get_settings()
     uvicorn.run(create_app(settings), host=settings.host, port=settings.port)
+
+
+def dump_openapi(argv: list[str] | None = None) -> None:
+    """``uv run openapi PATH``: write the OpenAPI document (sorted keys, LF) for the frontend."""
+    args = sys.argv[1:] if argv is None else argv
+    if len(args) != 1:
+        raise SystemExit("usage: openapi PATH")
+    spec = create_app(AppSettings(_env_file=None)).openapi()
+    text = json.dumps(spec, indent=2, sort_keys=True) + "\n"
+    with open(args[0], "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)

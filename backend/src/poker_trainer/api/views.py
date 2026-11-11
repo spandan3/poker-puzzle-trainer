@@ -98,6 +98,7 @@ def _replay(spot: Spot) -> tuple[list[dict[str, Any]], HandState]:
     log: list[dict[str, Any]] = []
     for a in spot.state.history:
         s = deal_pending(s)
+        after = apply(s, a)
         log.append(
             {
                 "street": _street_name(a.street),
@@ -105,14 +106,21 @@ def _replay(spot: Spot) -> tuple[list[dict[str, Any]], HandState]:
                 "kind": a.kind.value,
                 "to": int(a.to),
                 "text": describe(a, s),
+                "pot_before": int(total_pot(s)),
+                "amount": int(s.stacks[a.seat] - after.stacks[a.seat]),
+                "all_in": after.stacks[a.seat] == 0,
             }
         )
-        s = apply(s, a)
+        s = after
     return log, deal_pending(s)
 
 
 def action_log(spot: Spot) -> list[dict[str, Any]]:
-    """One entry per action so far: ``street``, ``actor``, ``kind``, ``to``, ``text``."""
+    """One entry per action so far.
+
+    Keys: ``street``, ``actor``, ``kind``, ``to``, ``text``, ``pot_before`` (total pot before the
+    action), ``amount`` (chips the actor put in) and ``all_in`` (the actor's stack is 0 after it).
+    """
     return _replay(spot)[0]
 
 

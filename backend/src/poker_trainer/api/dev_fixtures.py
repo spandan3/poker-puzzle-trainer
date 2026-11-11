@@ -1,0 +1,201 @@
+"""Dev-only: write the JSON fixtures the frontend tests and gallery use.
+
+Run from ``backend/``::
+
+    uv run python -m poker_trainer.api.dev_fixtures ../frontend/src/test/fixtures
+
+For each named predicate the generator searches puzzle seeds in a fixed order (seed 1, 2, ... on
+each street in turn) and keeps the first puzzle that satisfies it. The puzzles are then served by
+the real app (a temporary SQLite database and a ``puzzle_factory`` that hands out the chosen
+puzzles), so every file holds exactly what the API returns. Output is deterministic: sorted keys,
+LF line endings, fixed timestamps.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+import time
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from fastapi.testclient import TestClient
+
+from poker_trainer.api import views
+from poker_trainer.api.app import create_app
+from poker_trainer.game.state import Street
+from poker_trainer.puzzle.generate import generate_puzzle
+from poker_trainer.puzzle.model import Puzzle
+from poker_trainer.settings import AppSettings
+
+STREETS = ("preflop", "flop", "turn", "river")
+MAX_SEED = 400  # per street; the search stops (and reports) when a predicate is not found
+FIXED_TIME = "2026-01-01T00:00:00+00:00"
+
+View = dict[str, Any]
+
+
+def _entries(v: View, street: str) -> list[dict[str, Any]]:
+    return [e for e in v["history"] if e["street"] == street]
+
+
+def _raises(v: View, street: str) -> int:
+    return sum(1 for e in _entries(v, street) if e["kind"] == "raise")
+
+
+def _kinds(v: View) -> set[str]:
+    return {o["kind"] for o in v["options"]}
+
+
+def _facing_all_in(v: View) -> bool:
+    last = v["history"][-1] if v["history"] else None
+    return (
+        last is not None
+        and last["actor"] == "villain"
+        and last["all_in"]
+        and _kinds(v) == {"fold", "call"}
+    )
+
+
+# name -> predicate over the puzzle view; searched in this (fixed) order
+PREDICATES: dict[str, Callable[[View], bool]] = {
+    "preflop_btn_first_in": lambda v: (
+        v["street"] == "preflop" and v["hero_position"] == "BTN" and not v["history"]
+    ),
+    "preflop_bb_facing_open": lambda v: (
+        v["street"] == "preflop" and v["hero_position"] == "BB" and _raises(v, "preflop") == 1
+    ),
+    "preflop_facing_3bet": lambda v: (
+        v["street"] == "preflop" and _raises(v, "preflop") == 2 and "call" in _kinds(v)
+    ),
+    "facing_all_in": _facing_all_in,
+    "flop_unopened": lambda v: v["street"] == "flop" and not _entries(v, "flop"),
+    "facing_postflop_raise": lambda v: (
+        v["street"] != "preflop"
+        and bool(v["history"])
+        and v["history"][-1]["kind"] == "raise"
+        and v["history"][-1]["actor"] == "villain"
+        and "call" in _kinds(v)
+    ),
+    "turn": lambda v: v["street"] == "turn",
+    "river": lambda v: v["street"] == "river",
+    "history_3bet_and_all_in": lambda v: (
+        _raises(v, "preflop") >= 2 and any(e["all_in"] for e in v["history"])
+    ),
+    "custom_allowed": lambda v: v["custom"]["allowed"] and v["street"] != "preflop",
+}
+
+
+def _view(p: Puzzle) -> View:
+    return views.puzzle_view(1, p, custom_sizes_allowed=views.custom_allowed(p), attempts_so_far=0)
+
+
+def search(
+    max_seed: int = MAX_SEED, log: Callable[[str], None] = lambda _m: None
+) -> dict[str, tuple[int, str]]:
+    """``{name: (seed, street)}`` for the first puzzle meeting each predicate (``KeyError`` if
+    one is not found within ``max_seed`` seeds per street)."""
+    found: dict[str, tuple[int, str]] = {}
+    for seed in range(1, max_seed + 1):
+        for street in STREETS:
+            todo = [n for n in PREDICATES if n not in found]
+            if not todo:
+                return found
+            try:
+                p = generate_puzzle(seed, street=street)
+            except RuntimeError:
+                continue
+            v = _view(p)
+            for name in todo:
+                if PREDICATES[name](v):
+                    found[name] = (seed, street)
+                    log(f"found {name}: seed={seed} street={street}")
+    missing = [n for n in PREDICATES if n not in found]
+    if missing:
+        raise KeyError(f"no puzzle found within {max_seed} seeds per street for: {missing}")
+    return found
+
+
+def _dump(path: Path, data: Any) -> None:
+    text = json.dumps(data, indent=2, sort_keys=True) + "\n"
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+
+
+def _fix_times(result: dict[str, Any]) -> dict[str, Any]:
+    result["attempt"]["created_at"] = FIXED_TIME
+    return result
+
+
+def write_fixtures(
+    out: Path, found: dict[str, tuple[int, str]], log: Callable[[str], None] = lambda _m: None
+) -> None:
+    out.mkdir(parents=True, exist_ok=True)
+    chosen: dict[tuple[int, str], Puzzle] = {}
+    queue: list[tuple[int, str]] = []
+
+    def factory(_seed: int, _street: Street | None, _profile: str | None) -> Puzzle:
+        return chosen[queue.pop(0)]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        url = f"sqlite:///{(Path(tmp) / 'fixtures.db').as_posix()}"
+        app = create_app(AppSettings(_env_file=None, database_url=url), puzzle_factory=factory)
+        with TestClient(app) as client:
+            ids: dict[str, int] = {}
+            for name, key in found.items():
+                seed, street = key
+                chosen[key] = generate_puzzle(seed, street=street)
+                queue.append(key)
+                res = client.post("/api/puzzles", json={})
+                if res.status_code != 201:
+                    raise RuntimeError(res.text)
+                view = res.json()
+                ids[name] = view["id"]
+                _dump(out / f"puzzle_{name}.json", view)
+                log(f"wrote puzzle_{name}.json")
+
+            # attempt results: a bet and a fold on the unopened flop
+            flop_id = ids["flop_unopened"]
+            options = client.get(f"/api/puzzles/{flop_id}").json()["options"]
+            for kind in ("bet", "fold"):
+                matching = [o for o in options if o["kind"] == kind]
+                if not matching:  # an unopened flop has no fold: use the facing-raise puzzle
+                    pid = ids["facing_postflop_raise"]
+                    options = client.get(f"/api/puzzles/{pid}").json()["options"]
+                    matching = [o for o in options if o["kind"] == kind]
+                    if not matching:
+                        raise RuntimeError(f"no {kind} option in the fixture puzzles")
+                else:
+                    pid = flop_id
+                res = client.post(
+                    f"/api/puzzles/{pid}/attempts",
+                    json={
+                        "option": matching[0]["index"],
+                        "equity_guess": 0.45,
+                        "range_read_guess": 0.5,
+                        "intent": "value" if kind == "bet" else None,
+                    },
+                )
+                if res.status_code != 201:
+                    raise RuntimeError(res.text)
+                _dump(out / f"attempt_{kind}.json", _fix_times(res.json()))
+                log(f"wrote attempt_{kind}.json")
+            _dump(out / "settings.json", client.get("/api/settings").json())
+            log("wrote settings.json")
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = sys.argv[1:] if argv is None else argv
+    if len(args) != 1:
+        raise SystemExit("usage: python -m poker_trainer.api.dev_fixtures OUT_DIR")
+    start = time.perf_counter()
+    found = search(log=print)
+    print(f"search took {time.perf_counter() - start:.1f}s")
+    write_fixtures(Path(args[0]), found, log=print)
+    print(f"total {time.perf_counter() - start:.1f}s")
+
+
+if __name__ == "__main__":
+    main()

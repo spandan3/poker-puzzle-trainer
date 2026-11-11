@@ -116,6 +116,9 @@ class ActionLogEntry(_Out):
     kind: ActionKindName
     to: int
     text: str
+    pot_before: int
+    amount: int
+    all_in: bool
 
 
 class OptionBrief(_Out):

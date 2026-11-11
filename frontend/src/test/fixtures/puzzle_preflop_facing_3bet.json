@@ -1,0 +1,77 @@
+{
+  "attempts_so_far": 0,
+  "board": [],
+  "custom": {
+    "allowed": false,
+    "max_to": null,
+    "min_to": null
+  },
+  "hero_cards": [
+    "Th",
+    "Ks"
+  ],
+  "hero_position": "BTN",
+  "hero_seat": 1,
+  "history": [
+    {
+      "actor": "hero",
+      "all_in": false,
+      "amount": 4,
+      "kind": "raise",
+      "pot_before": 3,
+      "street": "preflop",
+      "text": "Pre-flop: opens to 5",
+      "to": 5
+    },
+    {
+      "actor": "villain",
+      "all_in": false,
+      "amount": 13,
+      "kind": "raise",
+      "pot_before": 7,
+      "street": "preflop",
+      "text": "Pre-flop: 3-bets to 15",
+      "to": 15
+    }
+  ],
+  "id": 10,
+  "options": [
+    {
+      "index": 0,
+      "kind": "fold",
+      "label": "fold",
+      "to": 0
+    },
+    {
+      "index": 1,
+      "kind": "call",
+      "label": "call",
+      "to": 15
+    },
+    {
+      "index": 2,
+      "kind": "raise",
+      "label": "all-in",
+      "to": 200
+    }
+  ],
+  "pot": 20,
+  "pot_odds": 0.3333333333333333,
+  "range_read_asked": true,
+  "stacks": [
+    185,
+    195
+  ],
+  "street": "preflop",
+  "street_bets": [
+    15,
+    5
+  ],
+  "to_call": 10,
+  "villain_position": "BB",
+  "villain_profile": {
+    "description": "Solid tight-aggressive regular: value-heavy, bluffs in balance.",
+    "label": "TAG",
+    "name": "tag"
+  }
+}
