@@ -1,0 +1,109 @@
+{
+  "attempts_so_far": 0,
+  "board": [
+    "4h",
+    "3h",
+    "3s"
+  ],
+  "custom": {
+    "allowed": true,
+    "max_to": 195,
+    "min_to": 2
+  },
+  "hero_cards": [
+    "6c",
+    "8c"
+  ],
+  "hero_position": "BTN",
+  "hero_seat": 0,
+  "history": [
+    {
+      "actor": "hero",
+      "all_in": false,
+      "amount": 4,
+      "kind": "raise",
+      "pot_before": 3,
+      "street": "preflop",
+      "text": "Pre-flop: opens to 5",
+      "to": 5
+    },
+    {
+      "actor": "villain",
+      "all_in": false,
+      "amount": 3,
+      "kind": "call",
+      "pot_before": 7,
+      "street": "preflop",
+      "text": "Pre-flop: calls",
+      "to": 5
+    },
+    {
+      "actor": "villain",
+      "all_in": false,
+      "amount": 0,
+      "kind": "check",
+      "pot_before": 10,
+      "street": "flop",
+      "text": "Flop: checks",
+      "to": 0
+    }
+  ],
+  "id": 2,
+  "options": [
+    {
+      "index": 0,
+      "kind": "check",
+      "label": "check",
+      "to": 0
+    },
+    {
+      "index": 1,
+      "kind": "bet",
+      "label": "bet 33%",
+      "to": 3
+    },
+    {
+      "index": 2,
+      "kind": "bet",
+      "label": "bet 50%",
+      "to": 5
+    },
+    {
+      "index": 3,
+      "kind": "bet",
+      "label": "bet 75%",
+      "to": 8
+    },
+    {
+      "index": 4,
+      "kind": "bet",
+      "label": "bet 100%",
+      "to": 10
+    },
+    {
+      "index": 5,
+      "kind": "bet",
+      "label": "all-in",
+      "to": 195
+    }
+  ],
+  "pot": 10,
+  "pot_odds": null,
+  "range_read_asked": true,
+  "stacks": [
+    195,
+    195
+  ],
+  "street": "flop",
+  "street_bets": [
+    0,
+    0
+  ],
+  "to_call": 0,
+  "villain_position": "BB",
+  "villain_profile": {
+    "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+    "label": "LAG",
+    "name": "lag"
+  }
+}

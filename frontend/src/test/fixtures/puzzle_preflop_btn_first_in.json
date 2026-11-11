@@ -1,0 +1,62 @@
+{
+  "attempts_so_far": 0,
+  "board": [],
+  "custom": {
+    "allowed": false,
+    "max_to": null,
+    "min_to": null
+  },
+  "hero_cards": [
+    "4c",
+    "Kh"
+  ],
+  "hero_position": "BTN",
+  "hero_seat": 1,
+  "history": [],
+  "id": 1,
+  "options": [
+    {
+      "index": 0,
+      "kind": "fold",
+      "label": "fold",
+      "to": 0
+    },
+    {
+      "index": 1,
+      "kind": "raise",
+      "label": "raise 2.5x",
+      "to": 5
+    },
+    {
+      "index": 2,
+      "kind": "raise",
+      "label": "raise 3x",
+      "to": 6
+    },
+    {
+      "index": 3,
+      "kind": "raise",
+      "label": "all-in",
+      "to": 200
+    }
+  ],
+  "pot": 3,
+  "pot_odds": null,
+  "range_read_asked": true,
+  "stacks": [
+    198,
+    199
+  ],
+  "street": "preflop",
+  "street_bets": [
+    2,
+    1
+  ],
+  "to_call": 1,
+  "villain_position": "BB",
+  "villain_profile": {
+    "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+    "label": "LAG",
+    "name": "lag"
+  }
+}

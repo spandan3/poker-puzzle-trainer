@@ -7,3 +7,5 @@ dist/
 .env
 *.db
 .superpowers/
+playwright-report/
+test-results/

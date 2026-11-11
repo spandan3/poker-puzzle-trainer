@@ -1,0 +1,123 @@
+{
+  "attempts_so_far": 0,
+  "board": [
+    "7s",
+    "Ah",
+    "9c"
+  ],
+  "custom": {
+    "allowed": true,
+    "max_to": 195,
+    "min_to": 15
+  },
+  "hero_cards": [
+    "Js",
+    "Qh"
+  ],
+  "hero_position": "BTN",
+  "hero_seat": 0,
+  "history": [
+    {
+      "actor": "hero",
+      "all_in": false,
+      "amount": 4,
+      "kind": "raise",
+      "pot_before": 3,
+      "street": "preflop",
+      "text": "Pre-flop: opens to 5",
+      "to": 5
+    },
+    {
+      "actor": "villain",
+      "all_in": false,
+      "amount": 3,
+      "kind": "call",
+      "pot_before": 7,
+      "street": "preflop",
+      "text": "Pre-flop: calls",
+      "to": 5
+    },
+    {
+      "actor": "villain",
+      "all_in": false,
+      "amount": 0,
+      "kind": "check",
+      "pot_before": 10,
+      "street": "flop",
+      "text": "Flop: checks",
+      "to": 0
+    },
+    {
+      "actor": "hero",
+      "all_in": false,
+      "amount": 3,
+      "kind": "bet",
+      "pot_before": 10,
+      "street": "flop",
+      "text": "Flop: bets 3 (30% pot)",
+      "to": 3
+    },
+    {
+      "actor": "villain",
+      "all_in": false,
+      "amount": 9,
+      "kind": "raise",
+      "pot_before": 13,
+      "street": "flop",
+      "text": "Flop: raises to 9",
+      "to": 9
+    }
+  ],
+  "id": 7,
+  "options": [
+    {
+      "index": 0,
+      "kind": "fold",
+      "label": "fold",
+      "to": 0
+    },
+    {
+      "index": 1,
+      "kind": "call",
+      "label": "call",
+      "to": 9
+    },
+    {
+      "index": 2,
+      "kind": "raise",
+      "label": "raise 2.5x",
+      "to": 22
+    },
+    {
+      "index": 3,
+      "kind": "raise",
+      "label": "raise 3x",
+      "to": 27
+    },
+    {
+      "index": 4,
+      "kind": "raise",
+      "label": "all-in",
+      "to": 195
+    }
+  ],
+  "pot": 22,
+  "pot_odds": 0.21428571428571427,
+  "range_read_asked": true,
+  "stacks": [
+    192,
+    186
+  ],
+  "street": "flop",
+  "street_bets": [
+    3,
+    9
+  ],
+  "to_call": 6,
+  "villain_position": "BB",
+  "villain_profile": {
+    "description": "Competent, but defends wide and calls down lighter than most.",
+    "label": "Sticky",
+    "name": "sticky"
+  }
+}

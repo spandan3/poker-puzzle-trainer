@@ -1,0 +1,79 @@
+{
+  "attempts_so_far": 0,
+  "board": [],
+  "custom": {
+    "allowed": false,
+    "max_to": null,
+    "min_to": null
+  },
+  "hero_cards": [
+    "Kc",
+    "5d"
+  ],
+  "hero_position": "BB",
+  "hero_seat": 0,
+  "history": [
+    {
+      "actor": "villain",
+      "all_in": false,
+      "amount": 4,
+      "kind": "raise",
+      "pot_before": 3,
+      "street": "preflop",
+      "text": "Pre-flop: opens to 5",
+      "to": 5
+    }
+  ],
+  "id": 5,
+  "options": [
+    {
+      "index": 0,
+      "kind": "fold",
+      "label": "fold",
+      "to": 0
+    },
+    {
+      "index": 1,
+      "kind": "call",
+      "label": "call",
+      "to": 5
+    },
+    {
+      "index": 2,
+      "kind": "raise",
+      "label": "raise 2.5x",
+      "to": 12
+    },
+    {
+      "index": 3,
+      "kind": "raise",
+      "label": "raise 3x",
+      "to": 15
+    },
+    {
+      "index": 4,
+      "kind": "raise",
+      "label": "all-in",
+      "to": 200
+    }
+  ],
+  "pot": 7,
+  "pot_odds": 0.3,
+  "range_read_asked": true,
+  "stacks": [
+    198,
+    195
+  ],
+  "street": "preflop",
+  "street_bets": [
+    2,
+    5
+  ],
+  "to_call": 3,
+  "villain_position": "BTN",
+  "villain_profile": {
+    "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+    "label": "LAG",
+    "name": "lag"
+  }
+}

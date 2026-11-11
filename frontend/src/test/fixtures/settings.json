@@ -1,0 +1,30 @@
+{
+  "daily_goal": 10,
+  "llm_provider": "none",
+  "llm_status": "off",
+  "profile": null,
+  "profiles": [
+    {
+      "description": "Solid tight-aggressive regular: value-heavy, bluffs in balance.",
+      "label": "TAG",
+      "name": "tag"
+    },
+    {
+      "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+      "label": "LAG",
+      "name": "lag"
+    },
+    {
+      "description": "Tight and solid: narrow ranges, value-heavy, rarely bluffs.",
+      "label": "Tight",
+      "name": "tight"
+    },
+    {
+      "description": "Competent, but defends wide and calls down lighter than most.",
+      "label": "Sticky",
+      "name": "sticky"
+    }
+  ],
+  "show_pot_odds": true,
+  "show_profile": true
+}
