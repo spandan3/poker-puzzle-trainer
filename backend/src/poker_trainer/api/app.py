@@ -8,20 +8,22 @@ the engine.
 from __future__ import annotations
 
 import math
+import mimetypes
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated, Any
 
 import uvicorn
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from poker_trainer import __version__
 from poker_trainer.api import service, views
-from poker_trainer.api.schemas import AttemptIn, Health, NewPuzzleIn
+from poker_trainer.api.schemas import AttemptIn, Health, NewPuzzleIn, SettingsPatch
 from poker_trainer.api.service import PuzzleFactory, ServiceError
 from poker_trainer.db.models import DEFAULT_USER_ID
 from poker_trainer.db.session import (
@@ -62,6 +64,15 @@ Factory = Annotated[PuzzleFactory, Depends(get_factory)]
 router = APIRouter(prefix="/api")
 
 
+def _puzzle_view(db: Session, user_id: int, puzzle_id: int, p: Any) -> dict[str, Any]:
+    return views.puzzle_view(
+        puzzle_id,
+        p,
+        custom_sizes_allowed=views.custom_allowed(p),
+        attempts_so_far=service.count_attempts(db, user_id, puzzle_id),
+    )
+
+
 @router.get("/health")
 def health() -> Health:
     return Health(status="ok", version=__version__)
@@ -80,6 +91,23 @@ def new_puzzle(
     )
 
 
+@router.get("/puzzles/current")  # before /puzzles/{puzzle_id}
+def current_puzzle(db: Db, user_id: UserId) -> dict[str, Any]:
+    puzzle_id, p = service.current_puzzle(db, user_id)
+    return _puzzle_view(db, user_id, puzzle_id, p)
+
+
+@router.get("/puzzles/{puzzle_id}")
+def get_puzzle(puzzle_id: int, db: Db, user_id: UserId) -> dict[str, Any]:
+    _, p = service.load_puzzle(db, user_id, puzzle_id)
+    return _puzzle_view(db, user_id, puzzle_id, p)
+
+
+@router.get("/puzzles/{puzzle_id}/attempts")
+def puzzle_attempts(puzzle_id: int, db: Db, user_id: UserId) -> list[dict[str, Any]]:
+    return service.puzzle_attempts(db, user_id, puzzle_id)
+
+
 @router.post("/puzzles/{puzzle_id}/attempts", status_code=201)
 def submit_attempt(puzzle_id: int, body: AttemptIn, db: Db, user_id: UserId) -> dict[str, Any]:
     row, p = service.submit_attempt(db, user_id, puzzle_id, body)
@@ -90,6 +118,67 @@ def submit_attempt(puzzle_id: int, body: AttemptIn, db: Db, user_id: UserId) -> 
 def get_attempt(attempt_id: int, db: Db, user_id: UserId) -> dict[str, Any]:
     row = service.load_attempt(db, user_id, attempt_id)
     return service.attempt_result_for(db, user_id, row)
+
+
+@router.get("/history")
+def history(
+    db: Db,
+    user_id: UserId,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    first_only: bool = False,
+) -> dict[str, Any]:
+    return service.history(db, user_id, limit=limit, offset=offset, first_only=first_only)
+
+
+@router.get("/settings")
+def get_user_settings(request: Request, db: Db, user_id: UserId) -> dict[str, Any]:
+    return service.settings_view(db, user_id, request.app.state.settings)
+
+
+@router.patch("/settings")
+def patch_user_settings(
+    body: SettingsPatch, request: Request, db: Db, user_id: UserId
+) -> dict[str, Any]:
+    changes = {k: getattr(body, k) for k in body.model_fields_set}
+    service.patch_settings(db, user_id, changes)
+    return service.settings_view(db, user_id, request.app.state.settings)
+
+
+# ---------------------------------------------------------------------------
+# Static frontend
+# ---------------------------------------------------------------------------
+
+# The Windows registry can map .js to text/plain, and browsers refuse module scripts served so.
+for _type, _ext in (("text/javascript", ".js"), ("text/javascript", ".mjs"), ("text/css", ".css")):
+    mimetypes.add_type(_type, _ext)
+
+
+def _frontend_route(dist: Path) -> Any:
+    """Catch-all GET: a file inside ``dist``, else ``index.html`` (SPA routing).
+
+    Every candidate path is resolved and must lie inside the resolved ``dist``, so no
+    traversal (``..``, encoded separators, symlinks) can reach a file outside it.
+    """
+    root = dist.resolve()
+
+    def frontend(full_path: str) -> Any:
+        rel = full_path.lstrip("/")
+        if rel == "api" or rel.startswith("api/"):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        index = root / "index.html"
+        if not index.is_file():
+            return JSONResponse({"detail": "frontend not built"}, status_code=404)
+        if rel:
+            try:
+                candidate = (root / rel).resolve()
+                if candidate.is_relative_to(root) and candidate.is_file():
+                    return FileResponse(candidate)
+            except (OSError, ValueError):  # e.g. a name too long, a null byte
+                pass
+        return FileResponse(index)
+
+    return frontend
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +231,12 @@ def create_app(
     app.add_exception_handler(ServiceError, _service_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.include_router(router)
+    app.add_api_route(
+        "/{full_path:path}",
+        _frontend_route(settings.frontend_dist),
+        methods=["GET", "HEAD"],
+        include_in_schema=False,
+    )
     return app
 
 

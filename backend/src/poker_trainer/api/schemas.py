@@ -55,3 +55,22 @@ class AttemptIn(BaseModel):
         if (self.option is None) == (self.custom_to is None):
             raise ValueError("give exactly one of option or custom_to")
         return self
+
+
+class SettingsPatch(BaseModel):
+    """Partial update: only fields the client sent are applied (``profile: null`` = random)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # strict: a JSON 1 or "false" is not a toggle, 1.0 or "10" not a goal
+    show_pot_odds: Annotated[bool, Field(strict=True)] = True
+    show_profile: Annotated[bool, Field(strict=True)] = True
+    profile: str | None = None
+    daily_goal: Annotated[int, Field(ge=1, le=500, strict=True)] = 10
+
+    @field_validator("profile")
+    @classmethod
+    def _known_profile(cls, v: str | None) -> str | None:
+        if v is not None and v not in PROFILE_NAMES:
+            raise ValueError(f"unknown profile {v!r}; expected one of {list(PROFILE_NAMES)}")
+        return v

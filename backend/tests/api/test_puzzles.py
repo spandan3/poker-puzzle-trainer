@@ -409,3 +409,12 @@ def test_responses_utf8(client, cached_puzzles):
     assert "—".encode() in r.content  # UTF-8, not \u escapes
     labels = [b["label"] for o in r.json()["options"] for b in o["branches"]]
     assert any("—" in label for label in labels)
+
+
+def test_concurrent_submit_exhausted_retry_409(client, monkeypatch):
+    pid = _new(client, street="flop")["id"]
+    assert _submit(client, pid, option=0).status_code == 201
+    monkeypatch.setattr(service, "_next_attempt_no", lambda db, puzzle_id: 1)
+    r = _submit(client, pid, option=0)
+    assert r.status_code == 409
+    assert r.json() == {"detail": "concurrent submit, try again"}
