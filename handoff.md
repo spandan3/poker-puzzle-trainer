@@ -2,7 +2,7 @@
 
 This is for working on the Villain model while the main line of work (M3, the puzzle generator and grader) continues on its own branch.
 
-Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` at `4ee0966` (2026-11-10).
+Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M3 merge (2026-11-10). M3 (the puzzle generator and grader) is done. M4 (API and database) is next.
 
 ## 1. What the project is
 
@@ -57,16 +57,19 @@ uv run python -m poker_trainer.analysis.competence --profile all --hands 400   #
 
 | Path | Why |
 |---|---|
-| `src/poker_trainer/villain/narrowing.py` | M3 stores `RangeTracker` steps and the `describe` labels in puzzles. |
+| `src/poker_trainer/villain/narrowing.py` | Puzzles store the `RangeTracker` steps and the `describe` labels. |
 | `src/poker_trainer/game/state.py` | The hand engine everything uses. Avoid changing it. If you must, keep every existing test passing. |
-| `backend/pyproject.toml`, `uv.lock` | M3 adds `[project.scripts]`. If you add a dependency, tell us; it must have wheels for Windows and macOS on Python 3.13. |
+| `backend/pyproject.toml`, `uv.lock` | M4 will add dependencies (FastAPI, SQLAlchemy). If you add one too, tell us. It must have wheels for Windows and macOS on Python 3.13. |
 
-### Off-limits: M3 is changing these right now
+### Off-limits: the main line owns these
 
-- `src/poker_trainer/engine/**` (M3 Task 1 rewrites `equity.py`)
-- `src/poker_trainer/puzzle/**` (new in M3)
+- `src/poker_trainer/engine/**` (equity engine)
+- `src/poker_trainer/puzzle/**` (generator, solver, grader, `config.json`)
+- anything M4 adds: the API, the database, migrations
 - `tests/engine/**`, `tests/puzzle/**`
 - `docs/superpowers/**` (plans and spec)
+
+You can still *use* the puzzle code to see your changes in action (§6).
 
 ## 4. The contract you must keep
 
@@ -126,6 +129,16 @@ The bands live in each profile's `bands` block. **Don't widen a band just to mak
 
 ## 6. What to improve, with the highest value first
 
+**How to see the effect of a change on real puzzles:** the generator and grader are built now. `uv run puzzle-sample --n 10 --profile tag` prints puzzles: Villain's line, Hero's cards, the board, the range size, Hero's equity, and the EV of every Hero option in bb. Each option's EV comes from your strategy's fold, call and raise responses. If a ridiculous option grades as best, the cause is usually a Villain frequency.
+
+**Found by the M3 review (fix these first). They make the grader teach the wrong lesson:**
+1. **TAG calls huge river jams too wide.** On a monotone river, TAG called a 2.5×-pot jam with about 55% of its range, so Hero jamming two pair graded as best. To fix it, have `facing_bet` continue less against big sizes for MEDIUM and WEAK hands: tighten their base rows, or steepen the size curve in `_facing`. Then add a competence check on the continue rate against bets of 2× pot or more.
+2. **BTN over-folds to 3-bets.** From the BB, 3-betting trash like 23o, 35o and 75o grades as best by 0.6–1.3bb, so Villain BTN's `btn_call_threebet` + `btn_jam` is too narrow against a 3-bet. Check it against the minimum defence frequency, MDF = 1/(1+f), where f = call ÷ (pot before the call − call):
+   - A 3-bet to 15 against BTN's open to 5: BTN calls 10 into 10, so f = 1 and BTN should continue about 50% of its opening range.
+   - A 3-bet to 12: f = 0.7, so BTN should continue about 59%.
+
+   Consider adding a pre-flop defence check to `competence.py`.
+
 **Known weaknesses:**
 1. **Per-street tables.** Flop and turn share one unopened table. Only the river has overrides, through `river_unopened`. Real players play turns differently, for example double-barrel frequencies. You could add `turn_unopened`, or generalise to per-street overrides.
 2. **MEDIUM raises a bet too often** in the `facing_bet` tables. No check measures this yet. Add a "raises are dominated" check, like `thin_value_dominated` but for raises, then tune.
@@ -167,6 +180,7 @@ The bands live in each profile's `bands` block. **Don't widen a band just to mak
    - the competence report for all profiles
 4. Paste the before and after competence tables into the PR description.
 5. Open a PR into `main`. CI runs the fast suite on Windows and macOS. The slow suite runs on `main` after merge.
-6. If you change behaviour M3 relies on (§4), say so in the PR so the M3 branch can rebase on it deliberately.
+6. If you change behaviour the puzzle code relies on (§4), say so in the PR so the main line can rebase on it deliberately.
+7. Profile version bumps: saved puzzles keep their old `profile_version`. Grading a custom bet size on an older puzzle raises "profile changed since this puzzle was generated". This is intended. Just bump the version on every data change.
 
-**Rule of thumb:** data and tuning changes plus new checks never conflict with M3. Changing a public signature does.
+**Rule of thumb:** data and tuning changes plus new checks never conflict with the main line. Changing a public signature does.
