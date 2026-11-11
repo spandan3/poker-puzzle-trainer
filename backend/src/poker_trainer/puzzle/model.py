@@ -352,6 +352,10 @@ def _option_ev_from_dict(d: dict[str, Any]) -> OptionEV:
     )
 
 
+option_ev_to_dict = _option_ev_to_dict
+option_ev_from_dict = _option_ev_from_dict
+
+
 def _combo_equity_to_dict(c: ComboEquity) -> dict[str, Any]:
     return {
         "hero": [int(x) for x in c.hero],

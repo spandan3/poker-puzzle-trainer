@@ -8,14 +8,23 @@ dependencies = [
     "sqlalchemy>=2.0,<3",
     "alembic>=1.13",
     "pydantic-settings>=2.4",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
 ]
 
 [project.scripts]
 competence = "poker_trainer.analysis.competence:main"
 puzzle-sample = "poker_trainer.puzzle.cli:main"
+serve = "poker_trainer.api.app:main"
 
 [dependency-groups]
-dev = ["pytest", "hypothesis", "ruff", "pokerkit>=0.7,<0.8"]
+dev = [
+    "pytest",
+    "hypothesis",
+    "ruff",
+    "pokerkit>=0.7,<0.8",
+    "httpx>=0.28.1",
+]
 
 [build-system]
 requires = ["hatchling"]
