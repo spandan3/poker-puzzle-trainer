@@ -1,3 +1,4 @@
+import dataclasses
 import json
 
 import numpy as np
@@ -115,3 +116,30 @@ def test_config_and_simplifications():
     assert c.samples == 40000 and c.verdict.best_bb == 0.25 and c.max_attempts == 200
     assert c.street_weights["flop"] == 0.30
     assert set(SIMPLIFICATIONS) == {"realisation", "reraise_reply", "preflop_size"}
+
+
+def test_numpy_scalars_serialise():
+    p = _puzzle()
+    ev = p.solution.options[1]
+    ev2 = dataclasses.replace(
+        ev,
+        ev_chips=np.float64(1.5),
+        fold_freq=np.float64(0.4),
+        put=np.int64(4),
+        branches=(Branch("Villain folds", np.float64(0.4), None, np.float64(10.0)),),
+    )
+    sol = dataclasses.replace(
+        p.solution,
+        options=(p.solution.options[0], ev2),
+        best=np.int64(1),
+        equity=np.float64(0.5),
+        equity_exact=np.bool_(False),
+        category_breakdown=(
+            CategoryRow("nuts", np.float64(0.1), np.float64(0.9), np.float64(0.8)),
+        ),
+    )
+    q = puzzle_from_dict(json.loads(json.dumps(puzzle_to_dict(Puzzle(p.spot, sol)))))
+    assert q.solution.best == 1 and type(q.solution.best) is int
+    assert q.solution.options[1].put == 4 and type(q.solution.options[1].put) is int
+    assert q.solution.equity_exact is False
+    assert q.solution.options[1].ev_chips == 1.5

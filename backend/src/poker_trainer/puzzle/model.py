@@ -192,7 +192,11 @@ def visible_range(r: Range, hero: tuple[int, int], board: tuple[int, ...]) -> Ra
 
 
 def _arr(a: np.ndarray) -> list[float]:
-    return [float(x) for x in a]
+    return np.asarray(a).astype(float).tolist()
+
+
+def _f(x: float | None) -> float | None:
+    return None if x is None else float(x)
 
 
 def _ro(values: Any) -> np.ndarray:
@@ -202,7 +206,7 @@ def _ro(values: Any) -> np.ndarray:
 
 
 def _action_to_dict(a: Action) -> dict[str, Any]:
-    return {"seat": a.seat, "kind": a.kind.value, "street": int(a.street), "to": a.to}
+    return {"seat": int(a.seat), "kind": a.kind.value, "street": int(a.street), "to": int(a.to)}
 
 
 def _action_from_dict(d: dict[str, Any]) -> Action:
@@ -211,17 +215,17 @@ def _action_from_dict(d: dict[str, Any]) -> Action:
 
 def _state_to_dict(s: HandState) -> dict[str, Any]:
     return {
-        "button": s.button,
-        "stacks": list(s.stacks),
-        "street_bets": list(s.street_bets),
-        "pot": s.pot,
+        "button": int(s.button),
+        "stacks": [int(x) for x in s.stacks],
+        "street_bets": [int(x) for x in s.street_bets],
+        "pot": int(s.pot),
         "street": int(s.street),
-        "board": list(s.board),
-        "to_act": s.to_act,
+        "board": [int(x) for x in s.board],
+        "to_act": None if s.to_act is None else int(s.to_act),
         "history": [_action_to_dict(a) for a in s.history],
-        "last_raise": s.last_raise,
-        "folded": s.folded,
-        "total_chips": s.total_chips,
+        "last_raise": int(s.last_raise),
+        "folded": None if s.folded is None else int(s.folded),
+        "total_chips": int(s.total_chips),
     }
 
 
@@ -243,16 +247,16 @@ def _state_from_dict(d: dict[str, Any]) -> HandState:
 
 def _spot_to_dict(sp: Spot) -> dict[str, Any]:
     return {
-        "seed": sp.seed,
-        "attempt": sp.attempt,
+        "seed": int(sp.seed),
+        "attempt": int(sp.attempt),
         "state": _state_to_dict(sp.state),
-        "hero_seat": sp.hero_seat,
-        "hero": list(sp.hero),
-        "villain_hole": list(sp.villain_hole),
-        "runout": list(sp.runout),
-        "profile": sp.profile,
-        "profile_version": sp.profile_version,
-        "categories_version": sp.categories_version,
+        "hero_seat": int(sp.hero_seat),
+        "hero": [int(x) for x in sp.hero],
+        "villain_hole": [int(x) for x in sp.villain_hole],
+        "runout": [int(x) for x in sp.runout],
+        "profile": str(sp.profile),
+        "profile_version": int(sp.profile_version),
+        "categories_version": int(sp.categories_version),
         "steps": [
             {"label": v.label, "street": int(v.street), "range": _arr(v.range)} for v in sp.steps
         ],
@@ -281,16 +285,21 @@ def _option_ev_to_dict(o: OptionEV) -> dict[str, Any]:
     return {
         "label": o.option.label,
         "action": _action_to_dict(o.option.action),
-        "ev_chips": o.ev_chips,
-        "fold_freq": o.fold_freq,
-        "equity_vs_continue": o.equity_vs_continue,
-        "ahead_vs_continue": o.ahead_vs_continue,
-        "equity_vs_continue_se": o.equity_vs_continue_se,
-        "required_fold_equity": o.required_fold_equity,
-        "put": o.put,
+        "ev_chips": float(o.ev_chips),
+        "fold_freq": _f(o.fold_freq),
+        "equity_vs_continue": _f(o.equity_vs_continue),
+        "ahead_vs_continue": _f(o.ahead_vs_continue),
+        "equity_vs_continue_se": _f(o.equity_vs_continue_se),
+        "required_fold_equity": _f(o.required_fold_equity),
+        "put": int(o.put),
         "continue_range": None if o.continue_range is None else _arr(o.continue_range),
         "branches": [
-            {"label": b.label, "share": b.share, "equity": b.equity, "value_chips": b.value_chips}
+            {
+                "label": b.label,
+                "share": float(b.share),
+                "equity": _f(b.equity),
+                "value_chips": float(b.value_chips),
+            }
             for b in o.branches
         ],
         "simplifications": list(o.simplifications),
@@ -317,13 +326,13 @@ def _option_ev_from_dict(d: dict[str, Any]) -> OptionEV:
 
 def _combo_equity_to_dict(c: ComboEquity) -> dict[str, Any]:
     return {
-        "hero": list(c.hero),
-        "board": list(c.board),
+        "hero": [int(x) for x in c.hero],
+        "board": [int(x) for x in c.board],
         "base": _arr(c.base),
         "wins": _arr(c.wins),
         "ties": _arr(c.ties),
         "count": _arr(c.count),
-        "exact": c.exact,
+        "exact": bool(c.exact),
     }
 
 
@@ -342,18 +351,23 @@ def _combo_equity_from_dict(d: dict[str, Any]) -> ComboEquity:
 def _solution_to_dict(s: Solution) -> dict[str, Any]:
     cb = s.category_breakdown
     return {
-        "equity": s.equity,
-        "equity_std_error": s.equity_std_error,
-        "equity_exact": s.equity_exact,
-        "ahead_now": s.ahead_now,
-        "pot_odds": s.pot_odds,
+        "equity": float(s.equity),
+        "equity_std_error": float(s.equity_std_error),
+        "equity_exact": bool(s.equity_exact),
+        "ahead_now": _f(s.ahead_now),
+        "pot_odds": float(s.pot_odds),
         "options": [_option_ev_to_dict(o) for o in s.options],
-        "best": s.best,
+        "best": int(s.best),
         "combo_equity": _combo_equity_to_dict(s.combo_equity),
         "category_breakdown": None
         if cb is None
         else [
-            {"category": r.category, "share": r.share, "ahead": r.ahead, "equity": r.equity}
+            {
+                "category": r.category,
+                "share": float(r.share),
+                "ahead": float(r.ahead),
+                "equity": float(r.equity),
+            }
             for r in cb
         ],
         "simplifications": list(s.simplifications),

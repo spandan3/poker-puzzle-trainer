@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from poker_trainer.game.state import Action, ActionKind, HandState, Street, legal_actions
 from poker_trainer.puzzle.model import Option
-from poker_trainer.villain.strategy import allin, bet_to, raise_to
+from poker_trainer.villain.strategy import UnsupportedSpot, allin, bet_to, raise_to
 
 _BET_FRACS = ((0.33, "bet 33%"), (0.5, "bet 50%"), (0.75, "bet 75%"), (1.0, "bet 100%"))
 _RAISE_MULTS = ((2.5, "raise 2.5x"), (3.0, "raise 3x"))
@@ -34,7 +34,7 @@ def hero_options(s: HandState) -> tuple[Option, ...]:
     if s.street == Street.PREFLOP:
         acts = [a for a in s.history if a.street == Street.PREFLOP]
         if any(a.kind != ActionKind.RAISE for a in acts):
-            raise ValueError("unsupported pre-flop line")
+            raise UnsupportedSpot("unsupported pre-flop line")
         if lg.call > 0 and lg.aggressive is None:  # facing a jam
             entries = [("fold", fold), ("call", call)]
         elif not acts and me == s.button:
@@ -48,7 +48,7 @@ def hero_options(s: HandState) -> tuple[Option, ...]:
         elif len(acts) == 2 and me == s.button:
             entries = [("fold", fold), ("call", call), ("all-in", allin(s))]
         else:
-            raise ValueError("unsupported pre-flop spot")
+            raise UnsupportedSpot("unsupported pre-flop spot")
         return _merge(s, entries)
 
     if lg.call > 0:
