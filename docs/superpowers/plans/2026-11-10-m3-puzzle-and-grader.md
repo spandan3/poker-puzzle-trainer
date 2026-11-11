@@ -307,3 +307,21 @@ Use this river fixture, `river_spot()`:
   - `grade` of each option's action gives `verdict == "best"` exactly for options within the best margin.
   - The JSON round-trip holds.
 - [ ] Write the tests → pass. Commit `test(puzzle): property tests — revealed hand in range, displayed ≡ graded, chips conserved`.
+
+## Open items for M4 (from the M3 final review)
+
+- **Size:** puzzle JSON is 60–160 KB, mostly float lists. Store it compressed (zlib), or use a sparse or float32 encoding, provided the round-trip stays exact where needed.
+- **Persist the Grade with each attempt:** store the chosen `OptionEV`, the verdict and `Spot.config_version`. A later config change must not silently regrade history.
+- **Custom sizes need the live profile:** `grade` raises if the profile version changed. Disable custom sizes for stale puzzles.
+- **Canonical actions:** build `Answer.action` from a stored `Option.action`, or via `custom_action`. Guesses are fractions from 0 to 1.
+- **Display text:** map category enum names and simplification codes (`SIMPLIFICATIONS`) to display text in the API layer.
+- **Encoding:** branch labels contain an em dash. Use UTF-8 end to end.
+- **Format check:** check `format: 1`. Never regenerate a puzzle from its seed, because determinism holds only per platform.
+- **Showdown winner:** compute it from the frozen cards (hole cards and runout), or add it to the frozen state.
+
+## Deferred to M6 (results-view profile notes, or Villain tuning on the handoff branch)
+
+- TAG calls a 2.5×-pot river jam with 55% of its range on a monotone board, so jamming two pair grades as best.
+- In BB pre-flop spots, 3-betting trash (23o/35o/75o) grades best by 0.6–1.3bb. BTN may over-fold to 3-bets.
+- `preflop_size`: 2.5x is never worse than 3x by construction. Say so whenever this decides the best option.
+- Profile notes carried over from M3 planning: STRONG folds about 34% to big jams; MEDIUM raises often; the river stab frequency.
