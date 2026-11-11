@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { Card } from '../../components/Card/Card'
 import { Table } from '../../components/Table/Table'
-import { formatBb, formatPct } from '../../lib/format'
+import { TableCentre } from '../../components/TableCentre/TableCentre'
 import { SEAT_SLOTS, seatsFromView, type SeatInfo } from '../../lib/seats'
 import { puzzleFixture } from '../../test/fixture'
 import type { GalleryEntry } from '../Gallery'
@@ -14,58 +14,6 @@ const caption: CSSProperties = {
   margin: 'var(--space-5) 0 var(--space-2)',
   color: 'var(--color-text-muted)',
   fontSize: 'var(--text-sm)',
-}
-
-/**
- * A stand-in for the table centre (Task 3 builds the real one). It fills the whole centre budget
- * documented in Table.module.css (22em × 10em, outlined here), so the gallery shows that
- * nothing on the table reaches it.
- */
-function DemoCentre({
-  board,
-  pot,
-  potOdds,
-}: {
-  board: string[]
-  pot: number
-  potOdds: number | null
-}) {
-  const slots = [...board, ...Array<null>(5 - board.length).fill(null)]
-  return (
-    <div
-      data-centre-budget=""
-      style={{
-        display: 'grid',
-        alignContent: 'center',
-        justifyItems: 'center',
-        gap: '0.6em',
-        width: '22em',
-        height: '10em',
-        outline: '1px dashed var(--color-felt-line)',
-        borderRadius: 'var(--radius-md)',
-      }}
-    >
-      <div style={{ display: 'flex', gap: '0.4em' }}>
-        {slots.map((card, i) => (
-          <Card key={i} card={card} size="md" />
-        ))}
-      </div>
-      <div
-        style={{
-          fontWeight: 600,
-          fontVariantNumeric: 'tabular-nums',
-          color: 'var(--color-text-on-felt)',
-        }}
-      >
-        Pot {formatBb(pot)}
-      </div>
-      {potOdds !== null && (
-        <div style={{ color: 'var(--color-text-on-felt-muted)', fontSize: '0.9em' }}>
-          Pot odds {formatPct(potOdds)} · needs {formatPct(potOdds)} equity to call
-        </div>
-      )}
-    </div>
-  )
 }
 
 function Demo({ title, children }: { title: string; children: ReactNode }) {
@@ -82,7 +30,9 @@ function fixtureTable(name: string, opts: { showProfile: boolean; villainCards?:
   return (
     <Table
       seats={seatsFromView(view, opts)}
-      centre={<DemoCentre board={view.board} pot={view.pot} potOdds={view.pot_odds} />}
+      centre={
+        <TableCentre board={view.board} potChips={view.pot} potOdds={view.pot_odds} showPotOdds />
+      }
     />
   )
 }
@@ -101,7 +51,9 @@ const FIVE_SEATS: SeatInfo[] = SEAT_SLOTS.filter((slot) => slot !== 'top').map((
   showProfile: i !== 0,
 }))
 
-const fiveCentre = <DemoCentre board={['9h', '8d', '2c']} pot={64} potOdds={0.25} />
+const fiveCentre = (
+  <TableCentre board={['9h', '8d', '2c']} potChips={64} potOdds={0.25} showPotOdds />
+)
 
 const entry: GalleryEntry = {
   title: 'Cards and table',
