@@ -1,0 +1,172 @@
+# Handoff: improving the Villain "poker bot"
+
+This is for working on the Villain model while the main line of work (M3, the puzzle generator and grader) continues on its own branch.
+
+Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` at `4ee0966` (2026-11-10).
+
+## 1. What the project is
+
+It's a puzzle trainer in the style of chess.com puzzles, for heads-up No-Limit Hold'em.
+- Each puzzle drops Hero (the user) into a hand at a decision point.
+- The user estimates equity, estimates what share of Villain's range they're ahead of, and picks an action.
+- Code grades the action by EV against Villain's range.
+
+The full design is in `docs/superpowers/specs/2026-11-10-poker-puzzle-trainer-design.md`. §5 covers the Villain and is the part that matters for you.
+
+The **Villain** is a rule-based, probabilistic player, not a solver:
+1. It sorts every one of the 1,326 possible hands into a **category** on the current board: AIR, WEAK_DRAW, WEAK, MEDIUM, STRONG_DRAW, STRONG, NUTS.
+2. A **profile** (TAG, LAG, Tight, Sticky) gives each category a probability for each action in each spot. Example: a STRONG hand as c-bettor checks 12%, bets 33% pot 38% of the time, and bets 75% pot 50% of the time.
+3. Adjustments are layered on top: a draw boost on wet boards, bet-size scaling when facing a bet, and the low-SPR "committed" rule.
+
+### The key rule: one policy, used three ways
+
+Everything goes through **one function**, `action_distribution(profile, state)` in `villain/strategy.py`. It does three jobs:
+1. **Plays the hand.** Villain's real action is sampled from its real hand's probabilities.
+2. **Builds the range.** At each Villain action, every combo's weight is multiplied by the probability that combo would have taken that action. The range shown to the user is exactly what the line implies.
+3. **Predicts responses.** When Hero bets, the fold/call/raise frequencies come from the same function, applied to every combo in the range.
+
+So any improvement you make to that function automatically improves all three. It also means **breaking its contract (§4) breaks the trainer**.
+
+## 2. Setup (Windows or macOS)
+
+```bash
+# install uv first: https://docs.astral.sh/uv/
+cd backend
+uv sync
+uv run pytest -m "not slow"            # fast suite, about 15 s, 267 tests
+uv run pytest -m slow                  # slow cross-checks, about 10 min
+uv run ruff check . && uv run ruff format --check .
+uv run python -m poker_trainer.analysis.competence --profile all --hands 400   # about 2 min
+```
+
+## 3. Scope: what's yours, what's shared, what's off-limits
+
+### Yours: edit freely
+
+| Path (under `backend/`) | What it is |
+|---|---|
+| `src/poker_trainer/villain/profiles/{tag,lag,tight,sticky}.json` | Profile data: pre-flop ranges, unopened tables per role (`cbet` / `lead` / `stab`), facing tables (`facing_bet` / `facing_raise`), `river_unopened` overrides, competence `bands`. **Bump `version` on any change.** |
+| `src/poker_trainer/villain/categories.json` | Category thresholds. **Bump `version` on any change.** |
+| `src/poker_trainer/villain/strategy.py` | The policy. You may change its internals freely. Its public API is in §4. |
+| `src/poker_trainer/villain/features.py` | Per-combo strength, beaten-by, outs, `categorize`, `board_texture`, `street_spr`. |
+| `src/poker_trainer/villain/profiles.py` | The profile loader and validator. Extend the schema here, for example per-street tables. |
+| `src/poker_trainer/analysis/competence.py` | The competence report. Add checks here. |
+| `tests/villain/*`, `tests/analysis/*` | Their tests. |
+
+### Shared: coordinate first, because M3 depends on these
+
+| Path | Why |
+|---|---|
+| `src/poker_trainer/villain/narrowing.py` | M3 stores `RangeTracker` steps and the `describe` labels in puzzles. |
+| `src/poker_trainer/game/state.py` | The hand engine everything uses. Avoid changing it. If you must, keep every existing test passing. |
+| `backend/pyproject.toml`, `uv.lock` | M3 adds `[project.scripts]`. If you add a dependency, tell us; it must have wheels for Windows and macOS on Python 3.13. |
+
+### Off-limits: M3 is changing these right now
+
+- `src/poker_trainer/engine/**` (M3 Task 1 rewrites `equity.py`)
+- `src/poker_trainer/puzzle/**` (new in M3)
+- `tests/engine/**`, `tests/puzzle/**`
+- `docs/superpowers/**` (plans and spec)
+
+## 4. The contract you must keep
+
+M3 calls these names. Their signatures and meaning must not change:
+
+```python
+# villain/strategy.py
+action_distribution(profile: Profile, s: HandState) -> dict[Action, np.ndarray]
+sample_action(profile, s, hole: tuple[int, int], rng) -> Action
+bet_to(s, frac) -> Action;  raise_to(s, mult) -> Action;  allin(s) -> Action   # Hero sizing uses these too
+role(s) -> str;  UnsupportedSpot;  HERO_PROFILE = "tag"
+# villain/profiles.py
+load_profile(name) -> Profile;  PROFILE_NAMES;  Profile.version
+# villain/features.py
+HandCategory;  range_features(board);  categorize(features, thresholds);  load_thresholds() (.version)
+# villain/narrowing.py
+RangeTracker(profile, seat).observe(s, action) / .steps / .current;  describe(action, s)
+```
+
+Invariants that tests enforce. Keep all of them true:
+1. **The keys are canonical legal `Action`s**, the same objects `apply()` records. Keys that resolve to the same chips are merged, with their probabilities summed. `apply` rejects a CALL, FOLD or CHECK whose `to` amount isn't canonical.
+2. **Each array is `(1326,)`.** For every combo not blocked by the board, the probabilities sum to 1. Board-blocked combos are 0 everywhere.
+3. **Deterministic and pure.** The output depends only on `(profile, state)`: no hidden randomness, no global mutable state.
+4. **Only use what Villain could know:** the betting line, the board, stacks and pot. **Never Hero's actual cards.** Hero's *range*, as implied by the line, is fine.
+5. **Vectorised over all 1,326 combos.** The generator calls this function many times per puzzle. Cache per-board work, as `_row_index` and `range_features` already do.
+6. **The pre-flop tree** supports only:
+   - BTN opens or folds (no limps);
+   - BB folds, calls or 3-bets, or calls/folds facing an open-jam;
+   - BTN folds, calls or jams facing a 3-bet;
+   - BB calls or folds facing a 4-bet jam.
+
+   Anything else raises `UnsupportedSpot`, and the generator retries the hand. Extending the tree is welcome; just keep that behaviour for whatever stays unsupported.
+7. **Jams are value-only.**
+8. **No profile may fold NUTS.** STRONG must continue at least 0.93 facing a bet (the `facing_bet` row).
+
+Old puzzles are frozen with the `profile_version` they were generated under. That's why every data change needs a version bump.
+
+## 5. Current status
+
+M1 (equity engine) and M2 (game state plus Villain) are done, reviewed, and merged.
+
+The competence report checks 10 things per profile over 400 simulated hands against the TAG Hero (seed 0). All 40 checks pass:
+
+| Check | TAG | LAG | Tight | Sticky | Meaning |
+|---|---|---|---|---|---|
+| bluff_share_33 | 0.258 | 0.248 | 0.172 | 0.229 | Share of 33% river bets that are bluffs. Target is near f/(1+2f) ≈ 0.20, plus a profile offset. |
+| bluff_share_75 | 0.297 | 0.328 | 0.184 | 0.266 | The same for 75% bets. Target is near 0.30. |
+| defence_flop / turn / river | 0.92 / 1.03 / 0.90 | 0.95 / 1.07 / 0.96 | 0.86 / 0.96 / 0.89 | 1.05 / 1.18 / 1.06 | How often Villain continues facing a bet, divided by minimum defence frequency 1/(1+f). |
+| nuts_fold_max | 0 | 0 | 0 | 0 | Must be 0. |
+| strong_fold_max | 0.041 | 0.028 | 0.071 | 0.028 | Facing a bet of pot size or more. Must be ≤ 0.10. |
+| air_call_max | 0.071 | 0.049 | 0.023 | 0.058 | Calls with air facing a river bet of 75% pot or more. Must be ≤ 0.10. |
+| thin_value_dominated | 0.060 | 0.061 | 0.028 | 0.071 | Value bets that only better hands call. Must be ≤ 0.10. |
+| cbet_flop | 0.566 | 0.635 | 0.513 | 0.541 | Whole-range flop c-bet frequency, in [0.45, 0.70]. |
+| river_stab (info only) | 0.319 | 0.381 | 0.286 | 0.333 | How often Villain bets the river when checked to. |
+
+The bands live in each profile's `bands` block. **Don't widen a band just to make a check pass.** If a band looks wrong, argue the case from the theory.
+
+## 6. What to improve, with the highest value first
+
+**Known weaknesses:**
+1. **Per-street tables.** Flop and turn share one unopened table. Only the river has overrides, through `river_unopened`. Real players play turns differently, for example double-barrel frequencies. You could add `turn_unopened`, or generalise to per-street overrides.
+2. **MEDIUM raises a bet too often** in the `facing_bet` tables. No check measures this yet. Add a "raises are dominated" check, like `thin_value_dominated` but for raises, then tune.
+3. **STRONG folds about 34% to huge over-jams** of about 20× pot. That falls out of the size-scaling formula `continue = base ** ((1+f)/1.5)` in `_facing`. Consider a floor for STRONG, or a different curve.
+4. **Board texture is barely used.** The only texture rule is a 1.25× bet boost for draws on wet boards. Ideas:
+   - on dry boards, c-bet small more often;
+   - on monotone boards, slow down;
+   - adjust for how the board connects with each player's range (range advantage).
+5. **Blockers.** The spec mentions "air with/without blockers". AIR is one bucket today. Bluffing with nut-flush blockers, for example, would be more realistic.
+6. **Pre-flop ignores raise size.** For example, BB defends the same range against a 2.5× open and a 3× open. Hero's pre-flop sizes are limited to 2.5×, 3× and all-in partly for this reason.
+7. **Thin margins.** Some checks are close to their band edges:
+   - TAG `bluff_share_33` is 0.258 against an upper edge of 0.28;
+   - Tight `cbet_flop` is about 0.50 against a lower edge of 0.45;
+   - Sticky `thin_value_dominated` reaches 0.077 at seed 1.
+
+   Making these robust across seeds 0–5 would be good.
+
+**New factors you suggested:**
+- **Modelling Hero.** Villain could track Hero's range with `RangeTracker(load_profile(HERO_PROFILE), hero_seat)` and adjust to it, for example calling wider when Hero's line is bluff-heavy, or using range-versus-range equity. This must respect invariant 4: Hero's range, never Hero's cards.
+  - Caveat: the trainer's Hero policy is always TAG today. A real "adapt to the user" model needs the user's history, which arrives with progress tracking in M7.
+- **Exploitative profiles**, such as a maniac or a calling station. These need new bands and, if they're meant to be bad on purpose, a decision on whether they fit the spec. The spec says "competent, profiles vary style, not competence".
+- **Solver comparison.** This is the best way to prove an improvement helps. The spec lists it as future work.
+
+**Smaller tidy-ups** found in reviews and parked:
+- `_can_reraise` in `state.py` is effectively dead code under the effective-stack cap.
+- `street_spr` hard-codes heads-up seats.
+- `_rest` clips silently.
+- `strong_fold_max` counts bets only, not raises.
+- `air_call_max` counts calls only, not raises.
+
+## 7. How to work in parallel
+
+1. Branch from `main`: `git checkout main && git pull && git checkout -b villain/<topic>`. Example: `villain/per-street-tables`.
+2. Make small, focused commits. **We never squash: every commit is preserved on merge.**
+3. Before you push, run all of these:
+   - `uv run pytest -m "not slow"`
+   - `uv run pytest -m slow tests/villain tests/analysis`
+   - `ruff check` and `ruff format --check`
+   - the competence report for all profiles
+4. Paste the before and after competence tables into the PR description.
+5. Open a PR into `main`. CI runs the fast suite on Windows and macOS. The slow suite runs on `main` after merge.
+6. If you change behaviour M3 relies on (§4), say so in the PR so the M3 branch can rebase on it deliberately.
+
+**Rule of thumb:** data and tuning changes plus new checks never conflict with M3. Changing a public signature does.
