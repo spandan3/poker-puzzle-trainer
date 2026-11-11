@@ -272,3 +272,42 @@ Every value returned is a plain JSON type (no numpy scalars, no NaN).
 | Format check, never regenerate | Task 1 `decode_puzzle`, Global Constraints |
 | Showdown winner | Task 2A `views.showdown` from frozen cards |
 | (M1) grid over unblocked combos | Task 2A `views.range_grid` |
+
+## Deviations from this plan (recorded after the M4 final review)
+
+- **Service helpers:**
+  - `submit_attempt` returns `(AttemptRow, Puzzle)`, so the blob is decoded once per submit.
+  - Added `attempt_result_for`, `count_attempts`, `settings_profile`, `current_puzzle`, `puzzle_attempts`, `history`, `settings_view` and `patch_settings`.
+  - `views.villain_model_current` is the single stale-model check, used by both the view's `custom.allowed` and the 409.
+  - `db.alembic_config(url)` is exported.
+- **Extra error cases:**
+  - When the single retry also collides, `ConcurrentSubmit` → 409 `"concurrent submit, try again"`.
+  - Ids ≤ 0 or above 2^63−1 → 404 (avoids a SQLite overflow).
+  - Non-finite floats in a 422 body are echoed as strings.
+  - Unexpected exceptions → JSON 500 `{"detail": "internal server error"}`.
+- **Stricter inputs:** `AttemptIn.option` / `custom_to` and `SettingsPatch` booleans and `daily_goal` are strict (no `"1"`, `true` or `1.0` coercion).
+- **Responses are plain dicts** from `api/views.py`; only `Health` is a Pydantic response model. Request models are Pydantic.
+- **Static files** are served by one `GET`/`HEAD` catch-all route with a resolve plus `is_relative_to` check, not by `StaticFiles`. `.js`, `.mjs` and `.css` MIME types are forced, because the Windows registry can map `.js` to `text/plain`.
+- **Migrations** run on their own `create_engine(NullPool)`, with SQLite foreign keys off, so later batch table rebuilds work. The app engine keeps foreign keys on. This is tested.
+- **`answer.action.street`** is stored as an int and returned as the lower-case street name, like every other street in the API.
+- **`llm_status`** has an `"on"` branch that can't be reached while `llm_provider` is `Literal["none"]` (M8).
+
+## Open items for M5, M6 and M7 (from the M4 final review)
+
+- **M5, contract:** there are no response schemas, so `/openapi.json` has no response shapes. Either add Pydantic response models before M5, or hand-write the TypeScript types from `api/views.py` with one contract test that pins the key sets.
+- **M5, bb vs chips:**
+  - The puzzle view gives chips only: `stacks`, `pot`, `to_call`, `street_bets` and option `to`.
+  - History texts use chips ("opens to 5").
+  - Results give `ev_*_bb` next to chips; history items give only `ev_loss_bb`.
+  - Divide by 2 in the UI, or add bb fields to the API. Be consistent.
+- **M5, pot odds:** pre-flop BTN first in has `to_call` 1 but `pot_odds` null, because there is no call option. Never compute pot odds in the UI from `to_call`.
+- **M5, working directory:** the `PPT_DATABASE_URL` and `PPT_FRONTEND_DIST` defaults, and `.env`, are relative to the working directory. Run `serve` from `backend/`, or resolve the defaults against the backend directory. Document this in the M9 README.
+- **M5, routing:** the SPA catch-all makes `GET` on a POST-only API route (e.g. `GET /api/puzzles`) return 404, not 405. `/docs`, `/redoc` and `/openapi.json` stay reachable and shadow SPA routes with those names.
+- **M5, river range read:** on the river a `range_read_guess` is stored and echoed, with a null error. The UI shouldn't send it when `range_read_asked` is false, or the server should store None.
+- **M6, options:** results `options` carry no `index`, and a custom choice is appended at the end. Match on `is_chosen` / `is_best`, not on position.
+- **M6, run-out:** `reveal.runout` holds all 5 cards, including the board already shown. Slice by board length to animate the run-out.
+- **M6, profile text:** `villain_profile` and `reveal.profile` use the *live* profile's label and description. If a profile is renamed or removed, `load_profile` raises and the result is a 500. Store the display text on the puzzle, or handle the missing profile.
+- **M7, history filters:** history has no street, verdict or kind filters. Summaries don't expose `action_kind`, `best_kind` or `best_label`, though these are stored and indexed columns; the progress stats will need them.
+- **M7, stale settings profile:** a stored settings profile that leaves `PROFILE_NAMES` makes generation raise, giving a 500. Validate it on read or fall back to random. Also decide the daily-goal and streak day boundary (timezone); timestamps are stored in UTC.
+- **Dependencies:** Starlette 1.10 warns that `httpx` with `TestClient` is deprecated in favour of `httpx2`. Switch before an upgrade breaks the tests.
+- **Unchanged since M3:** Villain tuning (TAG calls river jams too wide; BTN over-folds to 3-bets) is still for the `villain/*` branch in `handoff.md`.
