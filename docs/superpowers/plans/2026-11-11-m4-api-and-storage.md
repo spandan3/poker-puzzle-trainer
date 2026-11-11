@@ -286,15 +286,29 @@ Every value returned is a plain JSON type (no numpy scalars, no NaN).
   - Non-finite floats in a 422 body are echoed as strings.
   - Unexpected exceptions → JSON 500 `{"detail": "internal server error"}`.
 - **Stricter inputs:** `AttemptIn.option` / `custom_to` and `SettingsPatch` booleans and `daily_goal` are strict (no `"1"`, `true` or `1.0` coercion).
-- **Responses are plain dicts** from `api/views.py`; only `Health` is a Pydantic response model. Request models are Pydantic.
+- **Responses** are built as plain dicts in `api/views.py` and validated by Pydantic response models in `api/schemas.py` (`extra="forbid"`, so a view key without a model field fails the tests). See the follow-up below.
 - **Static files** are served by one `GET`/`HEAD` catch-all route with a resolve plus `is_relative_to` check, not by `StaticFiles`. `.js`, `.mjs` and `.css` MIME types are forced, because the Windows registry can map `.js` to `text/plain`.
 - **Migrations** run on their own `create_engine(NullPool)`, with SQLite foreign keys off, so later batch table rebuilds work. The app engine keeps foreign keys on. This is tested.
 - **`answer.action.street`** is stored as an int and returned as the lower-case street name, like every other street in the API.
 - **`llm_status`** has an `"on"` branch that can't be reached while `llm_provider` is `Literal["none"]` (M8).
 
+## Follow-up after the M4 PR review
+
+Fixed on this branch:
+- **`GET /api/puzzles/current`** returns the newest puzzle only if it is unanswered. Previously it returned the newest *unanswered* puzzle, so a skipped puzzle came back once a newer one was answered.
+- **Migration `0002_chosen_label`**: a `chosen_label` column, backfilled from `chosen`. History and per-puzzle summaries read it, never the `chosen` JSON (about 20 KB per bet option, because of `continue_range`).
+- **History summaries** add `action_kind`, `best_label` and `best_kind`. `GET /api/history` takes optional `street`, `verdict`, `action_kind` and `profile` filters (AND-ed, `total` counts the filtered rows; `profile` accepts any stored name, so removed profiles stay filterable).
+- **Response models** for every route (`PuzzleView`, `AttemptResult`, `AttemptSummary`, `HistoryPage`, `SettingsView`), so `/openapi.json` carries every response shape for M5's TypeScript types. `tests/api/test_contract.py` pins them.
+- **Stale settings profile:** a stored profile no longer in `PROFILE_NAMES` reads as null (random) in settings and generation, instead of a 500.
+- **`POST /api/puzzles` `profile: "random"`** is random whatever the settings profile is (null still means "use the settings").
+- **Stored inputs:** a river `range_read_guess` and an `intent` on a fold, check or call are stored (and echoed) as null, because the grader ignores them.
+- **Strict probabilities:** `equity_guess` and `range_read_guess` reject `"0.5"` and `true`, like the other strict inputs (ints such as 0 and 1 are still accepted).
+- **`HEAD /api/health`** returns 200 (it fell through to the SPA catch-all's JSON 404).
+- **`GZipMiddleware`** (minimum 1 KB): an attempt result of about 55–75 KB goes over the wire as about 9 KB.
+
 ## Open items for M5, M6 and M7 (from the M4 final review)
 
-- **M5, contract:** there are no response schemas, so `/openapi.json` has no response shapes. Either add Pydantic response models before M5, or hand-write the TypeScript types from `api/views.py` with one contract test that pins the key sets.
+- **M5, contract:** done (see the follow-up above). Generate the TypeScript types from `/openapi.json`.
 - **M5, bb vs chips:**
   - The puzzle view gives chips only: `stacks`, `pot`, `to_call`, `street_bets` and option `to`.
   - History texts use chips ("opens to 5").
@@ -303,11 +317,11 @@ Every value returned is a plain JSON type (no numpy scalars, no NaN).
 - **M5, pot odds:** pre-flop BTN first in has `to_call` 1 but `pot_odds` null, because there is no call option. Never compute pot odds in the UI from `to_call`.
 - **M5, working directory:** the `PPT_DATABASE_URL` and `PPT_FRONTEND_DIST` defaults, and `.env`, are relative to the working directory. Run `serve` from `backend/`, or resolve the defaults against the backend directory. Document this in the M9 README.
 - **M5, routing:** the SPA catch-all makes `GET` on a POST-only API route (e.g. `GET /api/puzzles`) return 404, not 405. `/docs`, `/redoc` and `/openapi.json` stay reachable and shadow SPA routes with those names.
-- **M5, river range read:** on the river a `range_read_guess` is stored and echoed, with a null error. The UI shouldn't send it when `range_read_asked` is false, or the server should store None.
+- **M5, river range read:** done; the server stores None. The UI still shouldn't ask when `range_read_asked` is false.
 - **M6, options:** results `options` carry no `index`, and a custom choice is appended at the end. Match on `is_chosen` / `is_best`, not on position.
 - **M6, run-out:** `reveal.runout` holds all 5 cards, including the board already shown. Slice by board length to animate the run-out.
 - **M6, profile text:** `villain_profile` and `reveal.profile` use the *live* profile's label and description. If a profile is renamed or removed, `load_profile` raises and the result is a 500. Store the display text on the puzzle, or handle the missing profile.
-- **M7, history filters:** history has no street, verdict or kind filters. Summaries don't expose `action_kind`, `best_kind` or `best_label`, though these are stored and indexed columns; the progress stats will need them.
-- **M7, stale settings profile:** a stored settings profile that leaves `PROFILE_NAMES` makes generation raise, giving a 500. Validate it on read or fall back to random. Also decide the daily-goal and streak day boundary (timezone); timestamps are stored in UTC.
+- **M7, history filters:** done (street, verdict, action kind, profile; summaries carry `action_kind`, `best_kind`, `best_label`). Aggregate stats (averages by street, profile and kind) are still M7's, ideally in SQL.
+- **M7, day boundary:** decide the daily-goal and streak day boundary (timezone); timestamps are stored in UTC. (The stale settings profile is fixed: it falls back to random.)
 - **Dependencies:** Starlette 1.10 warns that `httpx` with `TestClient` is deprecated in favour of `httpx2`. Switch before an upgrade breaks the tests.
 - **Unchanged since M3:** Villain tuning (TAG calls river jams too wide; BTN over-folds to 3-bets) is still for the `villain/*` branch in `handoff.md`.
