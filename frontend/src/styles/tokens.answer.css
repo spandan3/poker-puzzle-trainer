@@ -1,1 +1,48 @@
-/* Tokens for the answer panel (added alongside the panel). */
+/* Tokens for the answer panel (added alongside the panel). Built on the shared tokens.css. */
+:root {
+  /* surfaces */
+  --answer-bg: linear-gradient(180deg, #19202a 0%, #151a22 100%);
+  --answer-border: var(--color-panel-border);
+  --answer-divider: rgb(255 255 255 / 6%);
+  --answer-control-bg: #202834;
+  --answer-control-bg-hover: #283241;
+  --answer-control-border: #344052;
+  --answer-control-border-hover: #46546a;
+  --answer-input-bg: #0f141b;
+  --answer-input-border: #364254;
+
+  /* action colours (unselected: a coloured marker; selected: filled, with dark text) */
+  --answer-fold: #ff7b7b;
+  --answer-passive: #7cbcff;
+  --answer-aggressive: #f5b84a;
+  --answer-on-filled: #0d1117;
+
+  /* sizes and intent: soft selected state */
+  --answer-size-selected-bg: rgb(245 184 74 / 16%);
+  --answer-size-selected-border: #f5b84a;
+  --answer-intent-selected-bg: #e8edf3;
+  --answer-intent-selected-text: #0d1117;
+
+  /* sliders */
+  --answer-track: #2a3442;
+  --answer-fill: var(--color-accent);
+  --answer-thumb: #f4f7fa;
+  --answer-thumb-border: #0d1117;
+
+  /* key hints */
+  --answer-kbd-bg: rgb(0 0 0 / 28%);
+  --answer-kbd-border: rgb(255 255 255 / 16%);
+  --answer-kbd-text: #b8c2cf;
+
+  /* submit */
+  --answer-submit-bg: var(--color-accent);
+  --answer-submit-bg-hover: #5ae6a8;
+  --answer-submit-text: var(--color-text-on-accent);
+  --answer-submit-disabled-bg: #2a323e;
+  --answer-submit-disabled-text: #8a95a4;
+
+  /* metrics */
+  --answer-control-height: 2.5rem;
+  --answer-action-height: 2.875rem;
+  --answer-radius: var(--radius-md);
+}
