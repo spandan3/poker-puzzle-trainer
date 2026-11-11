@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from poker_trainer.puzzle.model import PuzzleConfig, Solution
+from poker_trainer.puzzle.model import PuzzleConfig, Solution, best_margin
 
 _EPS = 1e-9
 
@@ -16,7 +16,7 @@ def is_trivial(sol: Solution, pot: int, cfg: PuzzleConfig) -> str | None:
 
     evs = sorted((o.ev_chips for o in sol.options), reverse=True)
     best = evs[0]
-    margin = max(cfg.verdict.best_bb * 2, cfg.verdict.best_pot * pot) + _EPS
+    margin = best_margin(pot, cfg.verdict) + _EPS
     if all(best - ev <= margin for ev in evs):
         return "every option is within the Best margin"
 

@@ -21,7 +21,12 @@ from poker_trainer.game.state import (
 )
 from poker_trainer.puzzle.model import SIMPLIFICATIONS, visible_range
 from poker_trainer.puzzle.options import hero_options
-from poker_trainer.puzzle.solve import evaluate_action, solve, villain_respond
+from poker_trainer.puzzle.solve import (
+    _category_breakdown,
+    evaluate_action,
+    solve,
+    villain_respond,
+)
 from poker_trainer.villain.profiles import load_profile
 from poker_trainer.villain.strategy import allin, bet_to, raise_to
 
@@ -149,7 +154,7 @@ def test_river_oop_check_lookahead():
     labels = {b.label: b for b in o.branches}
     assert labels["Villain checks back"].value_chips == pytest.approx(10.0)
     assert labels["Villain bets 8 — Hero folds"].value_chips == 0.0
-    assert o.simplifications == ()
+    assert o.simplifications == ("check_reply",)
 
 
 def test_river_oop_check_villain_always_bets_hero_calls():
@@ -241,6 +246,8 @@ def test_category_breakdown_sums():
     for r in rows:
         assert r.share > 0
         assert r.ahead == r.equity
+        assert r.win + r.tie + r.lose == pytest.approx(1.0)
+        assert r.win + r.tie / 2 == pytest.approx(r.ahead)  # exact river equity
     assert sum(r.share * r.equity for r in rows) == pytest.approx(sol.equity)
 
 
@@ -286,6 +293,10 @@ def _check_solution(s, hero, d):
     assert sol.ahead_now is not None
     assert sol.category_breakdown is not None
     assert sum(r.share for r in sol.category_breakdown) == pytest.approx(1.0)
+    for r in sol.category_breakdown:
+        assert r.win + r.tie + r.lose == pytest.approx(1.0)
+        assert min(r.win, r.tie, r.lose) >= 0.0
+        assert r.win + r.tie / 2 == pytest.approx(r.ahead)
     for o in sol.options:
         assert math.isfinite(o.ev_chips)
         if o.fold_freq is not None:
@@ -337,3 +348,66 @@ def test_unsampled_subrange_falls_back_deterministically():
     want = equity_vs_range(HERO, s.board, only_jt, rng=random.Random(0), samples=500)
     assert o.equity_vs_continue == want.equity
     assert math.isfinite(o.ev_chips)
+
+
+def test_check_reply_only_on_out_of_position_checks():
+    oop = river_spot("oop")  # river OOP: look-ahead
+    o = evaluate_action(oop, HERO, D(), ce_for(oop), option(oop, "check"), generic_respond)
+    assert o.simplifications == ("check_reply",)
+    ip = river_spot("checked")  # river IP: closes the street
+    o = evaluate_action(ip, HERO, D(), ce_for(ip), option(ip, "check"), generic_respond)
+    assert o.simplifications == ()
+
+    _, hero, d = _flop_facing_bet()
+    f = new_hand(0)
+    f = apply(f, raise_to(f, 2.5))
+    f = apply(f, Action(1, ActionKind.CALL, Street.PREFLOP, 5))
+    f = deal(f, BOARD[:3])
+    ce = combo_equity(hero, f.board, d, rng=random.Random(0), samples=2000)
+    o = evaluate_action(f, hero, d, ce, option(f, "check"), generic_respond)  # flop OOP
+    assert o.simplifications == ("check_reply", "realisation")
+    f_ip = _check(f)
+    o = evaluate_action(f_ip, hero, d, ce, option(f_ip, "check"), generic_respond)  # flop IP
+    assert o.simplifications == ("realisation",)
+
+
+def test_pot_odds_zero_without_call_option():
+    s = new_hand(0)  # BTN first in: fold / raise / all-in, no call
+    hero = parse_cards("AhJd")
+    d = visible_range(parse_range("22+, A2s+, KTo+"), hero, ())
+    sol = solve(s, hero, d, villain_respond(load_profile("tag")), rng=random.Random(1), samples=500)
+    assert all(o.option.action.kind != ActionKind.CALL for o in sol.options)
+    assert sol.pot_odds == 0.0
+
+
+def test_near_empty_continue_range_counts_as_empty():
+    s = river_spot("checked")
+    tiny = 1e-13
+    respond = facing_respond(arr(ak=1 - tiny, jt=1), arr(ak=tiny))
+    o = evaluate_action(s, HERO, D(), ce_for(s), option(s, "bet 50%"), respond)
+    assert o.ev_chips == 10.0
+    assert o.fold_freq == 1.0
+    assert o.equity_vs_continue is None and o.ahead_vs_continue is None
+    assert [b.label for b in o.branches] == ["Villain folds"]
+
+
+def test_respond_must_sum_to_one():
+    s = river_spot("checked")
+    bad = facing_respond(arr(jt=1), arr(ak=0.5))  # AsKd sums to 0.5
+    with pytest.raises(ValueError, match="sum to 1"):
+        evaluate_action(s, HERO, D(), ce_for(s), option(s, "bet 50%"), bad)
+    oop = river_spot("oop")
+
+    def bad_check(s2):
+        return {Action(s2.to_act, ActionKind.CHECK, s2.street): arr(ak=1)}  # JcTc missing
+
+    with pytest.raises(ValueError, match="sum to 1"):
+        evaluate_action(oop, HERO, D(), ce_for(oop), option(oop, "check"), bad_check)
+
+
+def test_breakdown_rejects_board_blocked_weight():
+    s = river_spot("checked")
+    d = np.array(D())
+    d[combo_index(*parse_cards("Ks2h"))] = 1.0  # Ks is on the board
+    with pytest.raises(ValueError, match="blocked"):
+        _category_breakdown(s, HERO, d, ce_for(s), 2000)

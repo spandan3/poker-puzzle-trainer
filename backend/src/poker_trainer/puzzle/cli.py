@@ -10,6 +10,7 @@ from poker_trainer.game.state import Street, apply, deal, needs_board, new_hand,
 from poker_trainer.puzzle.generate import generate_puzzle, parse_street
 from poker_trainer.puzzle.model import Puzzle, Spot
 from poker_trainer.villain.narrowing import describe
+from poker_trainer.villain.profiles import PROFILE_NAMES
 
 
 def _cards(cs: tuple[int, ...]) -> str:
@@ -56,7 +57,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--n", type=int, default=5, help="number of puzzles")
     parser.add_argument("--seed", type=int, default=0, help="first seed")
     parser.add_argument("--street", choices=["preflop", "flop", "turn", "river"], default=None)
-    parser.add_argument("--profile", default=None, help="villain profile (default: random)")
+    parser.add_argument(
+        "--profile", choices=PROFILE_NAMES, default=None, help="villain profile (default: random)"
+    )
     args = parser.parse_args(argv)
     street = None if args.street is None else parse_street(args.street)
     for i in range(args.n):

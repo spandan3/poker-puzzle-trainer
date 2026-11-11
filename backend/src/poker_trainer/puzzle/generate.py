@@ -97,6 +97,7 @@ def generate_spot(
         profile=profile,
         profile_version=villain_profile.version,
         categories_version=load_thresholds().version,
+        config_version=cfg.version,
         steps=steps,
     )
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from poker_trainer.game.state import Action, ActionKind, Street, total_pot
-from poker_trainer.puzzle.model import OptionEV, Puzzle, load_config
+from poker_trainer.puzzle.model import OptionEV, Puzzle, best_margin, load_config, verdict_pot
 from poker_trainer.puzzle.options import custom_action
 from poker_trainer.puzzle.solve import Respond, evaluate_action, villain_respond
 from poker_trainer.villain.profiles import load_profile
@@ -21,7 +21,7 @@ _INTENT_TEXT = {"value": "a value bet", "bluff": "a bluff", "semi_bluff": "a sem
 _INTENT_REASON = {
     "value": "worse hands continue",
     "bluff": "only better hands continue",
-    "semi_bluff": "better hands continue but you still have real equity",
+    "semi_bluff": "better hands usually continue, though you still have real equity",
 }
 _NEVER_CONTINUES_REASON = {
     "bluff": (
@@ -63,12 +63,14 @@ class Grade:
 
 
 def _verdict(loss: float, pot: int) -> Verdict:
+    """Bands are relative to ``max(pot, min_pot)``, so tiny pots don't make every loss big."""
     v = load_config().verdict
-    if loss <= v.best_bb * 2 + _EPS or loss <= v.best_pot * pot + _EPS:
+    if loss <= best_margin(pot, v) + _EPS:
         return "best"
-    if loss <= v.fine_pot * pot + _EPS:
+    floor_pot = verdict_pot(pot, v)
+    if loss <= v.fine_pot * floor_pot + _EPS:
         return "fine"
-    if loss <= v.mistake_pot * pot + _EPS:
+    if loss <= v.mistake_pot * floor_pot + _EPS:
         return "mistake"
     return "blunder"
 
@@ -86,6 +88,10 @@ def _intent_truth(chosen: OptionEV, street: Street, overall_equity: float) -> In
     ahead, eq = chosen.ahead_vs_continue, chosen.equity_vs_continue
     if ahead is None and eq is None:  # Villain never continues
         return "bluff" if overall_equity < 0.5 else "value"
+    if street == Street.PREFLOP:  # all-in equity decides; no semi-bluffs pre-flop
+        if eq is None:
+            return "bluff" if overall_equity < 0.5 else "value"
+        return "value" if eq >= 0.5 - _EPS else "bluff"
     if (ahead if ahead is not None else eq) >= 0.5 - _EPS:  # type: ignore[operator]
         return "value"
     if (

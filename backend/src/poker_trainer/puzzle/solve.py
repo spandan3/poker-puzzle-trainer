@@ -14,6 +14,7 @@ from collections.abc import Callable
 
 import numpy as np
 
+from poker_trainer.engine.combos import COMBOS
 from poker_trainer.engine.equity import (
     ComboEquity,
     EquityResult,
@@ -22,6 +23,7 @@ from poker_trainer.engine.equity import (
     combo_equity,
     equity_vs_range,
 )
+from poker_trainer.engine.evaluator import evaluate
 from poker_trainer.engine.ranges import Range
 from poker_trainer.game.state import (
     Action,
@@ -48,6 +50,8 @@ Respond = Callable[[HandState], dict[Action, np.ndarray]]
 
 _AGGRESSIVE = (ActionKind.BET, ActionKind.RAISE)
 _DEFAULT_SAMPLES = 40_000
+_EMPTY = 1e-12  # a continuing range at or below this total weight counts as empty
+_SUM_ATOL = 1e-9
 
 
 def villain_respond(profile: Profile) -> Respond:
@@ -112,6 +116,17 @@ def _label_for(s: HandState, action: Action) -> str:
     return action.kind.value
 
 
+def _check_respond(d: np.ndarray, dist: dict[Action, np.ndarray]) -> None:
+    """Villain's response arrays must sum to 1 on every combo of ``d``."""
+    total = np.zeros_like(d)
+    for arr in dist.values():
+        total = total + np.asarray(arr, dtype=np.float64)
+    live = d > 0.0
+    if not np.allclose(total[live], 1.0, rtol=0.0, atol=_SUM_ATOL):
+        worst = float(np.max(np.abs(total[live] - 1.0)))
+        raise ValueError(f"respond arrays do not sum to 1 on the range (max error {worst:.3g})")
+
+
 def _reply(call_value: float, floor: float) -> tuple[str, float]:
     """Hero's better reply (call or fold) to a Villain bet or raise."""
     return ("calls", call_value) if call_value > floor else ("folds", floor)
@@ -149,7 +164,8 @@ def evaluate_action(
     P = total_pot(s)
     preriver = s.street < Street.RIVER
     eq_all = _eq(ce, hero, board, d, samples)
-    assert eq_all is not None
+    if eq_all is None:
+        raise ValueError("empty range")
     eq = float(eq_all.equity)
 
     def plain(ev: float, put: int, codes: tuple[str, ...]) -> OptionEV:
@@ -178,8 +194,11 @@ def evaluate_action(
 
     if action.kind == ActionKind.CHECK:
         s2 = apply(s, action)
+        # Out of position: the street stays open and Villain acts next on it.
+        oop = s2.to_act is not None and s2.street == s.street
         if preriver or s2.to_act is None:
-            return plain(eq * P, 0, realisation)
+            codes = ("check_reply", *realisation) if oop else realisation
+            return plain(eq * P, 0, codes)
         return _river_check_lookahead(s2, hero, d, size, ce, option, respond, P, samples)
 
     if action.kind in _AGGRESSIVE:
@@ -202,6 +221,7 @@ def _river_check_lookahead(
     """Hero checks OOP on the river; Villain checks back or bets, Hero then folds or calls."""
     board = tuple(s2.board)
     dist = respond(s2)
+    _check_respond(d, dist)
     ev = 0.0
     branches: list[Branch] = []
     for key, arr in dist.items():
@@ -210,7 +230,8 @@ def _river_check_lookahead(
         if share <= 0.0:
             continue
         r = _eq(ce, hero, board, w, samples)
-        assert r is not None
+        if r is None:
+            raise ValueError(f"empty sub-range for Villain response {key}")
         e = float(r.equity)
         if key.kind == ActionKind.CHECK:
             v = e * P
@@ -234,7 +255,7 @@ def _river_check_lookahead(
         put=0,
         continue_range=None,
         branches=tuple(branches),
-        simplifications=(),
+        simplifications=("check_reply",),
     )
 
 
@@ -255,6 +276,7 @@ def _bet_or_raise(
     put = action.to - s.street_bets[me]
     s2 = apply(s, action)
     dist = respond(s2)
+    _check_respond(d, dist)
 
     fold_arr = np.zeros_like(d)
     for key, arr in dist.items():
@@ -263,8 +285,9 @@ def _bet_or_raise(
     F = _total(d * fold_arr) / size
     c_all = d * (1.0 - fold_arr)
     c_all = np.where(c_all > 0.0, c_all, 0.0)
-    eq_c = _eq(ce, hero, board, c_all, samples)
-    ahead_c = _ahead(ce, hero, board, c_all, samples)
+    never_continues = _total(c_all) <= _EMPTY
+    eq_c = None if never_continues else _eq(ce, hero, board, c_all, samples)
+    ahead_c = None if never_continues else _ahead(ce, hero, board, c_all, samples)
 
     codes: set[str] = set()
     if s.street < Street.RIVER:
@@ -284,7 +307,8 @@ def _bet_or_raise(
         if share <= 0.0:
             continue
         r = _eq(ce, hero, board, w, samples)
-        assert r is not None
+        if r is None:
+            raise ValueError(f"empty sub-range for Villain response {key}")
         e = float(r.equity)
         if key.kind == ActionKind.CALL:
             vcall = legal_actions(s2).call
@@ -302,7 +326,8 @@ def _bet_or_raise(
         ev += share * v
         branches.append(Branch(lab, float(share), e, float(v)))
 
-    if eq_c is None:  # Villain never continues
+    if never_continues:
+        F = 1.0
         ev = float(P)
         branches = [Branch("Villain folds", 1.0, None, float(P))]
 
@@ -334,20 +359,37 @@ def _category_breakdown(
     board = tuple(s.board)
     cats = categorize(range_features(board), load_thresholds())
     size = _total(d)
+    # Per combo, by made hand now: +1 Hero wins, 0 tie, -1 Hero loses.
+    dead = {*hero, *board}
+    h = evaluate((*hero, *board))
+    outcome = np.zeros(len(d), dtype=np.int8)
+    for i in np.flatnonzero(d > 0.0):
+        a, b = COMBOS[i]
+        if a in dead or b in dead:
+            raise ValueError(f"range has weight on a blocked combo: {COMBOS[i]}")
+        v = evaluate((a, b, *board))
+        outcome[i] = 1 if h < v else (0 if h == v else -1)
     rows: list[CategoryRow] = []
     for cat in sorted(HandCategory, reverse=True):
         w = np.where(cats == int(cat), d, 0.0)
-        if _total(w) <= 0.0:
+        tot = _total(w)
+        if tot <= 0.0:
             continue
         r = _eq(ce, hero, board, w, samples)
         ahead = _ahead(ce, hero, board, w, samples)
-        assert r is not None and ahead is not None
+        if r is None or ahead is None:
+            raise ValueError(f"empty sub-range for category {cat.name.lower()}")
+        win = _total(w[outcome == 1]) / tot
+        tie = _total(w[outcome == 0]) / tot
         rows.append(
             CategoryRow(
                 category=cat.name.lower(),
-                share=float(_total(w) / size),
+                share=float(tot / size),
                 ahead=float(ahead),
                 equity=float(r.equity),
+                win=float(win),
+                tie=float(tie),
+                lose=float(_total(w[outcome == -1]) / tot),
             )
         )
     return tuple(rows)
@@ -374,12 +416,13 @@ def solve(
     )
     best = max(range(len(options)), key=lambda i: options[i].ev_chips)
     codes = sorted({c for o in options for c in o.simplifications})
+    has_call = any(o.option.action.kind == ActionKind.CALL for o in options)
     return Solution(
         equity=float(eq.equity),
         equity_std_error=float(eq.std_error),
         equity_exact=bool(eq.exact),
         ahead_now=ahead,
-        pot_odds=float(pot_odds(s)),
+        pot_odds=float(pot_odds(s)) if has_call else 0.0,  # no call offered: no pot odds
         options=options,
         best=int(best),
         combo_equity=ce,

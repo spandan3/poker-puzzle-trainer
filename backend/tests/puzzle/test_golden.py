@@ -670,7 +670,7 @@ def test_t3_turn_villain_never_continues():
         assert [b.label for b in o.branches] == ["Villain folds"]
         assert not np.any(o.continue_range)
         assert all(math.isfinite(x) for x in (o.ev_chips, o.required_fold_equity))
-    assert by_label(sol)["check"].simplifications == ("realisation",)
+    assert by_label(sol)["check"].simplifications == ("check_reply", "realisation")  # OOP
     assert sol.options[sol.best].option.label == "bet 33%"
 
 
@@ -862,7 +862,7 @@ def test_f2_flop_short_stack_allin_merge():
     assert o["bet 33%"].fold_freq == pytest.approx(2 / 7, abs=EXACT)
     assert o["all-in"].fold_freq == pytest.approx(4 / 7, abs=EXACT)
     assert o["all-in"].required_fold_equity == pytest.approx(15 / 25, abs=EXACT)
-    assert o["check"].simplifications == ("realisation",)
+    assert o["check"].simplifications == ("check_reply", "realisation")  # OOP
 
 
 # F3 (Review Focus 2) flop, Villain ALWAYS continues vs Hero's raises (F = 0).

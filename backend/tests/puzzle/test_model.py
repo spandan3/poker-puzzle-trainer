@@ -40,7 +40,7 @@ def _puzzle():
         RangeView("Opens", Street.PREFLOP, _arr(1)),
         RangeView("Calls", Street.PREFLOP, _arr(2)),
     )
-    spot = Spot(7, 3, s, 1, (0, 1), (30, 31), (4, 9, 20, 40, 45), "tag", 1, 1, steps)
+    spot = Spot(7, 3, s, 1, (0, 1), (30, 31), (4, 9, 20, 40, 45), "tag", 1, 1, 3, steps)
     ce = ComboEquity((0, 1), (4, 9, 20), _arr(3), _arr(4), _arr(5), _arr(6), False)
     act = Action(1, ActionKind.BET, Street.FLOP, 4)
     ev = OptionEV(
@@ -67,7 +67,7 @@ def _puzzle():
         (ev0, ev),
         1,
         ce,
-        (CategoryRow("nuts", 0.1, 0.9, 0.8),),
+        (CategoryRow("nuts", 0.1, 0.9, 0.8, 0.85, 0.1, 0.05),),
         ("realisation",),
     )
     return Puzzle(spot, sol)
@@ -95,6 +95,9 @@ def test_round_trip():
     q = puzzle_from_dict(json.loads(json.dumps(d)))
     _same(p, q)
     assert q.spot.range is q.spot.steps[-1].range
+    assert d["spot"]["config_version"] == 3
+    row = d["solution"]["category_breakdown"][0]
+    assert (row["win"], row["tie"], row["lose"]) == (0.85, 0.1, 0.05)
 
 
 def test_unknown_format_rejected():
@@ -115,8 +118,9 @@ def test_config_and_simplifications():
     c = load_config()
     assert c.samples == 40000 and c.verdict.best_bb == 0.25 and c.max_attempts == 200
     assert c.street_weights["flop"] == 0.30
-    assert c.version == 2 and c.intent.semi_bluff_equity == 0.30
-    assert set(SIMPLIFICATIONS) == {"realisation", "reraise_reply", "preflop_size"}
+    assert c.version == 3 and c.intent.semi_bluff_equity == 0.30
+    assert c.verdict.min_pot == 10
+    assert set(SIMPLIFICATIONS) == {"realisation", "reraise_reply", "preflop_size", "check_reply"}
 
 
 def test_numpy_scalars_serialise():
@@ -136,7 +140,15 @@ def test_numpy_scalars_serialise():
         equity=np.float64(0.5),
         equity_exact=np.bool_(False),
         category_breakdown=(
-            CategoryRow("nuts", np.float64(0.1), np.float64(0.9), np.float64(0.8)),
+            CategoryRow(
+                "nuts",
+                np.float64(0.1),
+                np.float64(0.9),
+                np.float64(0.8),
+                np.float64(0.85),
+                np.float64(0.1),
+                np.float64(0.05),
+            ),
         ),
     )
     q = puzzle_from_dict(json.loads(json.dumps(puzzle_to_dict(Puzzle(p.spot, sol)))))

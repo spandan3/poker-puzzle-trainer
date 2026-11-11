@@ -47,6 +47,7 @@ def _sol(equity: float, evs: list[float]) -> Solution:
         (0.03, [10.0, 4.0, 0.0], True),  # rule 1: equity < 0.04
         (0.50, [5.0, 4.6, 4.9], True),  # rule 2: all within 0.5 chips of best
         (0.88, [20.0, 8.0, 0.0], True),  # rule 3: gap 12 > 10 and equity > 0.85
+        (0.88, [8.0, 20.0, 0.0], True),  # rule 3 with the best option not first
         (0.08, [20.0, 8.0, 0.0], True),  # rule 3: gap 12 > 10 and equity < 0.10
         (0.88, [20.0, 12.0, 0.0], False),  # gap 8 <= 10: rule 3 does not fire
         (0.50, [20.0, 8.0, 0.0], False),  # big gap but mid equity
@@ -58,3 +59,9 @@ def test_trivial_rules(equity, evs, trivial):
     assert (reason is not None) == trivial
     if trivial:
         assert isinstance(reason, str) and reason
+
+
+def test_best_margin_uses_small_pot_floor():
+    # P = 3 is floored to 10 chips: the margin stays max(0.5, 0.02 * 10) = 0.5.
+    assert is_trivial(_sol(0.5, [5.0, 4.6, 4.9]), 3, load_config()) is not None
+    assert is_trivial(_sol(0.5, [5.0, 4.4, 0.0]), 3, load_config()) is None

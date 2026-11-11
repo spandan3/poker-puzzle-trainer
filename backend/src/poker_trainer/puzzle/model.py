@@ -26,6 +26,10 @@ SIMPLIFICATIONS: Mapping[str, str] = MappingProxyType(
         "realisation": "Before the river, Hero is assumed to realise full equity.",
         "reraise_reply": "After a Villain re-raise, Hero only folds or calls.",
         "preflop_size": "Pre-flop, Villain's responses don't depend on Hero's raise size.",
+        "check_reply": (
+            "After Hero checks, Villain's bet and Hero's response are simplified: on the river "
+            "Hero only folds or calls; before the river Villain's bet behind is not modelled."
+        ),
     }
 )
 
@@ -41,6 +45,7 @@ class VerdictConfig:
     best_pot: float
     fine_pot: float
     mistake_pot: float
+    min_pot: float
 
 
 @dataclass(frozen=True)
@@ -74,6 +79,16 @@ class PuzzleConfig:
     trivial: TrivialConfig
     max_attempts: int
     intent: IntentConfig
+
+
+def verdict_pot(pot: float, v: VerdictConfig) -> float:
+    """The pot the pot-relative verdict bands use: never below ``v.min_pot`` chips."""
+    return max(float(pot), v.min_pot)
+
+
+def best_margin(pot: float, v: VerdictConfig) -> float:
+    """Largest EV loss in chips (before the epsilon) that still grades as "best"."""
+    return max(v.best_bb * 2, v.best_pot * verdict_pot(pot, v))
 
 
 @lru_cache(maxsize=1)
@@ -124,6 +139,7 @@ class Spot:
     profile: str
     profile_version: int
     categories_version: int
+    config_version: int
     steps: tuple[RangeView, ...]
 
     @property
@@ -164,6 +180,9 @@ class CategoryRow:
     share: float
     ahead: float
     equity: float
+    win: float
+    tie: float
+    lose: float
 
 
 @dataclass(frozen=True, eq=False)
@@ -264,6 +283,7 @@ def _spot_to_dict(sp: Spot) -> dict[str, Any]:
         "profile": str(sp.profile),
         "profile_version": int(sp.profile_version),
         "categories_version": int(sp.categories_version),
+        "config_version": int(sp.config_version),
         "steps": [
             {"label": v.label, "street": int(v.street), "range": _arr(v.range)} for v in sp.steps
         ],
@@ -282,6 +302,7 @@ def _spot_from_dict(d: dict[str, Any]) -> Spot:
         profile=d["profile"],
         profile_version=d["profile_version"],
         categories_version=d["categories_version"],
+        config_version=d["config_version"],
         steps=tuple(
             RangeView(v["label"], Street(v["street"]), _ro(v["range"])) for v in d["steps"]
         ),
@@ -374,6 +395,9 @@ def _solution_to_dict(s: Solution) -> dict[str, Any]:
                 "share": float(r.share),
                 "ahead": float(r.ahead),
                 "equity": float(r.equity),
+                "win": float(r.win),
+                "tie": float(r.tie),
+                "lose": float(r.lose),
             }
             for r in cb
         ],
@@ -394,7 +418,12 @@ def _solution_from_dict(d: dict[str, Any]) -> Solution:
         combo_equity=_combo_equity_from_dict(d["combo_equity"]),
         category_breakdown=None
         if cb is None
-        else tuple(CategoryRow(r["category"], r["share"], r["ahead"], r["equity"]) for r in cb),
+        else tuple(
+            CategoryRow(
+                r["category"], r["share"], r["ahead"], r["equity"], r["win"], r["tie"], r["lose"]
+            )
+            for r in cb
+        ),
         simplifications=tuple(d["simplifications"]),
     )
 

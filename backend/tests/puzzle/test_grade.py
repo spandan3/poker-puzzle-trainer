@@ -6,7 +6,15 @@ from test_solve import HERO, D, arr, facing_respond, generic_respond, river_spot
 
 from poker_trainer.game.state import Action, ActionKind, Street, new_hand, total_pot
 from poker_trainer.puzzle.grade import Answer, grade
-from poker_trainer.puzzle.model import Option, OptionEV, Puzzle, RangeView, Solution, Spot
+from poker_trainer.puzzle.model import (
+    Option,
+    OptionEV,
+    Puzzle,
+    RangeView,
+    Solution,
+    Spot,
+    load_config,
+)
 from poker_trainer.puzzle.solve import solve
 from poker_trainer.villain.profiles import load_profile
 
@@ -57,6 +65,7 @@ def _puzzle(*, evs=None, equity=0.5, ahead_now=None, profile_version=None):
         profile="tag",
         profile_version=prof.version if profile_version is None else profile_version,
         categories_version=1,
+        config_version=load_config().version,
         steps=(RangeView("d", s.street, D()),),
     )
     return Puzzle(spot, sol), me
@@ -264,3 +273,60 @@ def test_intent_with_ahead_none_uses_equity():
     assert grade(p, Answer(bet, 0.5)).intent_truth == "value"
     p, bet = _intent_puzzle(ahead=None, eq_c=0.1)
     assert grade(p, Answer(bet, 0.5)).intent_truth == "bluff"
+
+
+def _btn_first_in_puzzle(raise_ev):
+    """BTN first in pre-flop (P = 3): fold EV 0, raise 2.5x EV ``raise_ev``."""
+    p, _ = _puzzle()
+    s = new_hand(0)
+    fold = Action(0, ActionKind.FOLD, Street.PREFLOP)
+    rse = Action(0, ActionKind.RAISE, Street.PREFLOP, 5)
+    sol = replace(
+        p.solution,
+        options=(_ev("fold", fold, 0.0), _ev("raise 2.5x", rse, raise_ev)),
+        best=1,
+        ahead_now=0.5,
+    )
+    return Puzzle(replace(p.spot, state=s), sol), fold
+
+
+@pytest.mark.parametrize("loss,expected", [(0.5, "best"), (0.9, "fine"), (1.04, "mistake")])
+def test_small_pot_verdict_floor(loss, expected):
+    # P = 3 < min_pot = 10: bands use 10 chips -> best 0.5, fine 1.0, mistake 2.5.
+    p, fold = _btn_first_in_puzzle(loss)
+    assert total_pot(p.spot.state) == 3
+    g = grade(p, Answer(fold, 0.5))
+    assert g.ev_loss_chips == pytest.approx(loss)
+    assert g.verdict == expected
+
+
+def test_preflop_intent_is_value_or_bluff_by_allin_equity():
+    s = new_hand(0)
+    jam = Action(0, ActionKind.RAISE, Street.PREFLOP, 200)
+    fold = Action(0, ActionKind.FOLD, Street.PREFLOP)
+    p, _ = _puzzle()
+
+    def puzzle(eq_c, ahead_c):
+        o = _ev("all-in", jam, 1.0, fold=0.3, eq_c=eq_c, ahead_c=ahead_c, req=0.9, put=199)
+        sol = replace(p.solution, options=(_ev("fold", fold, 0.0), o), best=1, ahead_now=0.5)
+        return Puzzle(replace(p.spot, state=s), sol)
+
+    # AKo jams: eq vs the calling range 0.505, but only 30% of it is behind now.
+    g = grade(puzzle(0.505, 0.3), Answer(jam, 0.5, intent="semi_bluff"))
+    assert g.intent_truth == "value"
+    assert g.intent_flag is not None and "(value)" in g.intent_flag
+    # Pre-flop is never a semi-bluff, even with real equity.
+    assert grade(puzzle(0.40, 0.2), Answer(jam, 0.5)).intent_truth == "bluff"
+
+
+def test_semi_bluff_flag_text():
+    bet = Action(0, ActionKind.BET, Street.FLOP, 5)
+    chk = Action(0, ActionKind.CHECK, Street.FLOP)
+    p = _flop_puzzle(
+        [_ev("bet", bet, 2.0, fold=0.4, eq_c=0.35, ahead_c=0.2, req=0.25, put=5), _ev("c", chk, 1)]
+    )
+    g = grade(p, Answer(bet, 0.5, intent="value"))
+    assert g.intent_flag == (
+        "You labelled this a value bet, but better hands usually continue, "
+        "though you still have real equity (semi_bluff)."
+    )

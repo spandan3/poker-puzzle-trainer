@@ -11,7 +11,7 @@ from poker_trainer.engine.combos import combo_index
 from poker_trainer.game.state import apply, total_pot
 from poker_trainer.puzzle.generate import generate_puzzle
 from poker_trainer.puzzle.grade import Answer, grade
-from poker_trainer.puzzle.model import load_config, puzzle_from_dict, puzzle_to_dict
+from poker_trainer.puzzle.model import best_margin, load_config, puzzle_from_dict, puzzle_to_dict
 from poker_trainer.puzzle.solve import evaluate_action, villain_respond
 from poker_trainer.villain.profiles import load_profile
 
@@ -22,6 +22,10 @@ def check_puzzle(seed: int) -> None:
     p = generate_puzzle(seed)
     spot, sol = p.spot, p.solution
     s = spot.state
+
+    # Every puzzle has options to choose from and at least the Start range step.
+    assert len(sol.options) > 0, seed
+    assert len(spot.steps) >= 1, seed
 
     # Revealed hand is in the displayed range.
     assert spot.range[combo_index(*spot.villain_hole)] > 0, seed
@@ -63,7 +67,7 @@ def check_puzzle(seed: int) -> None:
     best = sol.options[sol.best]
     for o in sol.options:
         loss = max(0.0, best.ev_chips - o.ev_chips)
-        within = loss <= v.best_bb * 2 + 1e-9 or loss <= v.best_pot * pot + 1e-9
+        within = loss <= best_margin(pot, v) + 1e-9
         g = grade(p, Answer(o.option.action, equity_guess=sol.equity))
         assert (g.verdict == "best") == within, (seed, o.option.label)
 

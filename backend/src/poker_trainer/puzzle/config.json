@@ -1,9 +1,9 @@
 {
-  "version": 2,
+  "version": 3,
   "street_weights": {"preflop": 0.15, "flop": 0.30, "turn": 0.30, "river": 0.25},
   "stop_prob": 0.6,
   "samples": 40000,
-  "verdict": {"best_bb": 0.25, "best_pot": 0.02, "fine_pot": 0.10, "mistake_pot": 0.25},
+  "verdict": {"best_bb": 0.25, "best_pot": 0.02, "fine_pot": 0.10, "mistake_pot": 0.25, "min_pot": 10},
   "score": {"great": 0.05, "good": 0.10},
   "trivial": {
     "eq_hi": 0.92,
