@@ -50,7 +50,7 @@ export function TopBar(props: TopBarProps) {
         <span className={styles.mark} aria-hidden="true">
           ♠
         </span>
-        Poker Puzzle Trainer
+        <span className={styles.titleText}>Poker Puzzle Trainer</span>
       </h1>
 
       <nav aria-label="Main" className={styles.nav}>
