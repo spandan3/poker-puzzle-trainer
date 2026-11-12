@@ -1,8 +1,8 @@
 # Handoff: improving the Villain "poker bot"
 
-This is for working on the Villain model while the main line of work (M7, progress) continues on its own branch.
+This is for working on the Villain model while the main line of work (M8, explanations) continues on its own branch.
 
-Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M6 merge (2026-11-12). M3 (the puzzle generator and grader), M4 (API and storage), M5 (table UI) and M6 (results view) are done. M7 (progress) is next.
+Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M7 merge (2026-11-12). M3 (the puzzle generator and grader), M4 (API and storage), M5 (table UI), M6 (results view) and M7 (progress) are done. M8 (explanations) is next.
 
 ## 1. What the project is
 
@@ -33,7 +33,7 @@ So any improvement you make to that function automatically improves all three. I
 # install uv first: https://docs.astral.sh/uv/
 cd backend
 uv sync
-uv run pytest -m "not slow"            # fast suite, about 40 s, 484 tests
+uv run pytest -m "not slow"            # fast suite, about 60 s, 636 tests
 uv run pytest -m slow                  # slow cross-checks, about 10 min
 uv run ruff check . && uv run ruff format --check .
 uv run python -m poker_trainer.analysis.competence --profile all --hands 400   # about 2 min
@@ -66,6 +66,7 @@ uv run python -m poker_trainer.analysis.competence --profile all --hands 400   #
 - `src/poker_trainer/engine/**` (equity engine)
 - `src/poker_trainer/puzzle/**` (generator, solver, grader, `config.json`)
 - the API, the database and migrations (`src/poker_trainer/api/**`, `db/**`, `settings.py`, `tests/api/**`, `tests/db/**`)
+- the stats and leak rules (`src/poker_trainer/stats/**`, `tests/stats/**`, M7)
 - `tests/engine/**`, `tests/puzzle/**`
 - the frontend (`frontend/**`, at the repo root)
 - `docs/superpowers/**` (plans and spec)
@@ -110,13 +111,15 @@ Old puzzles are frozen with the `profile_version` they were generated under. Tha
 
 ## 5. Current status
 
-M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage), M5 (table UI) and M6 (results view) are done and reviewed.
+M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage), M5 (table UI) M6 (results view) and M7 (progress) are done and reviewed.
 
-Roadmap after M5 (2026-11-12): M6 results view → M7 progress → M8 explanations (local LLM) → M9 Phase 1 sign-off → M10 Play vs Bots heads-up → M11 UI polish → M12 Play vs Bots 5-max (play) → M13 5-max analysis. See `docs/superpowers/plans/2026-11-10-roadmap.md`.
+Roadmap (2026-11-12, M1–M7 done): M8 explanations (local LLM) → M9 Phase 1 sign-off → M10 Play vs Bots heads-up → M11 UI polish → M12 Play vs Bots 5-max (play) → M13 5-max analysis. See `docs/superpowers/plans/2026-11-10-roadmap.md`.
 
 **Play vs Bots (M10) matters for Villain work:** the bot in that mode *is* the Villain policy (`action_distribution`, sampled for the bot's real cards), so every tuning change shows up in live play too (spec: `docs/superpowers/specs/2026-11-12-play-vs-bots-design.md`). M10 will add `STRATEGY_VERSION` to `strategy.py`: once it exists, bump it by hand whenever the policy's behaviour changes, as you already do for profile and `categories.json` versions. Play mode only offers the supported pre-flop tree (no limps, no small 4-bets); widening that tree is a welcome future Villain task, listed under "Later" in the roadmap.
 
 M4 note for Villain work: custom bet sizes on a stored puzzle are refused (409) once its profile or `categories.json` version changes, so version bumps are still the right way to change data.
+
+M7 note for Villain work: each attempt now stores Hero's own hand category (`stats/hero.py`, via `categorize` and `categories.json`). It is stored only when the puzzle's `categories_version` equals the live one, so after a `categories.json` bump, answers to older puzzles store no category (they drop out of the "draws" leak rule). Keep `categorize`'s signature and the category names (`HandCategory`) stable; the stats and the API's `CategoryCode` rely on them.
 
 The competence report checks 10 things per profile over 400 simulated hands against the TAG Hero (seed 0). All 40 checks pass:
 
@@ -165,7 +168,7 @@ The bands live in each profile's `bands` block. **Don't widen a band just to mak
 
 **New factors you suggested:**
 - **Modelling Hero.** Villain could track Hero's range with `RangeTracker(load_profile(HERO_PROFILE), hero_seat)` and adjust to it, for example calling wider when Hero's line is bluff-heavy, or using range-versus-range equity. This must respect invariant 4: Hero's range, never Hero's cards.
-  - Caveat: the trainer's Hero policy is always TAG today. A real "adapt to the user" model needs the user's history, which arrives with progress tracking in M7.
+  - Caveat: the trainer's Hero policy is always TAG today. A real "adapt to the user" model needs the user's history: since M7 every first attempt is stored with its verdict, action, street, profile and guesses (`GET /api/stats`, `GET /api/history`), but Hero's puzzle actions are still generated by the TAG policy.
 - **Exploitative profiles**, such as a maniac or a calling station. These need new bands and, if they're meant to be bad on purpose, a decision on whether they fit the spec. The spec says "competent, profiles vary style, not competence".
 - **Solver comparison.** This is the best way to prove an improvement helps. The spec lists it as future work.
 
