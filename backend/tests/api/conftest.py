@@ -62,6 +62,12 @@ LLM_OFF = {
 
 
 @pytest.fixture
+def llm_off():
+    """``LLM_OFF`` for test modules that build their own ``AppSettings``."""
+    return dict(LLM_OFF)
+
+
+@pytest.fixture
 def client(db_url, factory):
     app = create_app(
         AppSettings(_env_file=None, database_url=db_url, **LLM_OFF), puzzle_factory=factory

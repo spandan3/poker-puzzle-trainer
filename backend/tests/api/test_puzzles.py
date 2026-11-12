@@ -478,14 +478,14 @@ def test_concurrent_submit_exhausted_retry_409(client, monkeypatch):
     assert r.json() == {"detail": "concurrent submit, try again"}
 
 
-def test_unexpected_error_is_json_500(tmp_path):
+def test_unexpected_error_is_json_500(tmp_path, llm_off):
     """Any unhandled error still answers ``{"detail": ...}`` as JSON, never plain text."""
 
     def broken(seed, street, profile):
         raise ValueError("boom")
 
     settings = AppSettings(
-        _env_file=None, database_url=f"sqlite:///{(tmp_path / 'e.db').as_posix()}"
+        _env_file=None, database_url=f"sqlite:///{(tmp_path / 'e.db').as_posix()}", **llm_off
     )
     app = create_app(settings, puzzle_factory=broken)
     with TestClient(app, raise_server_exceptions=False) as c:

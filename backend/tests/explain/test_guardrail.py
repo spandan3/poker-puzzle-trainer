@@ -38,6 +38,24 @@ def test_number_words_and_unicode_numerals():
     }
 
 
+def test_composites_are_their_own_tokens():
+    assert numbers("1/3 and 3:1 and 2 to 1 and 3 in 10 and 2 out of 5 and 1e3") == {
+        "ratio:1/3",
+        "ratio:3:1",
+        "ratio:2 to 1",
+        "ratio:3 in 10",
+        "ratio:2 out of 5",
+        "ratio:1e3",
+    }
+    assert numbers("1 bb / (3 bb + 1 bb) = 25%") == {"1 bb", "3 bb", "25%"}
+    assert numbers("Thirties, thrice, Quadrupled, threefold") == {
+        "word:thirty",
+        "word:thrice",
+        "word:quadruple",
+        "word:threefold",
+    }
+
+
 def test_cards_are_their_own_tokens():
     assert numbers("K♠ 7♦ 2♣ and 2 more") == {"card:K♠", "card:7♦", "card:2♣", "2"}
     assert numbers("T♥9♣") == {"card:T♥", "card:9♣"}
@@ -104,6 +122,30 @@ def test_leading_dot_decimals():
         ("the T♠ helps", "Board: T♠ 9♥ 2♣", True),
         ("the T♠ helps", "Board: T♥ 9♥ 2♣", False),
         ("Ten percent of the time", "Fold frequency: 10%", False),
+        # ratios, fractions and scientific notation need the same composite in the facts
+        ("1/3 of the time", "Pot: 3 bb\nCall: 1 bb", False),
+        ("3:1", "Pot: 3 bb\nCall: 1 bb", False),
+        ("2 to 1", "Pot: 2 bb\nCall: 1 bb", False),
+        ("50/50", "Fold frequency: 50%", False),
+        ("1e3", "Pot: 1 bb\nCall: 3 bb", False),
+        ("3 in 10", "Pot: 10 bb\nCall: 3 bb", False),
+        ("2 out of 5", "Pot: 5 bb\nCall: 2 bb", False),
+        ("1 / 3 of the time", "Odds: 1/3", True),
+        ("2 To 1", "Odds: 2 to 1", True),
+        (
+            "you need 1 bb / (3 bb + 1 bb) = 25%",
+            "Pot odds formula: 1 bb / (3 bb + 1 bb) = 25%",
+            True,
+        ),
+        # digits glued to letters count as their digits (the swap limit)
+        ("a 3bet pot", "Raise: 3 bb", True),
+        ("1.5x the pot", "Bet: 1.5 bb", True),
+        # more number words
+        ("in the twenties", "Pot: 20 bb", False),
+        ("thrice", "3", False),
+        ("quadrupled", "4", False),
+        ("a fourfold rise", "4", False),
+        ("twofold", "twofold", True),
     ],
 )
 def test_check(output, allowed, ok):

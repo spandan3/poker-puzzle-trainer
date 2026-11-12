@@ -161,8 +161,9 @@ def test_slow_reply_is_timeout(fake):
 
 
 def test_connection_refused_is_unavailable():
+    # a generous timeout: Windows retries a refused localhost connect for about 2 s
     with pytest.raises(ollama.LlmUnavailable) as e:
-        ollama.generate(_closed_port_url(), "m", "s", "p", ollama.SCHEMA, 2.0)
+        ollama.generate(_closed_port_url(), "m", "s", "p", ollama.SCHEMA, 10.0)
     assert e.value.reason == "unavailable"
 
 

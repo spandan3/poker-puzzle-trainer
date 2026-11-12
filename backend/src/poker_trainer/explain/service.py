@@ -10,6 +10,11 @@ Successes and guardrail rejections are cached per ``(attempt_id, model)`` (LRU, 
 entries); failures are not, so the next request retries. A request for a key whose generation is
 running waits for it instead of queueing a second generation in Ollama. Route handlers run in a
 thread pool, so the cache and the in-flight table are guarded by a lock.
+
+A waiter waits ``llm_timeout + WAIT_MARGIN`` seconds, but the owner's call may take up to about
+twice ``llm_timeout`` (the timeout applies to the connect and again to the read). A waiter that
+gives up first gets the template with ``fallback="timeout"``, even if the owner then succeeds
+(its result is cached for the next request).
 """
 
 from __future__ import annotations
