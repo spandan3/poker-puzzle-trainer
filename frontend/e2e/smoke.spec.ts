@@ -259,3 +259,17 @@ for (const [width, height] of [
     expect(overflow).toBeLessThanOrEqual(0)
   })
 }
+
+test('layout: the top bar stays one row at 1280 with a wide fallback font', async ({ page }) => {
+  // CI's Linux runner falls back to a wider font than most desktops; DejaVu Sans stands in for it
+  // (where it isn't installed the browser uses its default and the check still holds).
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/')
+  await page.addStyleTag({
+    content: 'body, button, select, input { font-family: "DejaVu Sans", sans-serif !important; }',
+  })
+  const header = page.locator('header')
+  await expect(header.getByRole('button', { name: /New puzzle/ })).toBeVisible()
+  const box = await header.boundingBox()
+  expect(box!.height).toBeLessThan(70)
+})

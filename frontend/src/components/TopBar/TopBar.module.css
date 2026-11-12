@@ -20,6 +20,20 @@
   white-space: nowrap;
 }
 
+/* Below 1400 px only the mark shows (the name stays for assistive tech and in the tab title),
+   so the bar keeps one row at 1280 even with a wide fallback font such as DejaVu Sans. */
+@media (max-width: 1399px) {
+  .titleText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 .nav {
   display: flex;
   gap: var(--space-1);
