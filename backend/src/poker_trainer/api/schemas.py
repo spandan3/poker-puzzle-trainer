@@ -277,6 +277,27 @@ class Reveal(_Out):
     showdown: Showdown
 
 
+ExplanationSource = Literal["template", "llm"]
+FallbackReason = Literal["off", "unavailable", "timeout", "error", "invalid", "guardrail"]
+
+
+class ExplanationSection(_Out):
+    id: Literal["hand", "verdict", "villain"]
+    title: str
+    paragraphs: list[str]
+
+
+class Explanation(_Out):
+    """Plain-English explanation of a result. Every number in it was computed by the grader and
+    formatted by code; a language model may only reword it (``source == "llm"``)."""
+
+    source: ExplanationSource
+    headline: str  # one sentence
+    sections: list[ExplanationSection]  # always in the order hand, verdict, villain
+    model: str | None  # the model name when source == "llm"
+    fallback: FallbackReason | None  # why the template is shown when the LLM was asked
+
+
 class AttemptResult(_Out):
     """A stored attempt's full result: the stored grade plus the frozen puzzle's reveal."""
 
@@ -289,6 +310,7 @@ class AttemptResult(_Out):
     range_steps: list[RangeStep]
     reveal: Reveal
     judged_on_range_note: str
+    explanation: Explanation  # always the template (source "template")
 
 
 class AttemptSummary(_Out):

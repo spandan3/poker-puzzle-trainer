@@ -271,6 +271,9 @@
             ],
             "title": "Categories"
           },
+          "explanation": {
+            "$ref": "#/components/schemas/Explanation"
+          },
           "grade": {
             "$ref": "#/components/schemas/GradeView"
           },
@@ -312,7 +315,8 @@
           "categories",
           "range_steps",
           "reveal",
-          "judged_on_range_note"
+          "judged_on_range_note",
+          "explanation"
         ],
         "title": "AttemptResult",
         "type": "object"
@@ -650,6 +654,102 @@
           "count"
         ],
         "title": "DayCount",
+        "type": "object"
+      },
+      "Explanation": {
+        "additionalProperties": false,
+        "description": "Plain-English explanation of a result. Every number in it was computed by the grader and\nformatted by code; a language model may only reword it (``source == \"llm\"``).",
+        "properties": {
+          "fallback": {
+            "anyOf": [
+              {
+                "enum": [
+                  "off",
+                  "unavailable",
+                  "timeout",
+                  "error",
+                  "invalid",
+                  "guardrail"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback"
+          },
+          "headline": {
+            "title": "Headline",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ExplanationSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "source": {
+            "enum": [
+              "template",
+              "llm"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "headline",
+          "sections",
+          "model",
+          "fallback"
+        ],
+        "title": "Explanation",
+        "type": "object"
+      },
+      "ExplanationSection": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "enum": [
+              "hand",
+              "verdict",
+              "villain"
+            ],
+            "title": "Id",
+            "type": "string"
+          },
+          "paragraphs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Paragraphs",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "paragraphs"
+        ],
+        "title": "ExplanationSection",
         "type": "object"
       },
       "GradeView": {

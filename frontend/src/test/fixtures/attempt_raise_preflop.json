@@ -21,6 +21,40 @@
     "puzzle_id": 5
   },
   "categories": null,
+  "explanation": {
+    "fallback": null,
+    "headline": "Raise 2.5x was the top play, and you found it.",
+    "model": null,
+    "sections": [
+      {
+        "id": "hand",
+        "paragraphs": [
+          "You held K\u2663 5\u2666 in the big blind, against Villain, a LAG player, on the button. Pre-flop, Villain opened to 2.5 bb. You faced 1.5 bb more to call, with 3.5 bb in the pot."
+        ],
+        "title": "The hand"
+      },
+      {
+        "id": "verdict",
+        "paragraphs": [
+          "You chose Raise 2.5x (EV 1.51 bb), the top play against Villain's range. Verdict: Best.",
+          "Your equity against Villain's whole range is 51.2%. Calling 1.5 bb into a pot of 3.5 bb needs 1.5 bb / (3.5 bb + 1.5 bb) = 30.0% equity; 51.2% is above that, so calling beats folding.",
+          "Raise 2.5x: Villain folds 41% of the time and you have 44.0% equity against the hands that continue. To profit on folds alone, a raise this size needs 58.8% folds (5 bb / (3.5 bb + 5 bb)).",
+          "Right now you are ahead of 66.1% of Villain's range."
+        ],
+        "title": "Why"
+      },
+      {
+        "id": "villain",
+        "paragraphs": [
+          "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+          "Villain's range narrowed with each action: Pre-flop: opens to 2.5 bb.",
+          "The range in the Range tab is the range this puzzle was graded on."
+        ],
+        "title": "Villain"
+      }
+    ],
+    "source": "template"
+  },
   "grade": {
     "ahead_now": 0.6605911330049261,
     "best_label": "raise 2.5x",

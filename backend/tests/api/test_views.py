@@ -348,6 +348,10 @@ def test_attempt_result_shape(puzzles):
             assert res["categories"]
             assert all(c["name"] for c in res["categories"])
         assert res["attempt"]["created_at"].endswith("+00:00")
+        e = res["explanation"]
+        assert e["source"] == "template" and e["model"] is None and e["fallback"] is None
+        assert [s["id"] for s in e["sections"]] == ["hand", "verdict", "villain"]
+        assert e["headline"] and all(s["paragraphs"] for s in e["sections"])
 
 
 def test_attempt_result_custom_chosen_appended(puzzles):
