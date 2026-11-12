@@ -1,8 +1,8 @@
 # Handoff: improving the Villain "poker bot"
 
-This is for working on the Villain model while the main line of work (M8, explanations) continues on its own branch.
+This is for working on the Villain model while the main line of work (M9, Phase 1 sign-off) continues on its own branch.
 
-Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M7 merge (2026-11-12). M3 (the puzzle generator and grader), M4 (API and storage), M5 (table UI), M6 (results view) and M7 (progress) are done. M8 (explanations) is next.
+Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M8 merge (2026-11-12). M3 (the puzzle generator and grader), M4 (API and storage), M5 (table UI), M6 (results view), M7 (progress) and M8 (explanations) are done. M9 (Phase 1 sign-off) is next.
 
 ## 1. What the project is
 
@@ -67,6 +67,7 @@ uv run python -m poker_trainer.analysis.competence --profile all --hands 400   #
 - `src/poker_trainer/puzzle/**` (generator, solver, grader, `config.json`)
 - the API, the database and migrations (`src/poker_trainer/api/**`, `db/**`, `settings.py`, `tests/api/**`, `tests/db/**`)
 - the stats and leak rules (`src/poker_trainer/stats/**`, `tests/stats/**`, M7)
+- the explanations and the LLM guardrail (`src/poker_trainer/explain/**`, `tests/explain/**`, M8). The template quotes the range-step labels from `narrowing.describe` and the profile `label` and `description`, so a change to those changes the Why text (the guardrail tests run on generated puzzles and catch numbers that aren't facts).
 - `tests/engine/**`, `tests/puzzle/**`
 - the frontend (`frontend/**`, at the repo root)
 - `docs/superpowers/**` (plans and spec)
@@ -111,9 +112,9 @@ Old puzzles are frozen with the `profile_version` they were generated under. Tha
 
 ## 5. Current status
 
-M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage), M5 (table UI) M6 (results view) and M7 (progress) are done and reviewed.
+M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage), M5 (table UI), M6 (results view), M7 (progress) and M8 (explanations) are done and reviewed.
 
-Roadmap (2026-11-12, M1–M7 done): M8 explanations (local LLM) → M9 Phase 1 sign-off → M10 Play vs Bots heads-up → M11 UI polish → M12 Play vs Bots 5-max (play) → M13 5-max analysis. See `docs/superpowers/plans/2026-11-10-roadmap.md`.
+Roadmap (2026-11-12, M1–M8 done): M9 Phase 1 sign-off → M10 Play vs Bots heads-up → M11 UI polish → M12 Play vs Bots 5-max (play) → M13 5-max analysis. See `docs/superpowers/plans/2026-11-10-roadmap.md`.
 
 **Play vs Bots (M10) matters for Villain work:** the bot in that mode *is* the Villain policy (`action_distribution`, sampled for the bot's real cards), so every tuning change shows up in live play too (spec: `docs/superpowers/specs/2026-11-12-play-vs-bots-design.md`). M10 will add `STRATEGY_VERSION` to `strategy.py`: once it exists, bump it by hand whenever the policy's behaviour changes, as you already do for profile and `categories.json` versions. Play mode only offers the supported pre-flop tree (no limps, no small 4-bets); widening that tree is a welcome future Villain task, listed under "Later" in the roadmap.
 
