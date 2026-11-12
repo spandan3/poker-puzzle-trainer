@@ -246,3 +246,25 @@
 - Every task's reviewer gets this plan, the task's diff, the test output and, for UI tasks, screenshots of the gallery entry and of the app at 1280×800 and 1024×768. The reviewer checks spec compliance, then code quality, and does a mutation check on the most important test (break the code, see it fail, restore).
 - Models: Sonnet implementers for Tasks 2, 4 and 5; Opus for Task 1 (grader) and Task 3 (maths ≡ graded maths); Opus for all reviews.
 - After Task 5: a whole-branch review on Opus, then a PR `m6-results-view` → `main` (no squash). Check CI on Windows and macOS.
+
+## Follow-up after the final M6 review
+
+Decisions made while building (controller rulings):
+- No Villain-always-folds spot exists in seeds 1–200, so `attempt_never_continues.json` isn't written; tests use a labelled synthetic case in `frontend/src/test/synthetic.ts`.
+- Tasks 3, 4 and 5 ran one after another, not in parallel.
+- The Villain profile and the run-out showdown line moved from the summary into the Hand tab, so a fold never shows a run-out result.
+- All-in options show "all-in x bb" with no pot share.
+- On the river the Range headline reads "Your equity against this range is x."
+- After a fold the summary hides the judged-on-range note, and the Hand tab says "Graded against Villain's whole range." (the server note mentions a run-out that isn't dealt).
+
+Fixed after the final review: all-in size label, fold-aware range note, empty Board section on a pre-flop fold, one minus sign (U+2212) everywhere, a hidden h2 so the tab headings nest, table roles for the range grid (column headers line up), and a focusable tab panel.
+
+## Open items for M7 and later (from the M6 reviews)
+
+- **M9, grader:** a custom size can have a higher EV than the option marked best, while the verdict says best with 0 bb lost (the grader picks best from the preset options only). The table shows "+x bb" honestly.
+- **M9, fixtures:** regenerating fixtures on Windows vs macOS changes floats in the last digit. Round floats in `_dump`, or accept the churn.
+- **M9, profile text:** a renamed profile still turns old results into a 500 (from M4).
+- **M8:** per-profile behaviour notes and the plain-English explanation.
+- **M11 polish:** range-grid cell text is 9 px and faint at mid weights; no hover tooltip with the exact weight; tie wording "x is above x" when equity equals pot odds; the judged-on-range note appears in both the summary and the Hand tab.
+- **Tests to tighten:** the maths tests don't pin the Villain-calls formula or the Σ line (a regression would fall back to plain values silently); the Range "Continues vs" default test can't tell best from chosen; the Details button and `dealFrom` on a fold are untested; the e2e focuses Next before pressing N.
+- **Code tidy:** `MINUS` is defined in both `OptionsTable.tsx` and `maths.ts`; all-in is detected by the server label `'all-in'`; `grade.py` has a line over 100 characters; the never-continues fixture write path has never run.
