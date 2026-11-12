@@ -5,7 +5,7 @@ import pytest
 from test_solve import HERO, D, arr, facing_respond, generic_respond, river_spot
 
 from poker_trainer.game.state import Action, ActionKind, Street, new_hand, total_pot
-from poker_trainer.puzzle.grade import Answer, grade
+from poker_trainer.puzzle.grade import Answer, grade, intent_text
 from poker_trainer.puzzle.model import (
     Option,
     OptionEV,
@@ -159,7 +159,9 @@ def test_intent_truths_and_flag():
     p, bet = _intent_puzzle(ahead=0.1, eq_c=0.1)  # river: no semi-bluff
     g = grade(p, Answer(bet, 0.5, intent="value"))
     assert g.intent_truth == "bluff"
-    assert g.intent_flag == "You labelled this a value bet, but only better hands continue (bluff)."
+    assert g.intent_flag == (
+        "You labelled this a value bet, but only better hands continue, so it's a bluff."
+    )
     p, bet = _intent_puzzle(ahead=None, eq_c=None, equity=0.3)
     g = grade(p, Answer(bet, 0.5, intent="value"))
     assert g.intent_truth == "bluff"
@@ -178,7 +180,7 @@ def test_semi_bluff_truth_before_river():
     )
     g = grade(p, Answer(bet, 0.5, intent="bluff"))
     assert g.intent_truth == "semi_bluff"
-    assert g.intent_flag is not None and "(semi_bluff)" in g.intent_flag
+    assert g.intent_flag is not None and g.intent_flag.endswith(", so it's a semi-bluff.")
     p = _flop_puzzle(
         [_ev("bet", bet, 2.0, fold=0.4, eq_c=0.25, ahead_c=0.2, req=0.25, put=5), _ev("c", chk, 1)]
     )
@@ -314,7 +316,7 @@ def test_preflop_intent_is_value_or_bluff_by_allin_equity():
     # AKo jams: eq vs the calling range 0.505, but only 30% of it is behind now.
     g = grade(puzzle(0.505, 0.3), Answer(jam, 0.5, intent="semi_bluff"))
     assert g.intent_truth == "value"
-    assert g.intent_flag is not None and "(value)" in g.intent_flag
+    assert g.intent_flag is not None and g.intent_flag.endswith(", so it's a value raise.")
     # Pre-flop is never a semi-bluff, even with real equity.
     assert grade(puzzle(0.40, 0.2), Answer(jam, 0.5)).intent_truth == "bluff"
 
@@ -328,5 +330,48 @@ def test_semi_bluff_flag_text():
     g = grade(p, Answer(bet, 0.5, intent="value"))
     assert g.intent_flag == (
         "You labelled this a value bet, but better hands usually continue, "
-        "though you still have real equity (semi_bluff)."
+        "though you still have real equity, so it's a semi-bluff."
+    )
+
+
+def test_intent_text_by_kind():
+    assert intent_text("value", ActionKind.RAISE) == "a value raise"
+    assert intent_text("semi_bluff", ActionKind.BET) == "a semi-bluff"
+    assert intent_text("bluff", ActionKind.RAISE) == "a bluff raise"
+    assert intent_text("value", ActionKind.BET) == "a value bet"
+    assert intent_text("bluff", ActionKind.BET) == "a bluff"
+    assert intent_text("semi_bluff", ActionKind.RAISE) == "a semi-bluff raise"
+
+
+def test_intent_flag_has_no_raw_enum():
+    p, bet = _intent_puzzle(ahead=0.1, eq_c=0.1)
+    g = grade(p, Answer(bet, 0.5, intent="semi_bluff"))
+    assert g.intent_truth == "bluff"
+    assert g.intent_flag is not None
+    assert g.intent_flag.startswith("You labelled this a semi-bluff, but ")
+    assert g.intent_flag.endswith(", so it's a bluff.")
+    assert "(" not in g.intent_flag
+
+
+def test_intent_flag_never_continues():
+    # Hero faces a river bet of 8 (P = 18) and raises to 24; Villain always folds.
+    p, _ = _puzzle(equity=0.3)
+    s = river_spot("facing")
+    p = Puzzle(replace(p.spot, state=s), p.solution)
+    rse = Action(s.to_act, ActionKind.RAISE, Street.RIVER, 24)
+    always_fold = facing_respond(arr(ak=1, jt=1), arr())
+    g = grade(p, Answer(rse, 0.5, intent="value"), respond=always_fold)
+    assert g.chosen.fold_freq == 1.0
+    assert g.intent_truth == "bluff"
+    assert g.intent_flag == (
+        "You labelled this a value raise, but Villain always folds here, so this raise wins "
+        "the pot uncontested; it's a bluff with fold equity only."
+    )
+    assert "so it's" not in g.intent_flag and "(" not in g.intent_flag
+    # A bet keeps "this bet".
+    p, bet = _intent_puzzle(ahead=None, eq_c=None, equity=0.7)
+    g = grade(p, Answer(bet, 0.5, intent="bluff"))
+    assert g.intent_flag == (
+        "You labelled this a bluff, but Villain always folds here, so this bet wins the pot "
+        "uncontested, though your hand would also be ahead if called."
     )

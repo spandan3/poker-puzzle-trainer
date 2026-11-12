@@ -25,13 +25,14 @@ from fastapi.testclient import TestClient
 
 from poker_trainer.api import views
 from poker_trainer.api.app import create_app
-from poker_trainer.game.state import Street
+from poker_trainer.game.state import ActionKind, Street
 from poker_trainer.puzzle.generate import generate_puzzle
 from poker_trainer.puzzle.model import Puzzle
 from poker_trainer.settings import AppSettings
 
 STREETS = ("preflop", "flop", "turn", "river")
 MAX_SEED = 400  # per street; the search stops (and reports) when a predicate is not found
+NEVER_CONTINUES_MAX_SEED = 200
 FIXED_TIME = "2026-01-01T00:00:00+00:00"
 
 View = dict[str, Any]
@@ -118,6 +119,25 @@ def search(
     return found
 
 
+def find_never_continues(
+    max_seed: int = NEVER_CONTINUES_MAX_SEED, log: Callable[[str], None] = lambda _m: None
+) -> tuple[int, str, int]:
+    """``(seed, street, option index)`` of the first bet or raise Villain always folds to,
+    searched in ``search()``'s order (``RuntimeError`` if none within ``max_seed`` seeds)."""
+    for seed in range(1, max_seed + 1):
+        for street in STREETS:
+            try:
+                p = generate_puzzle(seed, street=street)
+            except RuntimeError:
+                continue
+            for i, o in enumerate(p.solution.options):
+                kind = o.option.action.kind
+                if kind in (ActionKind.BET, ActionKind.RAISE) and o.fold_freq == 1.0:
+                    log(f"found never_continues: seed={seed} street={street} option={i}")
+                    return seed, street, i
+    raise RuntimeError(f"no bet or raise that Villain always folds to within {max_seed} seeds")
+
+
 def _dump(path: Path, data: Any) -> None:
     text = json.dumps(data, indent=2, sort_keys=True) + "\n"
     with open(path, "w", encoding="utf-8", newline="\n") as f:
@@ -130,8 +150,16 @@ def _fix_times(result: dict[str, Any]) -> dict[str, Any]:
 
 
 def write_fixtures(
-    out: Path, found: dict[str, tuple[int, str]], log: Callable[[str], None] = lambda _m: None
+    out: Path,
+    found: dict[str, tuple[int, str]],
+    log: Callable[[str], None] = lambda _m: None,
+    never_continues: tuple[int, str, int] | None = None,
 ) -> None:
+    """Write every puzzle in ``found``, the attempt results and the settings.
+
+    ``never_continues`` is ``find_never_continues()``'s result; ``None`` skips
+    ``attempt_never_continues.json``.
+    """
     out.mkdir(parents=True, exist_ok=True)
     chosen: dict[tuple[int, str], Puzzle] = {}
     queue: list[tuple[int, str]] = []
@@ -182,6 +210,58 @@ def write_fixtures(
                     raise RuntimeError(res.text)
                 _dump(out / f"attempt_{kind}.json", _fix_times(res.json()))
                 log(f"wrote attempt_{kind}.json")
+
+            def options_of(pid: int) -> list[dict[str, Any]]:
+                return client.get(f"/api/puzzles/{pid}").json()["options"]
+
+            def first(name: str, kind: str) -> int:
+                matching = [o for o in options_of(ids[name]) if o["kind"] == kind]
+                if not matching:
+                    raise RuntimeError(f"no {kind} option in puzzle_{name}")
+                return matching[0]["index"]
+
+            def attempt(file: str, pid: int, body: dict[str, Any]) -> None:
+                res = client.post(
+                    f"/api/puzzles/{pid}/attempts",
+                    json={"equity_guess": 0.45, "range_read_guess": 0.5, **body},
+                )
+                if res.status_code != 201:
+                    raise RuntimeError(res.text)
+                _dump(out / f"attempt_{file}.json", _fix_times(res.json()))
+                log(f"wrote attempt_{file}.json")
+
+            pid = ids["facing_postflop_raise"]
+            attempt("call", pid, {"option": first("facing_postflop_raise", "call")})
+            pid = ids["preflop_bb_facing_open"]
+            attempt(
+                "raise_preflop",
+                pid,
+                {"option": first("preflop_bb_facing_open", "raise"), "intent": "value"},
+            )
+            pid = ids["preflop_btn_first_in"]
+            attempt("fold_preflop", pid, {"option": first("preflop_btn_first_in", "fold")})
+            attempt("check_river", ids["river"], {"option": first("river", "check")})
+
+            pid = ids["custom_allowed"]
+            view = client.get(f"/api/puzzles/{pid}").json()
+            min_to = view["custom"]["min_to"]
+            if any(o["to"] == min_to for o in view["options"]):
+                raise RuntimeError("custom min_to matches a stored option: no custom row")
+            attempt("custom", pid, {"custom_to": min_to})
+
+            if never_continues is None:
+                log("skipped attempt_never_continues.json (no such option found)")
+            else:
+                seed, street, index = never_continues
+                key = (seed, street)
+                chosen[key] = generate_puzzle(seed, street=street)
+                queue.append(key)
+                res = client.post("/api/puzzles", json={})
+                if res.status_code != 201:
+                    raise RuntimeError(res.text)
+                # label it the opposite of the truth (value iff equity >= 0.5) so a flag shows
+                intent = "bluff" if chosen[key].solution.equity >= 0.5 else "value"
+                attempt("never_continues", res.json()["id"], {"option": index, "intent": intent})
             _dump(out / "settings.json", client.get("/api/settings").json())
             log("wrote settings.json")
 
@@ -193,7 +273,13 @@ def main(argv: list[str] | None = None) -> None:
     start = time.perf_counter()
     found = search(log=print)
     print(f"search took {time.perf_counter() - start:.1f}s")
-    write_fixtures(Path(args[0]), found, log=print)
+    never: tuple[int, str, int] | None
+    try:
+        never = find_never_continues(log=print)
+    except RuntimeError as e:
+        print(e)
+        never = None
+    write_fixtures(Path(args[0]), found, log=print, never_continues=never)
     print(f"total {time.perf_counter() - start:.1f}s")
 
 

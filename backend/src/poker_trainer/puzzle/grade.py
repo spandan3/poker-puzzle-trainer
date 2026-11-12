@@ -17,7 +17,14 @@ Intent = Literal["value", "bluff", "semi_bluff"]
 
 _EPS = 1e-9
 _AGGRESSIVE = (ActionKind.BET, ActionKind.RAISE)
-_INTENT_TEXT = {"value": "a value bet", "bluff": "a bluff", "semi_bluff": "a semi-bluff"}
+_INTENT_TEXT = {
+    ActionKind.BET: {"value": "a value bet", "bluff": "a bluff", "semi_bluff": "a semi-bluff"},
+    ActionKind.RAISE: {
+        "value": "a value raise",
+        "bluff": "a bluff raise",
+        "semi_bluff": "a semi-bluff raise",
+    },
+}
 _INTENT_REASON = {
     "value": "worse hands continue",
     "bluff": "only better hands continue",
@@ -33,6 +40,21 @@ _NEVER_CONTINUES_REASON = {
         "though your hand would also be ahead if called"
     ),
 }
+
+
+def intent_text(intent: Intent, kind: ActionKind) -> str:
+    """Plain-English name of ``intent`` for a bet or raise ("a value raise", "a bluff")."""
+    return _INTENT_TEXT[kind][intent]
+
+
+def _intent_flag(chosen: Intent, truth: Intent, kind: ActionKind, never: bool) -> str:
+    said = intent_text(chosen, kind)
+    if never:  # the reason already names the truth
+        reason = _NEVER_CONTINUES_REASON[truth]
+        if kind == ActionKind.RAISE:
+            reason = reason.replace("this bet", "this raise")
+        return f"You labelled this {said}, but {reason}."
+    return f"You labelled this {said}, but {_INTENT_REASON[truth]}, so it's {intent_text(truth, kind)}."
 
 
 @dataclass(frozen=True)
@@ -151,15 +173,14 @@ def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
         rr_error = float(abs(a.range_read_guess - sol.ahead_now))
         rr_score = _score(rr_error)
 
-    truth: str | None = None
+    truth: Intent | None = None
     flag: str | None = None
     bluff: tuple[float, float] | None = None
     if a.action.kind in _AGGRESSIVE:
         truth = _intent_truth(chosen, s.street, sol.equity)
         if a.intent is not None and a.intent != truth:
             never = chosen.ahead_vs_continue is None and chosen.equity_vs_continue is None
-            reason = _NEVER_CONTINUES_REASON[truth] if never else _INTENT_REASON[truth]
-            flag = f"You labelled this {_INTENT_TEXT[a.intent]}, but {reason} ({truth})."
+            flag = _intent_flag(a.intent, truth, a.action.kind, never)
         if chosen.required_fold_equity is not None and chosen.fold_freq is not None:
             bluff = (chosen.required_fold_equity, chosen.fold_freq)
 
