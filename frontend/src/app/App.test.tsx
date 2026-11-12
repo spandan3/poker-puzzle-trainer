@@ -138,6 +138,8 @@ describe('App', () => {
     expect(screen.queryByText('Hero to act')).toBeNull()
     expect(screen.getByText('your answer')).toBeVisible()
     expect(screen.getByRole('button', { name: /Next puzzle/ })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'Options' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('table')).toBeVisible()
   })
 
   it('N after a result loads the next puzzle and keeps focus on the page', async () => {

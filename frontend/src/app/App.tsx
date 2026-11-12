@@ -2,12 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import type { FlowApi, Shown } from './usePuzzleFlow'
 import { usePuzzleFlow } from './usePuzzleFlow'
 import { AnswerPanel } from '../components/AnswerPanel/AnswerPanel'
+import type { DecisionDetailsHandle } from '../components/Decision/DecisionDetails'
+import { DecisionDetails } from '../components/Decision/DecisionDetails'
+import { HandReveal } from '../components/HandReveal/HandReveal'
 import { HistoryPanel } from '../components/HistoryPanel/HistoryPanel'
-import { ResultStrip } from '../components/ResultStrip/ResultStrip'
+import { ResultSummary } from '../components/ResultSummary/ResultSummary'
 import { ShortcutsOverlay } from '../components/ShortcutsOverlay/ShortcutsOverlay'
 import { Table } from '../components/Table/Table'
 import { TableCentre } from '../components/TableCentre/TableCentre'
 import { TopBar } from '../components/TopBar/TopBar'
+import { decisionFromAttempt } from '../lib/decision'
 import type { Command } from '../lib/shortcuts'
 import { useShortcuts } from '../lib/shortcuts'
 import { answerEntry, VERDICT_LABELS, verdictLine } from '../lib/result'
@@ -55,6 +59,7 @@ export function App({ api }: AppProps = {}) {
 
   const slotRef = useRef<HTMLDivElement>(null)
   const nextRef = useRef<HTMLButtonElement>(null)
+  const detailsRef = useRef<DecisionDetailsHandle>(null)
 
   const setShortcutsOn = (on: boolean) => {
     setShortcutsOnState(on)
@@ -212,12 +217,13 @@ export function App({ api }: AppProps = {}) {
               />
               <div ref={slotRef} className={styles.slot} tabIndex={-1} aria-label="Answer">
                 {result ? (
-                  <ResultStrip
+                  <ResultSummary
                     ref={nextRef}
                     result={result}
                     onNext={flow.newPuzzle}
                     loading={state.kind === 'loading'}
                     shortcutsOn={shortcutsOn}
+                    onDetails={() => detailsRef.current?.reveal()}
                   />
                 ) : (
                   <AnswerPanel
@@ -240,6 +246,15 @@ export function App({ api }: AppProps = {}) {
               answer={result ? answerEntry(view, result) : undefined}
               className={styles.side}
             />
+            {result && (
+              <div className={styles.details} data-pending={pending || undefined}>
+                <DecisionDetails
+                  ref={detailsRef}
+                  decision={decisionFromAttempt(view, result)}
+                  handTab={<HandReveal view={view} result={result} />}
+                />
+              </div>
+            )}
           </>
         )}
       </main>

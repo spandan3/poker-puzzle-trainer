@@ -2,12 +2,12 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { attemptFixture } from '../../test/fixture'
-import { ResultStrip } from './ResultStrip'
+import { ResultSummary } from './ResultSummary'
 
-describe('ResultStrip', () => {
+describe('ResultSummary', () => {
   it('shows the verdict, the guesses, the profile and the note', () => {
     const result = attemptFixture('bet')
-    render(<ResultStrip result={result} onNext={() => {}} shortcutsOn />)
+    render(<ResultSummary result={result} onNext={() => {}} onDetails={() => {}} shortcutsOn />)
     const status = screen.getByRole('region', { name: 'Result' })
     expect(status).toHaveTextContent('Best')
     expect(status).toHaveTextContent('You: Bet 33% · the top play')
@@ -21,7 +21,7 @@ describe('ResultStrip', () => {
 
   it('colour-codes each verdict', () => {
     const result = attemptFixture('fold')
-    render(<ResultStrip result={result} onNext={() => {}} shortcutsOn />)
+    render(<ResultSummary result={result} onNext={() => {}} onDetails={() => {}} shortcutsOn />)
     expect(screen.getByText('Mistake')).toHaveAttribute('data-verdict', 'mistake')
   })
 
@@ -29,22 +29,80 @@ describe('ResultStrip', () => {
     const user = userEvent.setup()
     const onNext = vi.fn()
     const { rerender } = render(
-      <ResultStrip result={attemptFixture('bet')} onNext={onNext} shortcutsOn />,
+      <ResultSummary
+        result={attemptFixture('bet')}
+        onNext={onNext}
+        onDetails={() => {}}
+        shortcutsOn
+      />,
     )
     const next = screen.getByRole('button', { name: /Next puzzle/ })
     expect(next).toHaveAttribute('aria-keyshortcuts', 'N')
     expect(next.querySelector('kbd')).toHaveTextContent('N')
     await user.click(next)
     expect(onNext).toHaveBeenCalledTimes(1)
-    rerender(<ResultStrip result={attemptFixture('bet')} onNext={onNext} shortcutsOn loading />)
+    rerender(
+      <ResultSummary
+        result={attemptFixture('bet')}
+        onNext={onNext}
+        onDetails={() => {}}
+        shortcutsOn
+        loading
+      />,
+    )
     await user.click(screen.getByRole('button', { name: /Dealing/ }))
     expect(onNext).toHaveBeenCalledTimes(1)
   })
 
   it('no key hint with shortcuts off', () => {
-    render(<ResultStrip result={attemptFixture('bet')} onNext={() => {}} shortcutsOn={false} />)
+    render(
+      <ResultSummary
+        result={attemptFixture('bet')}
+        onNext={() => {}}
+        onDetails={() => {}}
+        shortcutsOn={false}
+      />,
+    )
     const next = screen.getByRole('button', { name: /Next puzzle/ })
     expect(next).not.toHaveAttribute('aria-keyshortcuts')
     expect(next.querySelector('kbd')).toBeNull()
+  })
+
+  it('shows the intent flag only when there is one', () => {
+    const result = attemptFixture('fold')
+    const { rerender } = render(
+      <ResultSummary
+        result={{ ...result, grade: { ...result.grade, intent_flag: null } }}
+        onNext={() => {}}
+        onDetails={() => {}}
+        shortcutsOn
+      />,
+    )
+    expect(screen.queryByText(/You labelled this/)).toBeNull()
+    const flag = 'You labelled this a bluff, but it is not.'
+    rerender(
+      <ResultSummary
+        result={{ ...result, grade: { ...result.grade, intent_flag: flag } }}
+        onNext={() => {}}
+        onDetails={() => {}}
+        shortcutsOn
+      />,
+    )
+    expect(screen.getByText(flag)).toBeVisible()
+  })
+
+  it('Details calls onDetails', async () => {
+    const user = userEvent.setup()
+    const onDetails = vi.fn()
+    render(
+      <ResultSummary
+        result={attemptFixture('bet')}
+        onNext={() => {}}
+        onDetails={onDetails}
+        shortcutsOn
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Details' }))
+    expect(onDetails).toHaveBeenCalledTimes(1)
   })
 })

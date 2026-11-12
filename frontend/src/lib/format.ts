@@ -38,3 +38,20 @@ export function formatDetail(detail: unknown): string {
   }
   return FALLBACK_DETAIL
 }
+
+/** An EV in bb from the API's `*_bb` floats: two decimals, no trailing zeros ("2.25 bb"). */
+export function formatEvBb(bb: number): string {
+  return `${Number(bb.toFixed(2))} bb`
+}
+
+/**
+ * A server label with chips in it, shown in bb: "Villain raises to 40 — Hero folds" becomes
+ * "Villain raises to 20 bb — you fold". Labels without chips pass through.
+ */
+export function bbLabel(label: string): string {
+  return label
+    .replace(/\b(to|bets?) (\d+)/g, (_m, word: string, chips: string) => {
+      return `${word} ${formatBb(Number(chips))}`
+    })
+    .replace(/\bHero (fold|call)s\b/g, 'you $1')
+}

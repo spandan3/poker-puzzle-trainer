@@ -1,0 +1,13 @@
+/* Tokens for the results view (M6): all defined here, so later tasks only use them. */
+:root {
+  /* range grid */
+  --range-fill: var(--color-accent);
+  --range-blocked-hatch: rgb(255 255 255 / 18%);
+
+  /* Best / You badges in the options table */
+  --badge-best: var(--color-verdict-best);
+  --badge-you: var(--color-info);
+
+  /* maths tab: the formula boxes */
+  --maths-formula-bg: var(--color-bg-sunken);
+}
