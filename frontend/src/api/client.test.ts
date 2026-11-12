@@ -3,6 +3,7 @@ import {
   ApiError,
   currentPuzzle,
   getAttempt,
+  getExplanation,
   getHistory,
   getPuzzle,
   getSettings,
@@ -138,5 +139,18 @@ describe('client', () => {
     fetchMock.mockResolvedValue(reply(200, {}))
     await getAttempt(7)
     expect(lastCall().url).toBe('/api/attempts/7')
+  })
+
+  it('gets the explanation of an attempt, passing the abort signal', async () => {
+    fetchMock.mockResolvedValue(reply(200, { headline: 'x' }))
+    const controller = new AbortController()
+    expect(await getExplanation(7, controller.signal)).toEqual({ headline: 'x' })
+    expect(lastCall().url).toBe('/api/attempts/7/explanation')
+    expect(lastCall().init?.signal).toBe(controller.signal)
+  })
+
+  it('throws an ApiError for a failed explanation request', async () => {
+    fetchMock.mockResolvedValue(reply(404, { detail: 'no such attempt' }))
+    await expect(getExplanation(7)).rejects.toMatchObject({ status: 404 })
   })
 })
