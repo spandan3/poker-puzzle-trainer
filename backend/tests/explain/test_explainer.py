@@ -6,13 +6,14 @@ import json
 import logging
 import threading
 import time
+from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
 from explain_cases import facts, puzzle, result
 from test_ollama import FakeOllama
 
-from poker_trainer.explain import ollama
+from poker_trainer.explain import ollama, service
 from poker_trainer.explain.service import CACHE_SIZE, PROBE_TTL, Explainer
 from poker_trainer.explain.template import render
 from poker_trainer.settings import AppSettings
@@ -212,9 +213,34 @@ def test_cache_key_includes_the_model(case):
     assert ex.explanation_for(1, template, f)["model"] == "mistral"
 
 
-def test_concurrent_duplicates_wait_for_the_running_call(case):
+class _CountingEvent(threading.Event):
+    """An event that counts the threads that called ``wait`` on it."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._count_lock = threading.Lock()
+        self.waiters = 0
+
+    def wait(self, timeout: float | None = None) -> bool:
+        with self._count_lock:
+            self.waiters += 1
+        return super().wait(timeout)
+
+
+def test_concurrent_duplicates_wait_for_the_running_call(case, monkeypatch):
     template, f = case
     started, release = threading.Event(), threading.Event()
+    events: list[_CountingEvent] = []
+
+    def counting_event() -> _CountingEvent:
+        events.append(_CountingEvent())
+        return events[-1]
+
+    @dataclass
+    class CountingInFlight(service._InFlight):
+        done: threading.Event = field(default_factory=counting_event)
+
+    monkeypatch.setattr(service, "_InFlight", CountingInFlight)
 
     def slow(prompt: str) -> str:
         started.set()
@@ -228,6 +254,7 @@ def test_concurrent_duplicates_wait_for_the_running_call(case):
     for reply, source in ((slow, "llm"), (failing_slow, "template")):
         started.clear()
         release.clear()
+        events.clear()
         gen = FakeGenerate(reply)
         ex = Explainer(_settings(), generate=gen)
         outs: list[dict[str, Any]] = []
@@ -240,10 +267,16 @@ def test_concurrent_duplicates_wait_for_the_running_call(case):
         assert started.wait(5)
         for t in threads[1:]:
             t.start()
-        time.sleep(0.2)  # let them find the running call and wait on it
+        # both duplicates found the running call and wait on it before it finishes
+        deadline = time.monotonic() + 5
+        while events[-1].waiters < 2:
+            assert time.monotonic() < deadline, "the duplicates never waited on the running call"
+            time.sleep(0.001)
+        assert len(events) == 1  # one in-flight entry: the duplicates joined it
         release.set()
         for t in threads:
             t.join(5)
+        assert not any(t.is_alive() for t in threads)
         assert len(gen.calls) == 1  # one generation, three answers
         assert len(outs) == 3 and all(o == outs[0] for o in outs)
         assert outs[0]["source"] == source
@@ -255,7 +288,8 @@ def test_end_to_end_with_a_fake_server(case):
     fake = FakeOllama()
     fake.thread.start()
     try:
-        ex = Explainer(_settings(ollama_url=fake.url, llm_timeout=0.3))
+        # a timeout a slow CI runner meets on the success call, and a slow route well past it
+        ex = Explainer(_settings(ollama_url=fake.url, llm_timeout=2.0))
         fake.routes[("POST", "/api/chat")] = lambda b: (
             200,
             json.dumps({"message": {"content": _reword(b["messages"][1]["content"])}}).encode(),
@@ -268,7 +302,7 @@ def test_end_to_end_with_a_fake_server(case):
                 (lambda: fake.chat("x", status=500), "error"),
                 (lambda: fake.chat("not json"), "invalid"),
                 (lambda: fake.chat(""), "invalid"),
-                (lambda: fake.chat("{}", delay=1.0), "timeout"),
+                (lambda: fake.chat("{}", delay=5.0), "timeout"),
             ],
             start=2,
         ):

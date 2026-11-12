@@ -70,14 +70,17 @@ INSTRUCTIONS = (
     "You reword poker explanations for a recreational player. The user message holds FACTS, "
     "which are every number you may use, and an EXPLANATION written by the trainer as a JSON "
     "object with the fields headline, hand and verdict.\n"
-    "Rewrite the explanation in plain, friendly English and keep it short.\n"
+    "Rewrite the explanation in plain, friendly English and keep it short. Shorten by dropping "
+    "sentences, never by rounding numbers.\n"
     "Rules:\n"
     "- Use only numbers that appear in the facts, written exactly as they appear there, with "
     "the same unit (% or bb). Never compute, round, estimate or invent a number, and never "
-    "write a number as a word.\n"
+    "write a number as a word. Never count things in words. Never write odds as a ratio or a "
+    "fraction.\n"
     "- Keep card names exactly as written, with their suit symbols.\n"
-    "- Talk about Villain's range and the expected value of each option. Never mention cards "
-    "dealt after the decision, Villain's actual cards, or who won the hand.\n"
+    "- Talk about Villain's range. Mention only the expected values the explanation already "
+    "mentions. Never mention cards dealt after the decision, Villain's actual cards, or who won "
+    "the hand.\n"
     "- Add no advice that is not in the explanation.\n"
     "Reply with a JSON object only: headline is a single sentence, hand tells the hand up to "
     "the decision, verdict says why the decision was good or bad. In hand and verdict, "
@@ -223,13 +226,15 @@ def probe(url: str, model: str, timeout: float = PROBE_TIMEOUT) -> tuple[ProbeSt
     req = urllib.request.Request(_endpoint(url, "/api/tags"), method="GET")
     try:
         names = _model_names(_request_json(req, timeout))
-    except (LlmUnavailable, LlmTimeout, LlmError) as e:
-        if not isinstance(e, LlmError) and not isinstance(e.__cause__, HTTPError):
-            return "unavailable", f"Ollama isn't answering at {url}."
-        return (
-            "unavailable",
-            f"Something answered at {url}, but not like Ollama 0.5 or newer does.",
-        )
+    except LlmFailure as e:
+        # an LlmError, or an HTTP error (a 404 is an LlmUnavailable): something answered, badly
+        answered = isinstance(e, LlmError) or isinstance(e.__cause__, HTTPError)
+        if answered:
+            return (
+                "unavailable",
+                f"Something answered at {url}, but not like Ollama 0.5 or newer does.",
+            )
+        return "unavailable", f"Ollama isn't answering at {url}."
     wanted = {model} if ":" in model else {model, f"{model}:latest"}
     if names & wanted:
         return "ready", None

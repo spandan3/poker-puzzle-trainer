@@ -16,12 +16,23 @@
 - any other character Unicode gives a numeric value (``½``, ``²``, Roman numerals, non-ASCII
   digits).
 
+- composites, taken out before the digit runs: a ratio or fraction ``A / B``, ``A:B``,
+  ``A to B``, ``A in B``, ``A out of B`` (each number with an optional decimal part, spaces
+  optional around ``/`` and ``:``), normalised (``"1 / 3"`` = ``"1/3"``, ``"2 To 1"`` =
+  ``"2 to 1"``), and scientific notation (``"1e3"``, ``"2.5E-1"``). A composite passes only when
+  the same normalised composite is in the allowed text: ``"1/3"`` or ``"3 in 10"`` never passes
+  just because ``1``, ``3`` and ``10`` are facts. The pot-odds formula ``"1 bb / (3 bb + 1 bb)"``
+  is no composite (a unit or a bracket sits between the numbers), so its numbers are checked
+  one by one.
+
 ``check(output, allowed_text)`` is true when every number of ``output`` is in ``allowed_text``,
 the facts' values (never the instructions or the fact names). A number with a unit must appear
 with the same unit (``"25%"`` is not ``"25 bb"``); a bare number may match the same number with
 any unit. Cards, number words and numeric characters must appear as such.
 
 Known limit: a number swapped for another number from the facts, or a flipped sign, passes.
+So does a digit run glued to letters, when its digits are in the facts: ``"3bet"``, ``"1st"``,
+``"x2"`` and ``"1.5x"`` count as ``3``, ``1``, ``2`` and ``1.5`` (the same swap limit).
 """
 
 from __future__ import annotations
@@ -33,6 +44,14 @@ from decimal import Decimal
 
 _CARD = re.compile(r"[2-9TJQKA][♣♦♥♠]")
 _NUMBER = re.compile(r"\d+(?:\.\d+|,\d{1,2}(?!\d))?|(?<!\d)\.\d+", re.ASCII)
+_NUM = r"(?:\d+(?:\.\d+|,\d{1,2}(?!\d))?|\.\d+)"
+_COMPOSITE = re.compile(
+    r"(?<![\d.,])(?:"
+    rf"(?P<sci>{_NUM}[eE][+-]?\d+)"
+    rf"|(?P<a>{_NUM})(?P<sep>\s*[/:]\s*|\s+(?:to|in|out\s+of)\s+)(?P<b>{_NUM})"
+    r")(?![\d])",
+    re.IGNORECASE | re.ASCII,
+)
 _UNIT = re.compile(r"\s*(?:(%|percent\b|per cent\b)|(bbs?\b|big blinds?\b))", re.IGNORECASE)
 
 _WORDS = [
@@ -71,8 +90,13 @@ _WORDS = [
     "third",
     "quarter",
     "twice",
+    "thrice",
     "double",
     "triple",
+    "quadruple",
+    "twofold",
+    "threefold",
+    "fourfold",
     # ordinals and fraction words
     "fourth",
     "fifth",
@@ -107,6 +131,15 @@ _ALIASES = {
     "halved": "half",
     "doubled": "double",
     "tripled": "triple",
+    "quadrupled": "quadruple",
+    "twenties": "twenty",
+    "thirties": "thirty",
+    "forties": "forty",
+    "fifties": "fifty",
+    "sixties": "sixty",
+    "seventies": "seventy",
+    "eighties": "eighty",
+    "nineties": "ninety",
 }
 _WORD = re.compile(
     r"\b(" + "|".join(sorted([*_ALIASES, *_WORDS], key=len, reverse=True)) + r")s?\b",
@@ -119,6 +152,21 @@ _BARE = ""
 def _normalise(token: str) -> str:
     d = Decimal(token.replace(",", "."))
     return format(d.normalize(), "f") if d != 0 else "0"
+
+
+def _composite(m: re.Match[str]) -> str:
+    if m.group("sci"):
+        mantissa, exponent = re.split("[eE]", m.group("sci"))
+        return f"ratio:{_normalise(mantissa)}e{int(exponent)}"
+    sep = " ".join(m.group("sep").split()).lower()  # "/", ":", "to", "in", "out of"
+    sep = sep if sep in ("/", ":") else f" {sep} "
+    return f"ratio:{_normalise(m.group('a'))}{sep}{_normalise(m.group('b'))}"
+
+
+def _split_composites(text: str) -> tuple[set[str], str]:
+    """The composite tokens of ``text``, and ``text`` with each replaced by a space."""
+    found = {_composite(m) for m in _COMPOSITE.finditer(text)}
+    return found, _COMPOSITE.sub(" ", text)
 
 
 def _digit_tokens(text: str) -> list[tuple[str, str]]:
@@ -160,9 +208,10 @@ def _other_tokens(text: str) -> set[str]:
 
 def numbers(text: str) -> set[str]:
     """Every number token: ``"12.5"``, ``"25%"``, ``"2.5 bb"``, ``"card:7♦"``, ``"word:half"``,
-    ``"char:½"``."""
-    found, rest = _split_cards(text)
-    return found | {v + u for v, u in _digit_tokens(rest)} | _other_tokens(rest)
+    ``"char:½"``, ``"ratio:1/3"``."""
+    cards, rest = _split_cards(text)
+    composites, rest = _split_composites(rest)
+    return cards | composites | {v + u for v, u in _digit_tokens(rest)} | _other_tokens(rest)
 
 
 def unknown_numbers(output: str, allowed_text: str) -> set[str]:
@@ -170,7 +219,8 @@ def unknown_numbers(output: str, allowed_text: str) -> set[str]:
     allowed = numbers(allowed_text)
     allowed_values = {v for v, _ in _digit_tokens(_split_cards(allowed_text)[1])}
     out_cards, rest = _split_cards(output)
-    bad = out_cards - allowed
+    out_composites, rest = _split_composites(rest)
+    bad = (out_cards | out_composites) - allowed
     for v, u in _digit_tokens(rest):
         if (u == _BARE and v not in allowed_values) or (u != _BARE and v + u not in allowed):
             bad.add(v + u)

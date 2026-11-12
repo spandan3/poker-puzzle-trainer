@@ -9,11 +9,11 @@ from poker_trainer.settings import AppSettings
 SNAPSHOT = Path(__file__).resolve().parents[3] / "frontend" / "openapi.json"
 
 
-def test_openapi_snapshot_fresh(tmp_path):
+def test_openapi_snapshot_fresh(tmp_path, llm_off):
     out = tmp_path / "openapi.json"
     dump_openapi([str(out)])
     dumped = json.loads(out.read_text(encoding="utf-8"))
-    assert dumped == create_app(AppSettings(_env_file=None)).openapi()
+    assert dumped == create_app(AppSettings(_env_file=None, **llm_off)).openapi()
     assert SNAPSHOT.is_file(), "run: npm run gen:openapi (in frontend/)"
     committed = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     assert committed == dumped, "frontend/openapi.json is stale: run npm run gen:openapi"
