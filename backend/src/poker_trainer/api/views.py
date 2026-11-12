@@ -424,5 +424,5 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
         },
         "judged_on_range_note": JUDGED_ON_RANGE,
     }
-    result["explanation"] = explain(result, puzzle)
+    result["explanation"] = explain(result, puzzle, action_log(sp))
     return result

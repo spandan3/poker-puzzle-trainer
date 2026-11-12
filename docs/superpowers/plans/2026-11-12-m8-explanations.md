@@ -89,9 +89,9 @@ The intent flag and the "judged on range" note stay where they are (ResultSummar
 
 ### `Facts` (`explain/facts.py`)
 
-`build_facts(result: dict, puzzle: Puzzle) -> Facts`, where `result` is the dict `views.attempt_result` builds (before `explanation` is added). `Facts` is a frozen dataclass of strings (and string lists) plus a few flags (`facing_bet`, `hero_folded`, `best_is_chosen`, …). It also has `as_lines() -> list[str]`: `"Name: value"` lines, the facts block given to the LLM. Every number the template prints must appear in `as_lines()` (a test asserts it for every fixture spot: the template itself passes the guardrail against its own facts).
+`build_facts(result: dict, puzzle: Puzzle, log: list[dict]) -> Facts`, where `result` is the dict `views.attempt_result` builds (before `explanation` is added) and `log` is `views.action_log(puzzle.spot)` (passed in, so the explain package never imports `views`). `Facts` is a frozen dataclass of strings (and string lists) plus a few flags (`facing_bet`, `hero_folded`, `best_is_chosen`, …). It also has `as_lines() -> list[str]`: `"Name: value"` lines, the facts block given to the LLM. Every number the template prints must appear in `as_lines()` (a test asserts it for every fixture spot: the template itself passes the guardrail against its own facts).
 
-`views.attempt_result` calls `explain.template.explain(result_dict, puzzle)` last and adds `explanation`. It stays pure (no DB, no network).
+`views.attempt_result` calls `explain.template.explain(result_dict, puzzle, action_log(spot))` last and adds `explanation`. It stays pure (no DB, no network).
 
 ### Guardrail (`explain/guardrail.py`)
 

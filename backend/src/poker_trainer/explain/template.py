@@ -105,9 +105,15 @@ def hand_paragraphs(f: Facts) -> list[str]:
 def _choice(f: Facts) -> str:
     chosen, best = f.chosen, f.best
     if f.loss_case == "top":
+        # a custom size can match or beat the listed top play without being it
+        top = (
+            "the top play"
+            if f.best_is_chosen
+            else f"which matched or beat the top listed play ({f.best_label})"
+        )
         return (
-            f"You chose {f.chosen_label} (EV {chosen.ev}), the top play against Villain's "
-            f"range. Verdict: {f.verdict}."
+            f"You chose {f.chosen_label} (EV {chosen.ev}), {top} against Villain's range. "
+            f"Verdict: {f.verdict}."
         )
     verdict = (
         f"That is close to the top play, so the verdict is {f.verdict}."
@@ -215,10 +221,11 @@ def render(f: Facts) -> dict[str, Any]:
     }
 
 
-def explain(result: dict[str, Any], puzzle: Puzzle) -> dict[str, Any]:
+def explain(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]]) -> dict[str, Any]:
     """The template explanation of a result dict (``views.attempt_result``'s, without
-    ``explanation``). Pure: no database, no network."""
-    return render(build_facts(result, puzzle))
+    ``explanation``); ``log`` is ``views.action_log(puzzle.spot)``. Pure: no database, no
+    network."""
+    return render(build_facts(result, puzzle, log))
 
 
 def text_of(explanation: dict[str, Any]) -> str:

@@ -8,6 +8,7 @@ from typing import Any
 
 from poker_trainer.api import service, views
 from poker_trainer.api.schemas import AttemptIn
+from poker_trainer.explain.facts import Facts, build_facts
 from poker_trainer.puzzle.generate import generate_puzzle
 from poker_trainer.puzzle.grade import Answer, grade
 from poker_trainer.puzzle.model import Puzzle
@@ -57,6 +58,11 @@ def result(
         **{k: fields[k] for k in _STORED},
     }
     return views.attempt_result(attempt=attempt, puzzle=p, chosen=g.chosen)
+
+
+def facts(res: dict[str, Any], p: Puzzle) -> Facts:
+    """``build_facts`` with the action log ``views.attempt_result`` passes."""
+    return build_facts(res, p, views.action_log(p.spot))
 
 
 _STORED = (
