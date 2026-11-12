@@ -56,6 +56,16 @@
   opacity: 0.6;
 }
 
+.details {
+  grid-column: 1 / -1;
+  min-width: 0;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.details[data-pending] {
+  opacity: 0.6;
+}
+
 .slot {
   min-width: 0;
   border-radius: var(--radius-lg);

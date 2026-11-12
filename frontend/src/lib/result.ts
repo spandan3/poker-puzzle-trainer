@@ -1,6 +1,6 @@
 // Pure helpers for the result strip: option labels, the verdict line, guesses vs truth.
 import type { ActionLogEntry, AttemptResult, PuzzleView } from '../api/types'
-import { formatBb, formatPct } from './format'
+import { formatBb, formatEvBb, formatPct } from './format'
 
 export type Verdict = AttemptResult['grade']['verdict']
 export type Score = AttemptResult['grade']['equity_score']
@@ -42,11 +42,6 @@ export function chosenLabel(result: AttemptResult): string {
 
 /** EV differences below this (in bb) are shown as "0 bb" noise-free. */
 const EV_EPSILON = 0.005
-
-function formatEvBb(bb: number): string {
-  // the API's bb are floats (EV); two decimals, no trailing zeros
-  return `${Number(bb.toFixed(2))} bb`
-}
 
 /**
  * The line under the verdict. It never repeats the verdict word:
