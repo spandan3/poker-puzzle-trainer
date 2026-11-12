@@ -51,7 +51,8 @@ export interface PuzzleFlow {
   requestSkip: () => void
   cancelSkip: () => void
   submit: (body: AttemptIn) => void
-  setSetting: (patch: SettingsPatch) => void
+  /** Saves a setting (optimistic); resolves true when the server saved it. */
+  setSetting: (patch: SettingsPatch) => Promise<boolean>
 }
 
 /** The second `N` must come within this long of the first. */
@@ -171,7 +172,19 @@ function reducer(state: FlowState, msg: Msg): FlowState {
 
 const INITIAL: FlowState = { kind: 'loading', previous: null }
 
-export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
+export interface FlowOptions {
+  /**
+   * Whether the first puzzle may load (default true). The page switch sets it false while the
+   * Progress page is the landing page, so opening Progress never generates a puzzle; once true it
+   * stays loaded.
+   */
+  enabled?: boolean
+}
+
+export function usePuzzleFlow(
+  api: FlowApi = client,
+  { enabled = true }: FlowOptions = {},
+): PuzzleFlow {
   const [state, dispatch] = useReducer(reducer, INITIAL)
   const [settings, setSettings] = useState<SettingsView | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -224,17 +237,24 @@ export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
     [api],
   )
 
-  // Initial load, once: the flag is never reset in cleanup and the request is never aborted, so
-  // StrictMode's double effect sends one GET (and at most one POST).
-  const started = useRef(false)
+  // Initial load, once: the flags are never reset in cleanup and the request is never aborted, so
+  // StrictMode's double effect sends one GET (and at most one POST). Settings load at once; the
+  // puzzle waits for `enabled`.
+  const settingsStarted = useRef(false)
   useEffect(() => {
-    if (started.current) return
-    started.current = true
-    load(true)
+    if (settingsStarted.current) return
+    settingsStarted.current = true
     api.getSettings().then(setSettings, () => {
       // settings are optional for play: the controls keep their defaults
     })
-  }, [api, load])
+  }, [api])
+
+  const started = useRef(false)
+  useEffect(() => {
+    if (!enabled || started.current) return
+    started.current = true
+    load(true)
+  }, [enabled, load])
 
   useEffect(() => clearSkipTimer, [])
 
@@ -293,7 +313,7 @@ export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
 
   // Optimistic: the control changes at once; a failed save puts it back and says so.
   const setSetting = useCallback(
-    (patch: SettingsPatch) => {
+    (patch: SettingsPatch): Promise<boolean> => {
       const before = settingsRef.current
       if (before) setSettings({ ...before, ...patch })
       setNotice(null)
@@ -302,14 +322,16 @@ export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
       const seq = ++saveSeq.current
       for (const key of keys) lastSave.current.set(key, seq)
       const latest = () => keys.some((key) => lastSave.current.get(key) === seq)
-      api.patchSettings(patch).then(
+      return api.patchSettings(patch).then(
         (view) => {
           if (latest()) setSettings(view)
+          return true
         },
         () => {
-          if (!latest()) return
+          if (!latest()) return false
           setSettings((now) => (now && before ? { ...now, ...pick(before, patch) } : now))
           setNotice(SETTINGS_FAILED)
+          return false
         },
       )
     },

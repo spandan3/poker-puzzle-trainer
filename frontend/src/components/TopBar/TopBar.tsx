@@ -1,10 +1,20 @@
 import { useId } from 'react'
 import type { ProfileInfo, StreetName } from '../../api/types'
 import { STREET_LABELS, STREET_ORDER } from '../../lib/history'
+import type { Page } from '../../lib/page'
+import { isPlainLeftClick, pathOf } from '../../lib/page'
 import { shortcut } from '../../lib/shortcuts'
 import styles from './TopBar.module.css'
 
+const NAV: { page: Page; label: string }[] = [
+  { page: 'puzzles', label: 'Puzzles' },
+  { page: 'progress', label: 'Progress' },
+]
+
 export interface TopBarProps {
+  /** the page on show: the puzzle controls appear on Puzzles only */
+  page: Page
+  onNavigate: (page: Page) => void
   /** The street for new puzzles; `null` is "Any street". */
   street: StreetName | null
   onStreet: (street: StreetName | null) => void
@@ -28,9 +38,12 @@ function isStreet(x: string): x is StreetName {
 
 export function TopBar(props: TopBarProps) {
   const hintAttrs = (id: 'help' | 'next') =>
-    props.shortcutsOn ? { 'data-shortcut': id, 'aria-keyshortcuts': shortcut(id).aria } : {}
+    props.shortcutsOn && props.page === 'puzzles'
+      ? { 'data-shortcut': id, 'aria-keyshortcuts': shortcut(id).aria }
+      : {}
   const streetId = useId()
   const profileId = useId()
+  const onPuzzles = props.page === 'puzzles'
   return (
     <header className={styles.bar}>
       <h1 className={styles.title}>
@@ -40,46 +53,68 @@ export function TopBar(props: TopBarProps) {
         Poker Puzzle Trainer
       </h1>
 
+      <nav aria-label="Main" className={styles.nav}>
+        {NAV.map(({ page, label }) => (
+          <a
+            key={page}
+            href={pathOf(page)}
+            className={styles.navLink}
+            aria-current={props.page === page ? 'page' : undefined}
+            onClick={(e) => {
+              if (!isPlainLeftClick(e)) return
+              e.preventDefault()
+              props.onNavigate(page)
+            }}
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+
       <div className={styles.controls}>
-        <div className={styles.field}>
-          <label htmlFor={streetId}>Street</label>
-          <select
-            id={streetId}
-            className={styles.select}
-            value={props.street ?? ''}
-            onChange={(e) => props.onStreet(isStreet(e.target.value) ? e.target.value : null)}
-          >
-            <option value="">Any street</option>
-            {STREET_ORDER.map((s) => (
-              <option key={s} value={s}>
-                {STREET_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </div>
+        {onPuzzles && (
+          <>
+            <div className={styles.field}>
+              <label htmlFor={streetId}>Street</label>
+              <select
+                id={streetId}
+                className={styles.select}
+                value={props.street ?? ''}
+                onChange={(e) => props.onStreet(isStreet(e.target.value) ? e.target.value : null)}
+              >
+                <option value="">Any street</option>
+                {STREET_ORDER.map((s) => (
+                  <option key={s} value={s}>
+                    {STREET_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div className={styles.field}>
-          <label htmlFor={profileId}>Villain</label>
-          <select
-            id={profileId}
-            className={styles.select}
-            value={props.profile ?? ''}
-            onChange={(e) => props.onProfile(e.target.value === '' ? null : e.target.value)}
-          >
-            <option value="">Random</option>
-            {props.profiles.map((p) => (
-              <option key={p.name} value={p.name}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className={styles.field}>
+              <label htmlFor={profileId}>Villain</label>
+              <select
+                id={profileId}
+                className={styles.select}
+                value={props.profile ?? ''}
+                onChange={(e) => props.onProfile(e.target.value === '' ? null : e.target.value)}
+              >
+                <option value="">Random</option>
+                {props.profiles.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div className={styles.toggles}>
-          <Toggle label="Pot odds" on={props.showPotOdds} onChange={props.onShowPotOdds} />
-          <Toggle label="Show profile" on={props.showProfile} onChange={props.onShowProfile} />
-          <Toggle label="Shortcuts" on={props.shortcutsOn} onChange={props.onShortcutsOn} />
-        </div>
+            <div className={styles.toggles}>
+              <Toggle label="Pot odds" on={props.showPotOdds} onChange={props.onShowPotOdds} />
+              <Toggle label="Show profile" on={props.showProfile} onChange={props.onShowProfile} />
+              <Toggle label="Shortcuts" on={props.shortcutsOn} onChange={props.onShortcutsOn} />
+            </div>
+          </>
+        )}
 
         <button
           type="button"
@@ -93,19 +128,21 @@ export function TopBar(props: TopBarProps) {
             ?
           </kbd>
         </button>
-        <button
-          type="button"
-          className={styles.primary}
-          onClick={props.onNewPuzzle}
-          {...hintAttrs('next')}
-        >
-          New puzzle
-          {props.shortcutsOn && (
-            <kbd className={styles.kbd} aria-hidden="true">
-              N
-            </kbd>
-          )}
-        </button>
+        {onPuzzles && (
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={props.onNewPuzzle}
+            {...hintAttrs('next')}
+          >
+            New puzzle
+            {props.shortcutsOn && (
+              <kbd className={styles.kbd} aria-hidden="true">
+                N
+              </kbd>
+            )}
+          </button>
+        )}
       </div>
     </header>
   )

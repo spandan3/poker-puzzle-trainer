@@ -11,7 +11,11 @@ import { ShortcutsOverlay } from '../components/ShortcutsOverlay/ShortcutsOverla
 import { Table } from '../components/Table/Table'
 import { TableCentre } from '../components/TableCentre/TableCentre'
 import { TopBar } from '../components/TopBar/TopBar'
+import * as client from '../api/client'
+import { ProgressPage } from '../components/Progress/ProgressPage'
+import type { ProgressApi } from '../components/Progress/ProgressPage'
 import { decisionFromAttempt } from '../lib/decision'
+import { usePage } from '../lib/page'
 import type { Command } from '../lib/shortcuts'
 import { useShortcuts } from '../lib/shortcuts'
 import { answerEntry, heroFolded, VERDICT_LABELS, verdictLine } from '../lib/result'
@@ -48,14 +52,22 @@ function writeShortcutsOn(on: boolean): void {
 export interface AppProps {
   /** the API (a fake in tests) */
   api?: FlowApi
+  /** the stats API (the real client by default; a fake in tests) */
+  progressApi?: ProgressApi
 }
 
-export function App({ api }: AppProps = {}) {
-  const flow = usePuzzleFlow(api)
+export function App({ api, progressApi = client }: AppProps = {}) {
+  const [page, navigate] = usePage()
+  // Landing on /progress doesn't generate a puzzle: the flow loads when Puzzles is first shown.
+  const [puzzlesSeen, setPuzzlesSeen] = useState(page === 'puzzles')
+  if (page === 'puzzles' && !puzzlesSeen) setPuzzlesSeen(true)
+  const onPuzzles = page === 'puzzles'
+  const flow = usePuzzleFlow(api, { enabled: puzzlesSeen || onPuzzles })
   const { state, settings } = flow
   const [helpOpen, setHelpOpen] = useState(false)
   const [shortcutsOn, setShortcutsOnState] = useState(readShortcutsOn)
-  const keysOn = shortcutsOn && !helpOpen
+  // shortcuts belong to the Puzzles page; the play area stays mounted (hidden) on Progress
+  const keysOn = shortcutsOn && !helpOpen && onPuzzles
 
   const slotRef = useRef<HTMLDivElement>(null)
   const nextRef = useRef<HTMLButtonElement>(null)
@@ -135,6 +147,8 @@ export function App({ api }: AppProps = {}) {
   return (
     <div className={styles.app}>
       <TopBar
+        page={page}
+        onNavigate={navigate}
         street={flow.street}
         onStreet={flow.setStreet}
         profile={settings?.profile ?? null}
@@ -151,7 +165,7 @@ export function App({ api }: AppProps = {}) {
       />
 
       <div className={styles.toasts}>
-        {state.kind === 'error' && (
+        {onPuzzles && state.kind === 'error' && (
           <div className={styles.banner} role="alert" data-tone="danger">
             <span>{state.message}</span>
             <button type="button" className={styles.bannerButton} onClick={state.retry}>
@@ -167,7 +181,7 @@ export function App({ api }: AppProps = {}) {
             </button>
           </div>
         )}
-        {skipPending && (
+        {onPuzzles && skipPending && (
           <div className={styles.banner} role="status" data-tone="info">
             <span>
               Skip this puzzle? Press <kbd className={styles.kbd}>N</kbd> again
@@ -182,7 +196,19 @@ export function App({ api }: AppProps = {}) {
         )}
       </div>
 
-      <main className={styles.main} aria-busy={pending || undefined}>
+      {page === 'progress' && (
+        <main className={styles.progress}>
+          <ProgressPage
+            api={progressApi}
+            goal={settings?.daily_goal ?? null}
+            onGoal={(goal) => flow.setSetting({ daily_goal: goal })}
+            onNavigate={navigate}
+          />
+        </main>
+      )}
+
+      {/* hidden, not unmounted, on Progress: a half-entered answer survives the visit */}
+      <main className={styles.main} aria-busy={pending || undefined} hidden={!onPuzzles}>
         {view === null ? (
           <div className={styles.empty} role="status">
             {state.kind === 'error' ? 'No puzzle loaded' : 'Dealing…'}

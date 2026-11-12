@@ -20,6 +20,29 @@
   white-space: nowrap;
 }
 
+.nav {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.navLink {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: var(--color-text);
+}
+
+.navLink[aria-current='page'] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
 .mark {
   display: inline-grid;
   place-items: center;
@@ -36,7 +59,7 @@
   align-items: center;
   justify-content: flex-end;
   margin-left: auto;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-2);
 }
 
 .field {

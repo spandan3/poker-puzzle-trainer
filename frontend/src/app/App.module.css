@@ -33,6 +33,15 @@
   padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
+.main[hidden] {
+  display: none;
+}
+
+.progress {
+  flex: 1;
+  min-width: 0;
+}
+
 .play {
   display: grid;
   gap: var(--space-3);

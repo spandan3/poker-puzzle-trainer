@@ -1,11 +1,11 @@
 import { StrictMode } from 'react'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AttemptResult, PuzzleView } from '../api/types'
 import { cardName } from '../lib/cards'
 import { SHORTCUTS } from '../lib/shortcuts'
-import { attemptFixture, puzzleFixture, settingsFixture } from '../test/fixture'
+import { attemptFixture, puzzleFixture, settingsFixture, statsFixture } from '../test/fixture'
 import { App } from './App'
 
 interface Call {
@@ -18,7 +18,14 @@ interface Call {
  * A fake server behind `fetch`, recording every request: the real client runs, so the test sees
  * exactly which endpoints the UI calls.
  */
-function fakeServer(opts: { puzzles?: PuzzleView[]; attempt?: AttemptResult } = {}) {
+function fakeServer(
+  opts: {
+    puzzles?: PuzzleView[]
+    attempt?: AttemptResult
+    /** the answer to `GET /api/stats?tz=…` (default: the stats fixture) */
+    stats?: (tz: string) => { status: number; body: unknown }
+  } = {},
+) {
   const calls: Call[] = []
   const puzzles = [...(opts.puzzles ?? [puzzleFixture('flop_unopened'), puzzleFixture('river')])]
   const attempt = opts.attempt ?? attemptFixture('bet')
@@ -35,6 +42,11 @@ function fakeServer(opts: { puzzles?: PuzzleView[]; attempt?: AttemptResult } = 
     if (url === '/api/settings' && method === 'GET') return json(200, settingsFixture())
     if (url === '/api/settings' && method === 'PATCH') {
       return json(200, { ...settingsFixture(), ...(body as object) })
+    }
+    if (url.startsWith('/api/stats?tz=')) {
+      const tz = decodeURIComponent(url.slice('/api/stats?tz='.length))
+      const answer = opts.stats?.(tz) ?? { status: 200, body: statsFixture() }
+      return json(answer.status, answer.body)
     }
     if (url === '/api/puzzles/current') return json(404, { detail: 'no current puzzle' })
     if (url === '/api/puzzles' && method === 'POST') {
@@ -74,6 +86,7 @@ async function answerCheck(user: ReturnType<typeof userEvent.setup>) {
 
 beforeEach(() => {
   window.localStorage.clear()
+  window.history.replaceState(null, '', '/')
 })
 
 afterEach(() => {
@@ -270,5 +283,137 @@ describe('App', () => {
         expect(s.keys, s.id).toContain(node.querySelector('kbd')?.textContent)
       }
     }
+  })
+
+  describe('pages', () => {
+    const puzzlePosts = (calls: Call[]) =>
+      calls.filter((c) => c.method === 'POST' && c.url === '/api/puzzles')
+
+    it('Progress in the top bar switches the URL and shows the page', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      expect(window.location.pathname).toBe('/progress')
+      expect(await screen.findByTestId('progress-totals')).toBeVisible()
+      expect(screen.getByRole('link', { name: 'Progress' })).toHaveAttribute('aria-current', 'page')
+      // the play area is hidden, not gone, and the puzzle controls are off the bar
+      expect(screen.queryByRole('textbox', { name: 'Equity' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'New puzzle' })).toBeNull()
+    })
+
+    it('back returns to the same puzzle, half-entered answer kept, with no new puzzle', async () => {
+      const { calls } = fakeServer()
+      const { user } = setup()
+      const equity = await screen.findByRole('textbox', { name: 'Equity' })
+      await user.type(equity, '37')
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      await screen.findByTestId('progress-totals')
+      act(() => {
+        window.history.back()
+      })
+      await waitFor(() => expect(window.location.pathname).toBe('/'))
+      expect(screen.getByRole('textbox', { name: 'Equity' })).toHaveValue('37')
+      expect(puzzlePosts(calls)).toHaveLength(1)
+      expect(screen.queryByTestId('progress-totals')).toBeNull()
+    })
+
+    it('landing on /progress loads no puzzle until Puzzles is clicked', async () => {
+      window.history.replaceState(null, '', '/progress')
+      const { calls } = fakeServer()
+      const { user } = setup()
+      await screen.findByTestId('progress-totals')
+      await waitFor(() => expect(calls.some((c) => c.url === '/api/settings')).toBe(true))
+      expect(calls.filter((c) => c.url.startsWith('/api/puzzles'))).toEqual([])
+      await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+      expect(await screen.findByRole('textbox', { name: 'Equity' })).toBeVisible()
+      expect(
+        calls.filter((c) => c.url.startsWith('/api/puzzles')).map((c) => `${c.method} ${c.url}`),
+      ).toEqual(['GET /api/puzzles/current', 'POST /api/puzzles'])
+    })
+
+    it('shortcuts are off on Progress and back on afterwards', async () => {
+      const { calls } = fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      await screen.findByTestId('progress-totals')
+      ;(document.activeElement as HTMLElement | null)?.blur()
+      await user.keyboard('x')
+      await user.keyboard('n')
+      await user.keyboard('?')
+      expect(screen.queryByText(/Skip this puzzle\?/)).toBeNull()
+      expect(screen.queryByRole('dialog')).toBeNull()
+      await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+      expect(screen.getByRole('button', { name: /^Check/ })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      )
+      expect(puzzlePosts(calls)).toHaveLength(1)
+      // and they work again here
+      ;(document.activeElement as HTMLElement | null)?.blur()
+      await user.keyboard('x')
+      expect(screen.getByRole('button', { name: /^Check/ })).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('the help button still opens the overlay on Progress', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      await screen.findByTestId('progress-totals')
+      await user.click(screen.getByRole('button', { name: 'Keyboard shortcuts help' }))
+      expect(screen.getByRole('dialog')).toBeVisible()
+    })
+
+    it('modified clicks on the nav are left to the browser', async () => {
+      fakeServer()
+      setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      fireEvent.click(screen.getByRole('link', { name: 'Progress' }), { ctrlKey: true })
+      expect(window.location.pathname).toBe('/')
+    })
+
+    it('a 422 for the time zone retries once with UTC and shows the UTC note', async () => {
+      const seen: string[] = []
+      fakeServer({
+        stats: (tz) => {
+          seen.push(tz)
+          return tz === 'UTC'
+            ? { status: 200, body: statsFixture() }
+            : { status: 422, body: { detail: 'unknown time zone' } }
+        },
+      })
+      // a zone other than UTC, whatever the machine's own
+      const spy = vi
+        .spyOn(Intl, 'DateTimeFormat')
+        .mockImplementation(
+          () => ({ resolvedOptions: () => ({ timeZone: 'Mars/Olympus' }) }) as Intl.DateTimeFormat,
+        )
+      window.history.replaceState(null, '', '/progress')
+      setup()
+      expect(await screen.findByTestId('utc-note')).toBeVisible()
+      expect(seen).toEqual(['Mars/Olympus', 'UTC'])
+      spy.mockRestore()
+    })
+
+    it('saves the daily goal through the settings and fetches the stats again', async () => {
+      window.history.replaceState(null, '', '/progress')
+      const { calls } = fakeServer()
+      const { user } = setup()
+      await screen.findByTestId('progress-totals')
+      const input = await screen.findByRole('spinbutton', { name: 'Puzzles per day' })
+      await user.clear(input)
+      await user.type(input, '25{Enter}')
+      await waitFor(() =>
+        expect(calls.filter((c) => c.method === 'PATCH')).toEqual([
+          { method: 'PATCH', url: '/api/settings', body: { daily_goal: 25 } },
+        ]),
+      )
+      await waitFor(() =>
+        expect(calls.filter((c) => c.url.startsWith('/api/stats'))).toHaveLength(2),
+      )
+    })
   })
 })

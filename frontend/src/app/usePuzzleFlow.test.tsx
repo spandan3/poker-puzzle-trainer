@@ -333,7 +333,9 @@ describe('settings', () => {
     const api = fakeApi()
     const { result } = setup(api)
     await waitFor(() => expect(result.current.settings).not.toBeNull())
-    act(() => result.current.setSetting({ show_pot_odds: false }))
+    act(() => {
+      void result.current.setSetting({ show_pot_odds: false })
+    })
     expect(result.current.settings?.show_pot_odds).toBe(false)
     expect(api.patchSettings).toHaveBeenCalledWith({ show_pot_odds: false })
     await waitFor(() => expect(result.current.notice).toBeNull())
@@ -344,7 +346,9 @@ describe('settings', () => {
     const api = fakeApi({ patchSettings: vi.fn(() => save.promise) })
     const { result } = setup(api)
     await waitFor(() => expect(result.current.settings).not.toBeNull())
-    act(() => result.current.setSetting({ profile: 'lag' }))
+    act(() => {
+      void result.current.setSetting({ profile: 'lag' })
+    })
     expect(result.current.settings?.profile).toBe('lag')
     await act(async () => save.reject(new ApiError(0, 'down')))
     expect(result.current.settings?.profile).toBeNull()
@@ -364,11 +368,55 @@ describe('settings', () => {
     })
     const { result } = setup(api)
     await waitFor(() => expect(result.current.settings).not.toBeNull())
-    act(() => result.current.setSetting({ show_pot_odds: false }))
-    act(() => result.current.setSetting({ show_pot_odds: true }))
+    act(() => {
+      void result.current.setSetting({ show_pot_odds: false })
+    })
+    act(() => {
+      void result.current.setSetting({ show_pot_odds: true })
+    })
     await act(async () => second.resolve({ ...settingsFixture(), show_pot_odds: true }))
     await act(async () => first.reject(new ApiError(0, 'down')))
     expect(result.current.settings?.show_pot_odds).toBe(true)
     expect(result.current.notice).toBeNull()
+  })
+})
+
+describe('setSetting result', () => {
+  it('resolves true when the save succeeds and false when it fails', async () => {
+    const patchSettings = vi
+      .fn<FlowApi['patchSettings']>()
+      .mockResolvedValueOnce(settingsFixture())
+      .mockRejectedValueOnce(new ApiError(0, 'down'))
+    const { result } = setup(fakeApi({ patchSettings }))
+    await waitFor(() => expect(result.current.settings).not.toBeNull())
+    let saved: boolean | undefined
+    await act(async () => {
+      saved = await result.current.setSetting({ daily_goal: 12 })
+    })
+    expect(saved).toBe(true)
+    await act(async () => {
+      saved = await result.current.setSetting({ daily_goal: 15 })
+    })
+    expect(saved).toBe(false)
+  })
+})
+
+describe('deferred start', () => {
+  it('loads no puzzle while disabled, then loads once when enabled (settings load at once)', async () => {
+    const api = fakeApi()
+    const { result, rerender } = renderHook(({ enabled }) => usePuzzleFlow(api, { enabled }), {
+      wrapper: strict,
+      initialProps: { enabled: false },
+    })
+    await waitFor(() => expect(result.current.settings).not.toBeNull())
+    expect(api.currentPuzzle).not.toHaveBeenCalled()
+    expect(api.newPuzzle).not.toHaveBeenCalled()
+    rerender({ enabled: true })
+    await waitFor(() => expect(result.current.state.kind).toBe('answering'))
+    rerender({ enabled: false })
+    rerender({ enabled: true })
+    expect(api.currentPuzzle).toHaveBeenCalledTimes(1)
+    expect(api.newPuzzle).toHaveBeenCalledTimes(1)
+    expect(api.getSettings).toHaveBeenCalledTimes(1)
   })
 })

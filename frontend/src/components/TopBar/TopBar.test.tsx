@@ -1,10 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { TopBar, type TopBarProps } from './TopBar'
 
 function setup(over: Partial<TopBarProps> = {}) {
   const props: TopBarProps = {
+    page: 'puzzles',
+    onNavigate: vi.fn(),
     street: null,
     onStreet: vi.fn(),
     profile: null,
@@ -97,5 +99,49 @@ describe('TopBar', () => {
     expect(props.onHelp).toHaveBeenCalledTimes(1)
     await user.click(screen.getByRole('button', { name: 'New puzzle' }))
     expect(props.onNewPuzzle).toHaveBeenCalledTimes(1)
+  })
+
+  describe('navigation', () => {
+    it('has a Main nav of real links, the current page marked', () => {
+      setup({ page: 'progress' })
+      const nav = screen.getByRole('navigation', { name: 'Main' })
+      const puzzles = within(nav).getByRole('link', { name: 'Puzzles' })
+      const progress = within(nav).getByRole('link', { name: 'Progress' })
+      expect(puzzles).toHaveAttribute('href', '/')
+      expect(progress).toHaveAttribute('href', '/progress')
+      expect(progress).toHaveAttribute('aria-current', 'page')
+      expect(puzzles).not.toHaveAttribute('aria-current')
+    })
+
+    it('a plain left click navigates in the app', async () => {
+      const { props, user } = setup()
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      expect(props.onNavigate).toHaveBeenCalledWith('progress')
+    })
+
+    it('leaves modified and middle clicks to the browser', () => {
+      const { props } = setup()
+      const link = screen.getByRole('link', { name: 'Progress' })
+      for (const init of [
+        { ctrlKey: true },
+        { metaKey: true },
+        { shiftKey: true },
+        { button: 1 },
+      ]) {
+        const notPrevented = fireEvent.click(link, init)
+        expect(notPrevented).toBe(true)
+      }
+      expect(props.onNavigate).not.toHaveBeenCalled()
+    })
+
+    it('shows the puzzle controls on Puzzles only; Help stays', () => {
+      const { props } = setup({ page: 'progress' })
+      expect(screen.queryByRole('combobox', { name: 'Street' })).toBeNull()
+      expect(screen.queryByRole('combobox', { name: 'Villain' })).toBeNull()
+      expect(screen.queryByRole('switch')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'New puzzle' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'Keyboard shortcuts help' })).toBeInTheDocument()
+      expect(props.onHelp).not.toHaveBeenCalled()
+    })
   })
 })

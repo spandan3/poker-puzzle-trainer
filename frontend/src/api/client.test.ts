@@ -2,8 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
   currentPuzzle,
+  getAttempt,
+  getHistory,
   getPuzzle,
   getSettings,
+  getStats,
   health,
   newPuzzle,
   patchSettings,
@@ -115,5 +118,25 @@ describe('client', () => {
   it('treats a network failure on currentPuzzle as an error, not null', async () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
     await expect(currentPuzzle()).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('gets stats for a time zone, encoded', async () => {
+    fetchMock.mockResolvedValue(reply(200, {}))
+    await getStats('Europe/London')
+    expect(lastCall().url).toBe('/api/stats?tz=Europe%2FLondon')
+  })
+
+  it('gets history with only the filters that are set', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(reply(200, {})))
+    await getHistory()
+    expect(lastCall().url).toBe('/api/history')
+    await getHistory({ limit: 25, offset: 50, street: 'river', verdict: null, first_only: false })
+    expect(lastCall().url).toBe('/api/history?limit=25&offset=50&street=river&first_only=false')
+  })
+
+  it('gets a stored attempt', async () => {
+    fetchMock.mockResolvedValue(reply(200, {}))
+    await getAttempt(7)
+    expect(lastCall().url).toBe('/api/attempts/7')
   })
 })

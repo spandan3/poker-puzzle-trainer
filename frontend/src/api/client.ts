@@ -2,11 +2,15 @@ import { formatDetail } from '../lib/format'
 import type {
   AttemptIn,
   AttemptResult,
+  AttemptSummary,
   Health,
+  HistoryPage,
   NewPuzzleIn,
   PuzzleView,
   SettingsPatch,
   SettingsView,
+  StatsView,
+  StreetName,
 } from './types'
 
 export class ApiError extends Error {
@@ -89,4 +93,34 @@ export function getSettings(): Promise<SettingsView> {
 
 export function patchSettings(body: SettingsPatch): Promise<SettingsView> {
   return request('PATCH', '/api/settings', body)
+}
+
+/** `GET /api/stats`: the day boundary follows `tz` (an IANA zone). A 422 means the server doesn't know the zone. */
+export function getStats(tz: string): Promise<StatsView> {
+  return request('GET', `/api/stats?tz=${encodeURIComponent(tz)}`)
+}
+
+/** The filters of `GET /api/history`; unset or `null` ones are left out of the query. */
+export interface HistoryParams {
+  limit?: number
+  offset?: number
+  first_only?: boolean
+  street?: StreetName | null
+  verdict?: AttemptSummary['verdict'] | null
+  action_kind?: AttemptSummary['action_kind'] | null
+  profile?: string | null
+}
+
+export function getHistory(params: HistoryParams = {}): Promise<HistoryPage> {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null) query.set(key, String(value))
+  }
+  const qs = query.toString()
+  return request('GET', qs === '' ? '/api/history' : `/api/history?${qs}`)
+}
+
+/** A stored result, as `POST .../attempts` returned it. */
+export function getAttempt(id: number): Promise<AttemptResult> {
+  return request('GET', `/api/attempts/${id}`)
 }
