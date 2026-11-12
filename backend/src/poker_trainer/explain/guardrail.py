@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Mapping
 from decimal import Decimal
 
 _CARD = re.compile(r"[2-9TJQKA][♣♦♥♠]")
@@ -180,3 +181,14 @@ def unknown_numbers(output: str, allowed_text: str) -> set[str]:
 def check(output: str, allowed_text: str) -> bool:
     """True when every number in ``output`` appears in ``allowed_text`` (see the module doc)."""
     return not unknown_numbers(output, allowed_text)
+
+
+def check_fields(fields: Mapping[str, str], allowed_text: str) -> dict[str, set[str]]:
+    """The unknown numbers of each field that fails (empty when every field passes). A language
+    model's output is used only when this is empty: one failing field discards all of it."""
+    out = {}
+    for name, text in fields.items():
+        bad = unknown_numbers(text, allowed_text)
+        if bad:
+            out[name] = bad
+    return out

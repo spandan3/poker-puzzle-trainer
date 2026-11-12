@@ -21,6 +21,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/attempts/{attempt_id}/explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Explanation
+         * @description The explanation to show: the local model's rewording when the provider is on and its
+         *     output passes the guardrail, else the template with the reason. Never a 5xx because of the
+         *     model. The database session is closed before the model is asked (that can take a minute).
+         */
+        get: operations["get_explanation_api_attempts__attempt_id__explanation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -679,13 +701,17 @@ export interface components {
         SettingsView: {
             /** Daily Goal */
             daily_goal: number;
+            /** Llm Detail */
+            llm_detail: string | null;
+            /** Llm Model */
+            llm_model: string | null;
             /** Llm Provider */
             llm_provider: string;
             /**
              * Llm Status
              * @enum {string}
              */
-            llm_status: "off" | "on";
+            llm_status: "off" | "ready" | "unavailable";
             /** Profile */
             profile: string | null;
             /** Profiles */
@@ -873,6 +899,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttemptResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_explanation_api_attempts__attempt_id__explanation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Explanation"];
                 };
             };
             /** @description Validation Error */

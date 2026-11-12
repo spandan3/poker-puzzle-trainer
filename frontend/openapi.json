@@ -1618,6 +1618,28 @@
             "title": "Daily Goal",
             "type": "integer"
           },
+          "llm_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Detail"
+          },
+          "llm_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Model"
+          },
           "llm_provider": {
             "title": "Llm Provider",
             "type": "string"
@@ -1625,7 +1647,8 @@
           "llm_status": {
             "enum": [
               "off",
-              "on"
+              "ready",
+              "unavailable"
             ],
             "title": "Llm Status",
             "type": "string"
@@ -1664,6 +1687,8 @@
           "daily_goal",
           "llm_provider",
           "llm_status",
+          "llm_model",
+          "llm_detail",
           "profiles"
         ],
         "title": "SettingsView",
@@ -2170,6 +2195,46 @@
           }
         },
         "summary": "Get Attempt"
+      }
+    },
+    "/api/attempts/{attempt_id}/explanation": {
+      "get": {
+        "description": "The explanation to show: the local model's rewording when the provider is on and its\noutput passes the guardrail, else the template with the reason. Never a 5xx because of the\nmodel. The database session is closed before the model is asked (that can take a minute).",
+        "operationId": "get_explanation_api_attempts__attempt_id__explanation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "title": "Attempt Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Explanation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Explanation"
       }
     },
     "/api/health": {

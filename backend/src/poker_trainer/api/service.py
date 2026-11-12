@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from poker_trainer.api.schemas import RANDOM_PROFILE, AttemptIn
 from poker_trainer.api.views import (
+    action_log,
     attempt_result,
     option_ev_from_dict,
     option_ev_to_dict,
@@ -25,6 +26,7 @@ from poker_trainer.api.views import (
 )
 from poker_trainer.db.blob import decode_puzzle, encode_puzzle
 from poker_trainer.db.models import AttemptRow, PuzzleRow, UserSettings, utcnow
+from poker_trainer.explain.facts import Facts, build_facts
 from poker_trainer.game.state import Action, ActionKind, Street
 from poker_trainer.puzzle.generate import generate_puzzle, parse_street
 from poker_trainer.puzzle.grade import Answer, Grade, grade
@@ -368,6 +370,14 @@ def attempt_result_for(
     )
 
 
+def explanation_inputs(db: Session, user_id: int, row: AttemptRow) -> tuple[dict[str, Any], Facts]:
+    """The stored result's template explanation and the facts it was written from."""
+    p = load_puzzle(db, user_id, row.puzzle_id)[1]
+    result = attempt_result_for(db, user_id, row, p)
+    template = result.pop("explanation")
+    return template, build_facts(result, p, action_log(p.spot))
+
+
 # ---------------------------------------------------------------------------
 # Replay, history
 # ---------------------------------------------------------------------------
@@ -552,7 +562,13 @@ def _settings_row(db: Session, user_id: int) -> UserSettings:
     return row
 
 
-def settings_view(db: Session, user_id: int, app_settings: AppSettings) -> dict[str, Any]:
+def settings_view(
+    db: Session,
+    user_id: int,
+    app_settings: AppSettings,
+    llm: tuple[str, str | None] = ("off", None),
+) -> dict[str, Any]:
+    """The user's settings plus the app's; ``llm`` is ``Explainer.status()``."""
     row = _settings_row(db, user_id)
     profiles = []
     for name in PROFILE_NAMES:
@@ -564,7 +580,9 @@ def settings_view(db: Session, user_id: int, app_settings: AppSettings) -> dict[
         "profile": _known_profile(row.profile),
         "daily_goal": int(row.daily_goal),
         "llm_provider": app_settings.llm_provider,
-        "llm_status": "off" if app_settings.llm_provider == "none" else "on",
+        "llm_status": llm[0],
+        "llm_model": None if app_settings.llm_provider == "none" else app_settings.ollama_model,
+        "llm_detail": llm[1],
         "profiles": profiles,
     }
 

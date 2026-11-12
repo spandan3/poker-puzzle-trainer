@@ -31,6 +31,7 @@ from poker_trainer.api.schemas import (
     AttemptIn,
     AttemptResult,
     AttemptSummary,
+    Explanation,
     Health,
     HistoryPage,
     NewPuzzleIn,
@@ -49,6 +50,7 @@ from poker_trainer.db.session import (
     make_sessionmaker,
     migrate,
 )
+from poker_trainer.explain.service import Explainer
 from poker_trainer.settings import AppSettings, get_settings
 
 # ---------------------------------------------------------------------------
@@ -141,6 +143,17 @@ def get_attempt(attempt_id: int, db: Db, user_id: UserId) -> dict[str, Any]:
     return service.attempt_result_for(db, user_id, row)
 
 
+@router.get("/attempts/{attempt_id}/explanation", response_model=Explanation)
+def get_explanation(attempt_id: int, request: Request, user_id: UserId) -> dict[str, Any]:
+    """The explanation to show: the local model's rewording when the provider is on and its
+    output passes the guardrail, else the template with the reason. Never a 5xx because of the
+    model. The database session is closed before the model is asked (that can take a minute)."""
+    with request.app.state.sessionmaker() as db:
+        row = service.load_attempt(db, user_id, attempt_id)
+        template, facts = service.explanation_inputs(db, user_id, row)
+    return request.app.state.explainer.explanation_for(attempt_id, template, facts)
+
+
 @router.get("/history", response_model=HistoryPage)
 def history(
     db: Db,
@@ -179,7 +192,8 @@ def stats(
 
 @router.get("/settings", response_model=SettingsView)
 def get_user_settings(request: Request, db: Db, user_id: UserId) -> dict[str, Any]:
-    return service.settings_view(db, user_id, request.app.state.settings)
+    llm = request.app.state.explainer.status()  # probes the local model (cached)
+    return service.settings_view(db, user_id, request.app.state.settings, llm)
 
 
 @router.patch("/settings", response_model=SettingsView)
@@ -188,7 +202,8 @@ def patch_user_settings(
 ) -> dict[str, Any]:
     changes = {k: getattr(body, k) for k in body.model_fields_set}
     service.patch_settings(db, user_id, changes)
-    return service.settings_view(db, user_id, request.app.state.settings)
+    llm = request.app.state.explainer.status(probe=False)  # the last probe: a PATCH never waits
+    return service.settings_view(db, user_id, request.app.state.settings, llm)
 
 
 # ---------------------------------------------------------------------------
@@ -262,7 +277,10 @@ def _validation_error(_request: Request, exc: Exception) -> JSONResponse:
 
 
 def create_app(
-    settings: AppSettings | None = None, *, puzzle_factory: PuzzleFactory | None = None
+    settings: AppSettings | None = None,
+    *,
+    puzzle_factory: PuzzleFactory | None = None,
+    explainer: Explainer | None = None,
 ) -> FastAPI:
     settings = settings if settings is not None else get_settings()
 
@@ -282,6 +300,7 @@ def create_app(
     app = FastAPI(title="Poker Puzzle Trainer", version=__version__, lifespan=lifespan)
     app.state.settings = settings
     app.state.puzzle_factory = puzzle_factory or service.default_factory
+    app.state.explainer = explainer if explainer is not None else Explainer(settings)
     # Results are about 75 KB of very repetitive JSON (grids, combo lists): gzip shrinks them a lot.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_exception_handler(ServiceError, _service_error)

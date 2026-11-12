@@ -1,5 +1,7 @@
 {
   "daily_goal": 10,
+  "llm_detail": null,
+  "llm_model": null,
   "llm_provider": "none",
   "llm_status": "off",
   "profile": null,
