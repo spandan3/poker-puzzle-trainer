@@ -62,17 +62,29 @@ def _one_decimal(x: float) -> str:
     return f"{math.floor(10 * x + 0.5) / 10:.1f}"
 
 
+def _times(k: int) -> str:
+    """``once`` or ``k times``."""
+    return "once" if k == 1 else f"{k} times"
+
+
+def _plural(k: int, one: str, many: str) -> str:
+    return one if k == 1 else many
+
+
+# A share rule's detail from (n, count, pct, ev): ``pct`` a whole percent, ``ev`` bb text.
+ShareText = Callable[[int, int, int, str], str]
+
+
 def _share_leak(
     id_: str,
     title: str,
-    detail: str,
+    detail: ShareText,
     rows: Sequence[StatRow],
     looked_at: Callable[[StatRow], bool],
     flagged: Callable[[StatRow], bool],
     min_n: int,
     share: float,
 ) -> dict[str, Any] | None:
-    """``detail`` may use ``{n}``, ``{count}``, ``{pct}`` and ``{ev}`` (bb, one decimal)."""
     seen = [r for r in rows if looked_at(r)]
     bad = [r for r in seen if flagged(r)]
     n, count = len(seen), len(bad)
@@ -83,7 +95,7 @@ def _share_leak(
         "id": id_,
         "kind": "share",
         "title": title,
-        "detail": detail.format(n=n, count=count, pct=_pct(count / n), ev=_one_decimal(ev)),
+        "detail": detail(n, count, _pct(count / n), _one_decimal(ev)),
         "count": count,
         "sample": n,
         "ev_lost_bb": ev,
@@ -94,13 +106,13 @@ def _share_leak(
 def _mean_leak(
     id_: str,
     title: str,
-    detail: str,
+    detail: Callable[[str, str], str],
     errors: Sequence[float],
     min_n: int,
     fires: Callable[[float], bool],
 ) -> dict[str, Any] | None:
-    """``errors`` are signed (guess - truth); ``detail`` may use ``{mean}`` (absolute, pts)
-    and ``{n}``."""
+    """``errors`` are signed (guess - truth); ``detail`` gets the absolute mean in pts (one
+    decimal) and the sample ("12 spots")."""
     n = len(errors)
     if n < min_n:
         return None
@@ -111,7 +123,7 @@ def _mean_leak(
         "id": id_,
         "kind": "mean",
         "title": title,
-        "detail": detail.format(n=n, mean=_one_decimal(abs(mean) * 100)),
+        "detail": detail(_one_decimal(abs(mean) * 100), f"{n} {_plural(n, 'spot', 'spots')}"),
         "count": n,
         "sample": n,
         "ev_lost_bb": None,
@@ -126,6 +138,9 @@ def _equity_errors(rows: Sequence[StatRow], only: Callable[[StatRow], bool]) -> 
 def detect(rows: Sequence[StatRow], t: LeakThresholds = DEFAULT) -> list[dict[str, Any]]:
     """``Leak``-shaped dicts for ``rows`` (every attempt, in id order).
 
+    ``river_overcall``, ``overfold`` and ``missed_value`` never flag a play the grader rated
+    Best (within its margin of the best option); such a play still counts in their sample.
+
     Only first attempts count, and only the newest ``t.window`` of them. Share leaks come
     first, by bb lost then count (both descending); mean leaks follow, by the size of the mean
     error.
@@ -137,29 +152,37 @@ def detect(rows: Sequence[StatRow], t: LeakThresholds = DEFAULT) -> list[dict[st
         _share_leak(
             "river_overcall",
             "Calling too often on the river",
-            "You called {n} river bets; folding was better {count} times ({pct}%), "
-            "costing {ev} bb.",
+            lambda n, count, pct, ev: (
+                f"You called {n} river {_plural(n, 'bet or raise', 'bets or raises')}; "
+                f"folding was better {_times(count)} ({pct}%), costing {ev} bb."
+            ),
             recent,
             lambda r: r.street == "river" and r.action_kind == "call",
-            lambda r: r.best_kind == "fold",
+            lambda r: r.best_kind == "fold" and r.verdict != "best",
             t.river_overcall_min_n,
             t.river_overcall_share,
         ),
         _share_leak(
             "overfold",
             "Folding too often",
-            "You folded {n} times; continuing was better {count} times ({pct}%), costing {ev} bb.",
+            lambda n, count, pct, ev: (
+                f"You folded {_times(n)}; continuing was better {_times(count)} ({pct}%), "
+                f"costing {ev} bb."
+            ),
             recent,
             lambda r: r.action_kind == "fold",
-            lambda r: r.best_kind != "fold",
+            lambda r: r.best_kind != "fold" and r.verdict != "best",
             t.overfold_min_n,
             t.overfold_share,
         ),
         _share_leak(
             "overbluff",
             "Over-bluffing",
-            "{count} of your {n} bluffs ({pct}%) were mistakes or blunders, costing {ev} bb. "
-            "Check how often Villain folds before bluffing.",
+            lambda n, count, pct, ev: (
+                f"{count} of your {n} {_plural(n, 'bluff', 'bluffs')} ({pct}%) "
+                f"{_plural(count, 'was a mistake or blunder', 'were mistakes or blunders')}, "
+                f"costing {ev} bb. Check how often Villain folds before bluffing."
+            ),
             recent,
             lambda r: r.action_kind in AGGRESSIVE and r.intent_truth == "bluff",
             lambda r: r.verdict in BAD_VERDICTS,
@@ -169,23 +192,28 @@ def detect(rows: Sequence[StatRow], t: LeakThresholds = DEFAULT) -> list[dict[st
         _share_leak(
             "missed_value",
             "Missing value bets",
-            "With a strong hand where betting was best, you checked or called {count} of {n} "
-            "times ({pct}%), costing {ev} bb.",
+            lambda n, count, pct, ev: (
+                "With a strong hand where betting was best, you checked or called "
+                f"{count} of {n} {_plural(n, 'time', 'times')} ({pct}%), costing {ev} bb."
+            ),
             recent,
             lambda r: (
                 r.best_kind in AGGRESSIVE
                 and r.true_equity is not None
                 and r.true_equity >= t.missed_value_equity
             ),
-            lambda r: r.action_kind in PASSIVE,
+            lambda r: r.action_kind in PASSIVE and r.verdict != "best",
             t.missed_value_min_n,
             t.missed_value_share,
         ),
         _share_leak(
             "intent_mislabel",
             "Mislabelling bets",
-            "You labelled {count} of {n} bets or raises ({pct}%) differently from what they "
-            "were (value vs bluff).",
+            lambda n, count, pct, ev: (
+                f"You labelled {count} of {n} {_plural(n, 'bet or raise', 'bets or raises')} "
+                f"({pct}%) differently from what {_plural(count, 'it was', 'they were')} "
+                "(value, semi-bluff or bluff)."
+            ),
             recent,
             lambda r: r.action_kind in AGGRESSIVE and r.intent is not None,
             lambda r: r.intent_flag is not None,
@@ -205,7 +233,7 @@ def detect(rows: Sequence[StatRow], t: LeakThresholds = DEFAULT) -> list[dict[st
         _mean_leak(
             "draw_overestimate",
             "Overestimating equity with draws",
-            "With a draw you guessed {mean} pts too high on average ({n} spots).",
+            lambda m, spots: f"With a draw you guessed {m} pts too high on average ({spots}).",
             draws,
             t.draw_overestimate_min_n,
             lambda m: m >= t.draw_overestimate_mean,
@@ -213,7 +241,7 @@ def detect(rows: Sequence[StatRow], t: LeakThresholds = DEFAULT) -> list[dict[st
         _mean_leak(
             "equity_overestimate",
             "Overestimating your equity",
-            "Your equity guesses are {mean} pts too high on average ({n} spots).",
+            lambda m, spots: f"Your equity guesses are {m} pts too high on average ({spots}).",
             equity,
             t.equity_min_n,
             lambda m: m >= t.equity_mean,
@@ -221,7 +249,7 @@ def detect(rows: Sequence[StatRow], t: LeakThresholds = DEFAULT) -> list[dict[st
         _mean_leak(
             "equity_underestimate",
             "Underestimating your equity",
-            "Your equity guesses are {mean} pts too low on average ({n} spots).",
+            lambda m, spots: f"Your equity guesses are {m} pts too low on average ({spots}).",
             equity,
             t.equity_min_n,
             lambda m: m <= -t.equity_mean,
@@ -229,8 +257,10 @@ def detect(rows: Sequence[StatRow], t: LeakThresholds = DEFAULT) -> list[dict[st
         _mean_leak(
             "range_read_high",
             "Thinking you're ahead more often than you are",
-            "Your range reads are {mean} pts too high on average ({n} spots): "
-            "Villain's range is stronger than you think.",
+            lambda m, spots: (
+                f"Your range reads are {m} pts too high on average ({spots}): "
+                "Villain's range is stronger than you think."
+            ),
             reads,
             t.range_read_min_n,
             lambda m: m >= t.range_read_mean,
@@ -238,8 +268,10 @@ def detect(rows: Sequence[StatRow], t: LeakThresholds = DEFAULT) -> list[dict[st
         _mean_leak(
             "range_read_low",
             "Giving Villain too much credit",
-            "Your range reads are {mean} pts too low on average ({n} spots): "
-            "you're ahead more often than you think.",
+            lambda m, spots: (
+                f"Your range reads are {m} pts too low on average ({spots}): "
+                "you're ahead more often than you think."
+            ),
             reads,
             t.range_read_min_n,
             lambda m: m <= -t.range_read_mean,
