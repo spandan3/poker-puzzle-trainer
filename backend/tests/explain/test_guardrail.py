@@ -27,6 +27,25 @@ def test_number_words_and_unicode_numerals():
     assert numbers("one hand") == set()  # "one" is too common to count
     assert numbers("½ and x² and Ⅷ") == {"char:½", "char:²", "char:Ⅷ"}
     assert numbers("٣") == {"char:٣"}  # an Arabic-Indic three
+    assert numbers("fourth, fifths, Twelfth, twentieth, ninetieths, hundredth, thousandth") == {
+        "word:fourth",
+        "word:fifth",
+        "word:twelfth",
+        "word:twentieth",
+        "word:ninetieth",
+        "word:hundredth",
+        "word:thousandth",
+    }
+
+
+def test_cards_are_their_own_tokens():
+    assert numbers("K♠ 7♦ 2♣ and 2 more") == {"card:K♠", "card:7♦", "card:2♣", "2"}
+    assert numbers("T♥9♣") == {"card:T♥", "card:9♣"}
+
+
+def test_leading_dot_decimals():
+    assert numbers(".5 bb and .25") == {"0.5 bb", "0.25"}
+    assert numbers("12.5") == {"12.5"}
 
 
 @pytest.mark.parametrize(
@@ -47,6 +66,22 @@ def test_number_words_and_unicode_numerals():
         ("½ pot", "0.5", False),
         ("x²", "x2", False),
         ("T♠ and 9♥", "Board: T♠ 9♥", True),
+        # cards are their own tokens: their ranks are not numbers, and a card must be in the facts
+        ("about 2/7 equity", "Flop: 7♦ 2♣ K♠", False),
+        ("the 2nd barrel", "Flop: 7♦ 2♣ K♠", False),
+        ("x2 the pot", "Flop: 7♦ 2♣ K♠", False),
+        ("the 7♦ pairs you", "Flop: 7♦ 2♣ K♠", True),
+        ("the 7♣ pairs you", "Flop: 7♦ 2♣ K♠", False),
+        ("the 7 pairs you", "Flop: 7♦ 2♣ K♠", False),
+        ("7♦ with 7 bb behind", "Flop: 7♦ 2♣ K♠\nPot: 7 bb", True),
+        # ordinals and fraction words
+        ("a fifth of the time", "Fold frequency: 20%", False),
+        ("the seventh hand", "", False),
+        ("three tenths", "three", False),
+        ("a fifth", "a fifth", True),
+        # leading-dot decimals
+        (".5 bb", "Pot: 5 bb", False),
+        (".5 bb", "Pot: 0.5 bb", True),
         ("one more card", "", True),
         ("Villain folds 35% of the time", "Fold frequency: 35%", True),
     ],

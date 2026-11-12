@@ -1,7 +1,7 @@
 """``Facts``: every number an explanation may use, already formatted as text by code.
 
-Built from the stored result dict (``views.attempt_result``, before ``explanation``) and the
-frozen puzzle. Nothing is regraded: every number is a stored or frozen value, formatted like the
+Built from the stored result dict (``views.attempt_result``, before ``explanation``), the
+frozen puzzle and its action log (``views.action_log``, passed in by the view). Nothing is regraded: every number is a stored or frozen value, formatted like the
 frontend view that shows the same quantity:
 
 | Quantity                              | Format       | Matches                       |
@@ -106,7 +106,6 @@ class Facts:
     equity_beats_pot_odds: bool | None
     options: tuple[OptionFact, ...]
     bluff_required: str | None
-    bluff_actual: str | None
     bluff_formula: str | None
     check_best: bool
     best_bet: OptionFact | None  # the highest-EV bet or raise
@@ -168,8 +167,6 @@ class Facts:
             out.append(("Fold equity needed", self.bluff_required))
         if self.bluff_formula is not None:
             out.append(("Fold equity formula", f"{self.bluff_formula} = {self.bluff_required}"))
-        if self.bluff_actual is not None:
-            out.append(("Villain actually folds", self.bluff_actual))
         for c in self.categories:
             out.append(
                 (
@@ -234,12 +231,10 @@ def _action_text(entry: dict[str, Any], raises_before: int) -> str:
     return {"check": "checked", "fold": "folded"}[kind]
 
 
-def _actions(puzzle: Puzzle) -> tuple[ActionFact, ...]:
-    from poker_trainer.api import views  # here, not at the top: views imports this package
-
+def _actions(log: list[dict[str, Any]]) -> tuple[ActionFact, ...]:
     out = []
     raises = 0
-    for e in views.action_log(puzzle.spot):  # kind / to / all_in only, never the text (in chips)
+    for e in log:  # kind / to / all_in only, never the text (in chips)
         out.append(ActionFact(e["street"], e["actor"], _action_text(e, raises)))
         if e["street"] == "preflop" and e["kind"] == "raise":
             raises += 1
@@ -287,8 +282,11 @@ def _loss_case(loss_bb: float, verdict: str) -> LossCase:
     return "close" if verdict in ("best", "fine") else "lost"
 
 
-def build_facts(result: dict[str, Any], puzzle: Puzzle) -> Facts:
-    """Every number the explanation of ``result`` may use, formatted by code."""
+def build_facts(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]]) -> Facts:
+    """Every number the explanation of ``result`` may use, formatted by code.
+
+    ``log`` is ``views.action_log(puzzle.spot)`` (passed in: ``views`` imports this package).
+    """
     sp = puzzle.spot
     s = sp.state
     grade = result["grade"]
@@ -343,7 +341,7 @@ def build_facts(result: dict[str, Any], puzzle: Puzzle) -> Facts:
         flop=flop,
         turn=turn,
         river=river,
-        actions=_actions(puzzle),
+        actions=_actions(log),
         profile_label=prof["label"],
         profile_description=prof["description"],
         pot=bb(pot_chips),
@@ -364,7 +362,6 @@ def build_facts(result: dict[str, Any], puzzle: Puzzle) -> Facts:
         equity_beats_pot_odds=beats,
         options=options,
         bluff_required=None if bluff is None else pct(bluff["required"], 1),
-        bluff_actual=None if bluff is None else pct(bluff["actual"], 0),
         bluff_formula=bluff_formula,
         check_best=best.kind == "check",
         best_bet=best_bet,
