@@ -245,6 +245,7 @@ export interface components {
             attempt: components["schemas"]["AttemptMeta"];
             /** Categories */
             categories: components["schemas"]["CategoryView"][] | null;
+            explanation: components["schemas"]["Explanation"];
             grade: components["schemas"]["GradeView"];
             /** Judged On Range Note */
             judged_on_range_note: string;
@@ -374,6 +375,38 @@ export interface components {
             count: number;
             /** Date */
             date: string;
+        };
+        /**
+         * Explanation
+         * @description Plain-English explanation of a result. Every number in it was computed by the grader and
+         *     formatted by code; a language model may only reword it (``source == "llm"``).
+         */
+        Explanation: {
+            /** Fallback */
+            fallback: ("off" | "unavailable" | "timeout" | "error" | "invalid" | "guardrail") | null;
+            /** Headline */
+            headline: string;
+            /** Model */
+            model: string | null;
+            /** Sections */
+            sections: components["schemas"]["ExplanationSection"][];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "template" | "llm";
+        };
+        /** ExplanationSection */
+        ExplanationSection: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "hand" | "verdict" | "villain";
+            /** Paragraphs */
+            paragraphs: string[];
+            /** Title */
+            title: string;
         };
         /** GradeView */
         GradeView: {

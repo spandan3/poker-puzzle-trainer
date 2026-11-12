@@ -72,6 +72,41 @@
       "win": 0.0
     }
   ],
+  "explanation": {
+    "fallback": null,
+    "headline": "Bet 33% was the top play; checking loses 2.33 bb against Villain's range.",
+    "model": null,
+    "sections": [
+      {
+        "id": "hand",
+        "paragraphs": [
+          "You held 6\u2666 7\u2666 in the big blind, against Villain, a LAG player, on the button. Pre-flop, Villain opened to 2.5 bb and you called.",
+          "The flop came 3\u2660 K\u2663 3\u2663: you checked and Villain checked. The turn was the T\u2666: you checked, Villain bet 4 bb and you called. The river was the 8\u2660. It was your turn to act with 13 bb in the pot."
+        ],
+        "title": "The hand"
+      },
+      {
+        "id": "verdict",
+        "paragraphs": [
+          "You chose Check (EV 0.55 bb). The top play was Bet 33% (EV 2.88 bb), so your choice gives up 2.33 bb against Villain's range. Verdict: Mistake.",
+          "Your equity against Villain's whole range is 5.4%.",
+          "Bet 33%: Villain folds 42% of the time and you have 1.4% equity against the hands that continue.",
+          "The largest parts of the range are Air (35.3% of it; your equity 15%) and Weak made hand (24.7% of it; your equity 0%)."
+        ],
+        "title": "Why"
+      },
+      {
+        "id": "villain",
+        "paragraphs": [
+          "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+          "Villain's range narrowed with each action: Pre-flop: opens to 2.5 bb; Flop: checks; Turn: bets 4 bb (80% pot).",
+          "The range in the Range tab is the range this puzzle was graded on."
+        ],
+        "title": "Villain"
+      }
+    ],
+    "source": "template"
+  },
   "grade": {
     "ahead_now": null,
     "best_label": "bet 33%",

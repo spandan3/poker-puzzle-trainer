@@ -92,6 +92,41 @@
       "win": 0.07252946509519492
     }
   ],
+  "explanation": {
+    "fallback": null,
+    "headline": "Bet 1 bb was the top play, and you found it.",
+    "model": null,
+    "sections": [
+      {
+        "id": "hand",
+        "paragraphs": [
+          "You held 6\u2663 8\u2663 on the button, against Villain, a LAG player, in the big blind. Pre-flop, you opened to 2.5 bb and Villain called.",
+          "The flop came 4\u2665 3\u2665 3\u2660: Villain checked. It was your turn to act with 5 bb in the pot."
+        ],
+        "title": "The hand"
+      },
+      {
+        "id": "verdict",
+        "paragraphs": [
+          "You chose Bet 1 bb (EV 2.22 bb), the top play against Villain's range. Verdict: Best.",
+          "Your equity against Villain's whole range is 24.9%.",
+          "Bet 33%: Villain folds 41% of the time and you have 23.2% equity against the hands that continue. Bet 1 bb: Villain folds 39% of the time and you have 23.3% equity against the hands that continue. To profit on folds alone, a bet this size needs 16.7% folds (1 bb / (5 bb + 1 bb)).",
+          "Right now you are ahead of 8.8% of Villain's range. The largest parts of the range are Air (31.9% of it; your equity 28%) and Weak made hand (31.2% of it; your equity 24%)."
+        ],
+        "title": "Why"
+      },
+      {
+        "id": "villain",
+        "paragraphs": [
+          "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+          "Villain's range narrowed with each action: Pre-flop: calls; Flop: checks.",
+          "The range in the Range tab is the range this puzzle was graded on."
+        ],
+        "title": "Villain"
+      }
+    ],
+    "source": "template"
+  },
   "grade": {
     "ahead_now": 0.08755778078294219,
     "best_label": "bet 33%",

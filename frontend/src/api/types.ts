@@ -20,6 +20,8 @@ export type BreakdownRow = Schemas['BreakdownRow']
 export type Leak = Schemas['Leak']
 export type HistoryPage = Schemas['HistoryPage']
 export type AttemptSummary = Schemas['AttemptSummary']
+export type Explanation = Schemas['Explanation']
+export type ExplanationSection = Schemas['ExplanationSection']
 
 export type StreetName = ActionLogEntry['street']
 export type ActionKindName = ActionLogEntry['kind']

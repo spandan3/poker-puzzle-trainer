@@ -21,6 +21,40 @@
     "puzzle_id": 1
   },
   "categories": null,
+  "explanation": {
+    "fallback": null,
+    "headline": "Fold was close: within 0.37 bb of the top play, Raise 2.5x.",
+    "model": null,
+    "sections": [
+      {
+        "id": "hand",
+        "paragraphs": [
+          "You held 4\u2663 K\u2665 on the button, against Villain, a LAG player, in the big blind. It was your turn to act with 1.5 bb in the pot."
+        ],
+        "title": "The hand"
+      },
+      {
+        "id": "verdict",
+        "paragraphs": [
+          "You chose Fold (EV 0 bb). The top play was Raise 2.5x (EV 0.37 bb), so your choice gives up 0.37 bb against Villain's range. That is close to the top play, so the verdict is Fine.",
+          "Your equity against Villain's whole range is 52.2%.",
+          "Raise 2.5x: Villain folds 16% of the time and you have 49.4% equity against the hands that continue.",
+          "Right now you are ahead of 70.9% of Villain's range."
+        ],
+        "title": "Why"
+      },
+      {
+        "id": "villain",
+        "paragraphs": [
+          "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+          "Villain had not acted yet, so the range is every hand Villain can hold.",
+          "The range in the Range tab is the range this puzzle was graded on."
+        ],
+        "title": "Villain"
+      }
+    ],
+    "source": "template"
+  },
   "grade": {
     "ahead_now": 0.7089795918367346,
     "best_label": "raise 2.5x",

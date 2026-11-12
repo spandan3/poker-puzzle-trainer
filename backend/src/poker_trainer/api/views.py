@@ -21,6 +21,7 @@ from poker_trainer.engine.cards import card_str
 from poker_trainer.engine.combos import COMBOS, HAND_CLASSES, combos_of_class, grid_position
 from poker_trainer.engine.evaluator import evaluate, hand_class
 from poker_trainer.engine.ranges import Range
+from poker_trainer.explain.template import explain
 from poker_trainer.game.state import (
     ActionKind,
     HandState,
@@ -327,7 +328,8 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
     ``action``, ``equity_guess``, ``range_read_guess``, ``intent``, ``verdict``,
     ``ev_loss_chips``, ``equity_error``, ``equity_score``, ``range_read_error``,
     ``range_read_score``, ``intent_truth``, ``intent_flag``, ``bluff_required``,
-    ``bluff_actual`` and ``best_label``. Nothing is regraded here.
+    ``bluff_actual`` and ``best_label``. Nothing is regraded here. ``explanation`` is the
+    template explanation, written last from the rest of the result.
     """
     a = attempt
     sp, sol = puzzle.spot, puzzle.solution
@@ -352,7 +354,7 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
     )
     prof = load_profile(sp.profile)
     ev_loss = float(a["ev_loss_chips"])
-    return {
+    result: dict[str, Any] = {
         "attempt": {
             "id": a["id"],
             "puzzle_id": a["puzzle_id"],
@@ -422,3 +424,5 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
         },
         "judged_on_range_note": JUDGED_ON_RANGE,
     }
+    result["explanation"] = explain(result, puzzle)
+    return result

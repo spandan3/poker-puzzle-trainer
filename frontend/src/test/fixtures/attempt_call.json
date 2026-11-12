@@ -92,6 +92,40 @@
       "win": 1.0
     }
   ],
+  "explanation": {
+    "fallback": null,
+    "headline": "Call was the top play, and you found it.",
+    "model": null,
+    "sections": [
+      {
+        "id": "hand",
+        "paragraphs": [
+          "You held J\u2660 Q\u2665 on the button, against Villain, a Sticky player, in the big blind. Pre-flop, you opened to 2.5 bb and Villain called.",
+          "The flop came 7\u2660 A\u2665 9\u2663: Villain checked, you bet 1.5 bb and Villain raised to 4.5 bb. You faced 3 bb more to call, with 11 bb in the pot."
+        ],
+        "title": "The hand"
+      },
+      {
+        "id": "verdict",
+        "paragraphs": [
+          "You chose Call (EV 2.25 bb), the top play against Villain's range. Verdict: Best.",
+          "Your equity against Villain's whole range is 37.5%. Calling 3 bb into a pot of 11 bb needs 3 bb / (11 bb + 3 bb) = 21.4% equity; 37.5% is above that, so calling beats folding.",
+          "Right now you are ahead of 42.0% of Villain's range. The largest parts of the range are Strong value (42.6% of it; your equity 10%) and Air (24.6% of it; your equity 78%)."
+        ],
+        "title": "Why"
+      },
+      {
+        "id": "villain",
+        "paragraphs": [
+          "Villain is a Sticky player. Competent, but defends wide and calls down lighter than most.",
+          "Villain's range narrowed with each action: Pre-flop: calls; Flop: checks; Flop: raises to 4.5 bb.",
+          "The range in the Range tab is the range this puzzle was graded on."
+        ],
+        "title": "Villain"
+      }
+    ],
+    "source": "template"
+  },
   "grade": {
     "ahead_now": 0.41987096933398343,
     "best_label": "call",
