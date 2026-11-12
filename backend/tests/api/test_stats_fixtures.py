@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from poker_trainer.api import service
 from poker_trainer.api.dev_fixtures import FIXED_NOW, STATS_GOAL, write_stats_fixtures
 from poker_trainer.api.schemas import HistoryPage, StatsView
@@ -26,7 +28,9 @@ def test_write_stats_fixtures(tmp_path, cached_puzzles):
     assert len(stats.trend) == 105
     assert stats.totals.first_attempts == 105 and stats.totals.retries == 3
     assert stats.headline.ev_lost_bb_prev50 is not None
-    assert stats.days.goal == STATS_GOAL
+    assert stats.days.goal == STATS_GOAL == 3
+    assert stats.days.current_streak > 0 and stats.days.best_streak > 0
+    assert any(d.count < 3 for d in stats.days.recent)  # the scripted gap
     assert stats.days.recent[-1].date == FIXED_NOW.date().isoformat()
     assert stats.days.today > 0
     assert sum(d.count for d in stats.days.recent) > 0
@@ -45,3 +49,10 @@ def test_write_stats_fixtures(tmp_path, cached_puzzles):
     write_stats_fixtures(tmp_path / "b", puzzles)
     for name in FILES:
         assert (tmp_path / "a" / name).read_bytes() == (tmp_path / "b" / name).read_bytes(), name
+
+
+def test_clock_restored_when_the_factory_fails(tmp_path):
+    real_clock = service.utcnow
+    with pytest.raises(AttributeError):  # the factory hands out something that isn't a puzzle
+        write_stats_fixtures(tmp_path, [object()])
+    assert service.utcnow is real_clock

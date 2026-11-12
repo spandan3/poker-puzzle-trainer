@@ -179,7 +179,8 @@ def _streak(first: Sequence[StatRow]) -> dict[str, int]:
 def _days(first: Sequence[StatRow], tz: ZoneInfo, now: datetime, goal: int) -> dict[str, Any]:
     counts = Counter(r.created_at.astimezone(tz).date() for r in first)
     today = now.astimezone(tz).date()
-    met = {d for d, c in counts.items() if c >= goal}
+    # a day after today (a clock change, a row from another machine) is never part of a streak
+    met = {d for d, c in counts.items() if c >= goal and d <= today}
 
     # today doesn't break the run until it's over: start from yesterday if it hasn't met the goal
     day = today if today in met else today - timedelta(days=1)
