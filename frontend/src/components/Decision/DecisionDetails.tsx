@@ -6,7 +6,7 @@ import { OptionsTable } from './OptionsTable'
 import { RangePanel } from './RangePanel'
 import styles from './DecisionDetails.module.css'
 
-const TAB_KEY = 'ppt.resultTab'
+const TAB_KEY = 'ppt.resultTab.v2'
 
 type TabId = 'why' | 'options' | 'maths' | 'range' | 'hand'
 

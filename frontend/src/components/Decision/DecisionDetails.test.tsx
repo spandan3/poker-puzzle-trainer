@@ -99,14 +99,14 @@ describe('DecisionDetails', () => {
     const user = userEvent.setup()
     const first = render(<DecisionDetails decision={decision} />)
     await user.click(screen.getByRole('tab', { name: 'Range' }))
-    expect(window.localStorage.getItem('ppt.resultTab')).toBe('range')
+    expect(window.localStorage.getItem('ppt.resultTab.v2')).toBe('range')
     first.unmount()
     render(<DecisionDetails decision={decision} />)
     expect(screen.getByRole('tab', { name: 'Range' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('falls back to Options when the stored tab is not there', () => {
-    window.localStorage.setItem('ppt.resultTab', 'hand')
+    window.localStorage.setItem('ppt.resultTab.v2', 'hand')
     render(<DecisionDetails decision={decision} />)
     expect(screen.getByRole('tab', { name: 'Options' })).toHaveAttribute('aria-selected', 'true')
   })
