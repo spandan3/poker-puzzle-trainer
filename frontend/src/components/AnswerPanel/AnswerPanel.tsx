@@ -557,7 +557,8 @@ function CustomSize(props: {
       data-disabled={disabled || undefined}
     >
       <label htmlFor={id} className={styles.customLabel}>
-        to (bb)
+        to {/* the bounds beside the box show the unit */}
+        <span className={styles.srOnly}>(bb)</span>
         {hint.kbd}
       </label>
       <input
