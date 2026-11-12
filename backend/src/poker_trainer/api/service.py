@@ -31,7 +31,9 @@ from poker_trainer.puzzle.grade import Answer, Grade, grade
 from poker_trainer.puzzle.model import FORMAT, Puzzle, load_config
 from poker_trainer.puzzle.options import custom_action
 from poker_trainer.settings import AppSettings
+from poker_trainer.stats import service as stats_service
 from poker_trainer.stats.hero import hero_category
+from poker_trainer.stats.service import StatRow
 from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile
 
 PuzzleFactory = Callable[[int, Street | None, str | None], Puzzle]
@@ -58,6 +60,10 @@ class NotFound(ServiceError):
 
 
 class InvalidAnswer(ServiceError):
+    status_code = 422
+
+
+class BadRequestParam(ServiceError):
     status_code = 422
 
 
@@ -470,6 +476,66 @@ def history(
     total = db.scalar(select(func.count()).select_from(q.subquery())) or 0  # same rows as items
     rows = db.execute(q.order_by(AttemptRow.id.desc()).limit(limit).offset(offset)).all()
     return {"items": [_summary(m) for m in rows], "total": total}
+
+
+# ---------------------------------------------------------------------------
+# Stats
+# ---------------------------------------------------------------------------
+
+
+def stats_rows(db: Session, user_id: int) -> list[StatRow]:
+    """Every attempt of the user (first and retries) as ``StatRow``s, by attempt id. One query
+    over columns only: never the puzzle blob, nor the ``chosen`` JSON."""
+    q = (
+        select(
+            AttemptRow.id,
+            AttemptRow.created_at,
+            AttemptRow.is_first,
+            PuzzleRow.street,
+            PuzzleRow.profile,
+            AttemptRow.action_kind,
+            AttemptRow.best_kind,
+            AttemptRow.verdict,
+            AttemptRow.ev_loss_chips,
+            AttemptRow.equity_guess,
+            AttemptRow.equity_error,
+            AttemptRow.true_equity,
+            AttemptRow.range_read_guess,
+            AttemptRow.range_read_error,
+            AttemptRow.ahead_now,
+            AttemptRow.hero_category,
+            AttemptRow.intent,
+            AttemptRow.intent_truth,
+            AttemptRow.intent_flag,
+            AttemptRow.bluff_required,
+            AttemptRow.bluff_actual,
+        )
+        .join(PuzzleRow, PuzzleRow.id == AttemptRow.puzzle_id)
+        .where(AttemptRow.user_id == user_id, PuzzleRow.user_id == user_id)
+        .order_by(AttemptRow.id)
+    )
+    return [StatRow(**m._asdict()) for m in db.execute(q).all()]
+
+
+def profile_labels() -> dict[str, str]:
+    """Current profile names to labels, in ``PROFILE_NAMES`` order."""
+    return {name: load_profile(name).label for name in PROFILE_NAMES}
+
+
+def stats(db: Session, user_id: int, tz: str) -> dict[str, Any]:
+    """The user's ``StatsView`` with days counted in the IANA zone ``tz`` (422 if unknown)."""
+    try:
+        zone = stats_service.parse_tz(tz)
+    except ValueError:
+        raise BadRequestParam("unknown time zone") from None
+    goal = int(_settings_row(db, user_id).daily_goal)
+    return stats_service.compute(
+        stats_rows(db, user_id),
+        tz=zone,
+        now=utcnow(),
+        goal=goal,
+        profile_labels=profile_labels(),
+    )
 
 
 # ---------------------------------------------------------------------------
