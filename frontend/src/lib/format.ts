@@ -39,9 +39,10 @@ export function formatDetail(detail: unknown): string {
   return FALLBACK_DETAIL
 }
 
-/** An EV in bb from the API's `*_bb` floats: two decimals, no trailing zeros ("2.25 bb"). */
+/** An EV in bb from the API's `*_bb` floats: two decimals, no trailing zeros ("2.25 bb"), U+2212 for negatives. */
 export function formatEvBb(bb: number): string {
-  return `${Number(bb.toFixed(2))} bb`
+  const n = Number(bb.toFixed(2))
+  return `${n < 0 ? '−' : ''}${Math.abs(n)} bb`
 }
 
 /**

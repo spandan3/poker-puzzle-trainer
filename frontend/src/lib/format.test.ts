@@ -75,7 +75,7 @@ describe('formatEvBb', () => {
     expect(formatEvBb(2.25)).toBe('2.25 bb')
     expect(formatEvBb(5)).toBe('5 bb')
     expect(formatEvBb(2.3191875)).toBe('2.32 bb')
-    expect(formatEvBb(-7.8)).toBe('-7.8 bb')
+    expect(formatEvBb(-7.8)).toBe('−7.8 bb')
   })
 })
 

@@ -13,9 +13,9 @@ export interface RangeGridProps {
 /** 13x13 hand-class grid: fill opacity = weight, hatched = every combo blocked by known cards. */
 export function RangeGrid({ grid, label }: RangeGridProps) {
   return (
-    <div className={styles.grid} role="grid" aria-label={label}>
+    <div className={styles.grid} role="table" aria-label={label}>
       <div className={styles.row} role="row">
-        <span className={styles.corner} role="presentation" />
+        <span className={styles.corner} role="columnheader" />
         {GRID_RANKS.map((rank) => (
           <span key={rank} className={styles.head} role="columnheader">
             {rank}
@@ -34,7 +34,7 @@ export function RangeGrid({ grid, label }: RangeGridProps) {
               <span
                 key={name}
                 className={styles.cell}
-                role="gridcell"
+                role="cell"
                 aria-label={w === null ? `${name}, blocked` : `${name}, ${formatPct(w)} weight`}
                 data-blocked={w === null ? '' : undefined}
                 data-strong={w !== null && w > 0.5 ? '' : undefined}

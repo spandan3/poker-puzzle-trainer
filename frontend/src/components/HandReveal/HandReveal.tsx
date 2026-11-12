@@ -34,21 +34,29 @@ export function HandReveal({ view, result }: HandRevealProps) {
         </section>
 
         <section className={styles.block}>
-          <h3 className={styles.heading}>{folded ? 'Board' : 'Run-out'}</h3>
-          <div
-            className={styles.cards}
-            role="group"
-            aria-label={folded ? 'Board at the decision' : 'Run-out'}
-          >
-            {board.map((c) => (
-              <Card key={c} card={c} size="md" />
-            ))}
-          </div>
+          {board.length > 0 ? (
+            <>
+              <h3 className={styles.heading}>{folded ? 'Board' : 'Run-out'}</h3>
+              <div
+                className={styles.cards}
+                role="group"
+                aria-label={folded ? 'Board at the decision' : 'Run-out'}
+              >
+                {board.map((c) => (
+                  <Card key={c} card={c} size="md" />
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className={styles.muted}>No board cards: you folded pre-flop.</p>
+          )}
           <p className={styles.showdown}>{showdownLine(result)}</p>
         </section>
       </div>
 
-      <p className={styles.muted}>{result.judged_on_range_note}</p>
+      <p className={styles.muted}>
+        {folded ? "Graded against Villain's whole range." : result.judged_on_range_note}
+      </p>
 
       {simplifications.length > 0 && (
         <section className={styles.block}>

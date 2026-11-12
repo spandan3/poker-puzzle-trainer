@@ -79,8 +79,9 @@ export function decisionFromAttempt(view: PuzzleView, result: AttemptResult): De
   }
 }
 
-/** "1.5 bb · 30% pot" for a bet, "to 7.5 bb" for a raise, "" for fold, check and call. */
+/** "1.5 bb · 30% pot" for a bet, "all-in 97.5 bb" for a shove, "to 7.5 bb" for a raise, "" for fold, check and call. */
 export function sizeText(option: OptionResult, ctx: DecisionContext): string {
+  if (option.label === 'all-in') return `all-in ${formatBb(option.put)}`
   if (option.kind === 'bet') {
     const share = ctx.potChips > 0 ? Math.round((100 * option.put) / ctx.potChips) : null
     return share === null ? formatBb(option.put) : `${formatBb(option.put)} · ${share}% pot`

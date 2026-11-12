@@ -56,7 +56,7 @@ function share(x: number): string {
 /** a bb value inside a sum, with negatives bracketed: "(−1.7 bb)" */
 function term(bb: number): string {
   const text = formatEvBb(bb)
-  return text.startsWith('-') ? `(${MINUS}${text.slice(1)})` : text
+  return text.startsWith(MINUS) ? `(${text})` : text
 }
 
 /** the solver's value of one branch, in chips, with its working; null when not a formula */

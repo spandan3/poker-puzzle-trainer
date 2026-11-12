@@ -1,6 +1,6 @@
 import { forwardRef } from 'react'
 import type { AttemptResult } from '../../api/types'
-import { guessLines, SCORE_LABELS, VERDICT_LABELS, verdictLine } from '../../lib/result'
+import { guessLines, heroFolded, SCORE_LABELS, VERDICT_LABELS, verdictLine } from '../../lib/result'
 import styles from './ResultSummary.module.css'
 
 export interface ResultSummaryProps {
@@ -50,7 +50,8 @@ export const ResultSummary = forwardRef<HTMLButtonElement, ResultSummaryProps>(
         {grade.intent_flag && <p className={styles.note}>{grade.intent_flag}</p>}
 
         <div className={styles.foot}>
-          <p className={styles.muted}>{result.judged_on_range_note}</p>
+          {/* after a fold the run-out note would contradict the fold screen */}
+          {!heroFolded(result) && <p className={styles.muted}>{result.judged_on_range_note}</p>}
           <button type="button" className={styles.details} onClick={onDetails}>
             Details
           </button>

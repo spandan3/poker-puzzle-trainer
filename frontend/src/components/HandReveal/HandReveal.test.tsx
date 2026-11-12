@@ -24,6 +24,22 @@ describe('HandReveal', () => {
     expect(items.map((i) => i.textContent)).toEqual(result.simplifications.map((s) => s.text))
   })
 
+  it('after a fold the note says only that grading used the whole range', () => {
+    const result = attemptFixture('fold')
+    render(<HandReveal view={puzzleFixture('facing_postflop_raise')} result={result} />)
+    expect(screen.getByText("Graded against Villain's whole range.")).toBeVisible()
+    expect(screen.queryByText(result.judged_on_range_note)).toBeNull()
+  })
+
+  it('pre-flop fold: no Board heading, one line instead', () => {
+    const result = attemptFixture('fold_preflop')
+    const view = puzzleFixture('preflop_btn_first_in')
+    render(<HandReveal view={view} result={result} />)
+    expect(screen.queryByRole('heading', { name: 'Board' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Board at the decision' })).toBeNull()
+    expect(screen.getByText('No board cards: you folded pre-flop.')).toBeVisible()
+  })
+
   it('after a fold: only the decision board and no showdown', () => {
     const view = puzzleFixture('facing_postflop_raise')
     const result = attemptFixture('fold')
