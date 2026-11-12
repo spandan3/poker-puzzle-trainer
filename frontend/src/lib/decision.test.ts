@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { attemptFixture, puzzleFixture } from '../test/fixture'
 import { decisionFromAttempt, sizeText, sortedOptions } from './decision'
+import { formatBb } from './format'
 import { chosenLabel } from './result'
 
 const flop = puzzleFixture('flop_unopened')
@@ -39,6 +40,11 @@ describe('sizeText', () => {
     const o = bet.options.find((x) => x.label === 'bet 33%')!
     expect(sizeText(o, ctx)).toBe(`1.5 bb · ${Math.round((100 * o.put) / flop.pot)}% pot`)
     expect(sizeText(o, ctx)).toBe('1.5 bb · 30% pot')
+  })
+
+  it('gives just the amount for an all-in, with no pot share', () => {
+    const o = bet.options.find((x) => x.label === 'all-in')!
+    expect(sizeText(o, ctx)).toBe(`all-in ${formatBb(o.put)}`)
   })
 
   it('gives "to x bb" for a raise and nothing for fold, check, call', () => {

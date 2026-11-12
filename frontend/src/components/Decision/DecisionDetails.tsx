@@ -99,6 +99,7 @@ export const DecisionDetails = forwardRef<DecisionDetailsHandle, DecisionDetails
 
     return (
       <section ref={rootRef} className={styles.details} aria-label="Details">
+        <h2 className={styles.srOnly}>Details</h2>
         <div role="tablist" aria-label="Details" className={styles.tabs} onKeyDown={onKeyDown}>
           {tabs.map((tab) => (
             <button
@@ -126,6 +127,7 @@ export const DecisionDetails = forwardRef<DecisionDetailsHandle, DecisionDetails
             id={`${baseId}-panel-${tab}`}
             aria-labelledby={`${baseId}-tab-${tab}`}
             hidden={tab !== selected}
+            tabIndex={tab === selected ? 0 : undefined}
             className={styles.panel}
           >
             {tab === selected && panel(tab)}

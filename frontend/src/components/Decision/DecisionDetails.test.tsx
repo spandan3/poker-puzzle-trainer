@@ -23,6 +23,12 @@ describe('DecisionDetails', () => {
     expect(screen.getByRole('tabpanel')).toHaveAccessibleName('Options')
   })
 
+  it('has a hidden Details heading and a focusable selected panel', () => {
+    render(<DecisionDetails decision={decision} />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Details' })).toBeInTheDocument()
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('tabindex', '0')
+  })
+
   it('adds a Hand tab when given its content', async () => {
     const user = userEvent.setup()
     render(<DecisionDetails decision={decision} handTab={<p>the hand</p>} />)

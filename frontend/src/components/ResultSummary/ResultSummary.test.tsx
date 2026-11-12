@@ -20,6 +20,12 @@ describe('ResultSummary', () => {
     expect(screen.getByText(result.grade.intent_flag!)).toBeVisible()
   })
 
+  it('hides the judged-on-range note after a fold', () => {
+    const result = attemptFixture('fold')
+    render(<ResultSummary result={result} onNext={() => {}} onDetails={() => {}} shortcutsOn />)
+    expect(screen.queryByText(result.judged_on_range_note)).toBeNull()
+  })
+
   it('colour-codes each verdict', () => {
     const result = attemptFixture('fold')
     render(<ResultSummary result={result} onNext={() => {}} onDetails={() => {}} shortcutsOn />)

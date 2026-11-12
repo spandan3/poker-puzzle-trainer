@@ -28,10 +28,10 @@ describe('RangePanel', () => {
     render(<RangePanel decision={d} />)
     const first = d.rangeSteps[0]
     const lastLabel = bbLabel(d.rangeSteps.at(-1)?.label ?? '')
-    expect(screen.getByRole('grid', { name: lastLabel })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: lastLabel })).toBeInTheDocument()
     fireEvent.click(within(stepGroup()).getAllByRole('radio')[0] as HTMLElement)
-    expect(screen.getByRole('grid', { name: bbLabel(first?.label ?? '') })).toBeInTheDocument()
-    expect(screen.queryByRole('grid', { name: lastLabel })).not.toBeInTheDocument()
+    expect(screen.getByRole('table', { name: bbLabel(first?.label ?? '') })).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: lastLabel })).not.toBeInTheDocument()
     expect(screen.getByText(new RegExp(`^${first?.combos.length} combos`))).toBeInTheDocument()
   })
 
@@ -79,10 +79,10 @@ describe('RangePanel', () => {
     const d = betDecision()
     const { rerender } = render(<RangePanel decision={d} />)
     expect(screen.getByRole('heading', { name: 'Hero vs range' })).toBeInTheDocument()
-    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: /part of the range/ })).toBeInTheDocument()
     rerender(<RangePanel decision={{ ...d, categories: null }} />)
     expect(screen.queryByRole('heading', { name: 'Hero vs range' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: /part of the range/ })).not.toBeInTheDocument()
   })
 
   it('handles Villain never continuing without NaN', () => {
