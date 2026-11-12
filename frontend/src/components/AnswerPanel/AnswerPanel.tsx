@@ -275,6 +275,11 @@ function Panel({
       onSubmit={handleSubmit}
       noValidate
     >
+      {view.attempts_so_far > 0 && (
+        <p className={styles.practice} data-testid="practice-note">
+          Practice — this attempt won&apos;t count toward your stats.
+        </p>
+      )}
       <div className={styles.estimates}>
         <PercentField
           label="Equity"

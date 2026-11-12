@@ -19,7 +19,7 @@ function setup(api: ProgressApi, onGoal: (goal: number) => Promise<boolean> = as
   const user = userEvent.setup()
   render(
     <StrictMode>
-      <ProgressPage api={api} goal={null} onGoal={onGoal} />
+      <ProgressPage api={api} goal={null} onGoal={onGoal} onReplay={vi.fn()} onResult={vi.fn()} />
     </StrictMode>,
   )
   return { user, onGoal }
@@ -86,7 +86,7 @@ describe('ProgressPage', () => {
   it('leaves a clear spot for the history table', async () => {
     setup(fakeApi())
     await screen.findByTestId('progress-totals')
-    expect(screen.getByTestId('history-slot')).toBeInTheDocument()
+    expect(screen.getByTestId('history')).toBeInTheDocument()
   })
 
   it('shows an error with Retry, which fetches again', async () => {
@@ -154,7 +154,15 @@ describe('ProgressPage', () => {
 
   it('shows the goal setting rather than the stats goal when it is known', async () => {
     const api = fakeApi()
-    render(<ProgressPage api={api} goal={7} onGoal={async () => true} />)
+    render(
+      <ProgressPage
+        api={api}
+        goal={7}
+        onGoal={async () => true}
+        onReplay={vi.fn()}
+        onResult={vi.fn()}
+      />,
+    )
     expect(await screen.findByRole('spinbutton', { name: 'Puzzles per day' })).toHaveValue(7)
     // everything computed from the goal shows the stats' own goal, never the box's
     expect(screen.queryByText(/\/ 7\b/)).toBeNull()
@@ -162,7 +170,15 @@ describe('ProgressPage', () => {
 
   it('fetches once more when the goal setting differs from the stats goal, and does not loop', async () => {
     const api = fakeApi()
-    render(<ProgressPage api={api} goal={10} onGoal={async () => true} />)
+    render(
+      <ProgressPage
+        api={api}
+        goal={10}
+        onGoal={async () => true}
+        onReplay={vi.fn()}
+        onResult={vi.fn()}
+      />,
+    )
     await screen.findByTestId('progress-totals')
     await waitFor(() => expect(api.getStats).toHaveBeenCalledTimes(2))
     await new Promise((r) => setTimeout(r, 50))

@@ -41,6 +41,8 @@ function fakeApi(overrides: Partial<FlowApi> = {}) {
     newPuzzle: vi.fn<FlowApi['newPuzzle']>(async () =>
       withId(puzzleFixture('flop_unopened'), nextId++),
     ),
+    getPuzzle: vi.fn<FlowApi['getPuzzle']>(async (id) => withId(puzzleFixture('river'), id)),
+    getAttempt: vi.fn<FlowApi['getAttempt']>(async () => attemptFixture('bet')),
     submitAttempt: vi.fn<FlowApi['submitAttempt']>(async () => attemptFixture('bet')),
     getSettings: vi.fn<FlowApi['getSettings']>(async () => settingsFixture()),
     patchSettings: vi.fn<FlowApi['patchSettings']>(async (patch) => ({
@@ -418,5 +420,114 @@ describe('deferred start', () => {
     expect(api.currentPuzzle).toHaveBeenCalledTimes(1)
     expect(api.newPuzzle).toHaveBeenCalledTimes(1)
     expect(api.getSettings).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('opening stored puzzles and results', () => {
+  it('openPuzzle shows that puzzle, answering', async () => {
+    const api = fakeApi()
+    const { result } = setup(api)
+    await answering(result)
+    act(() => result.current.openPuzzle(7))
+    expect(result.current.state.kind).toBe('loading')
+    const state = await answering(result)
+    expect(state.view.id).toBe(7)
+    expect(api.getPuzzle).toHaveBeenCalledWith(7)
+    expect(state.error).toBeNull()
+  })
+
+  it('openAttempt fetches the attempt, then its puzzle, and shows the stored result', async () => {
+    const stored = attemptFixture('bet')
+    const api = fakeApi({
+      getAttempt: vi.fn(async () => stored),
+      getPuzzle: vi.fn(async (id) => withId(puzzleFixture('river'), id)),
+    })
+    const { result } = setup(api)
+    await answering(result)
+    act(() => result.current.openAttempt(41))
+    await waitFor(() => expect(result.current.state.kind).toBe('result'))
+    const state = result.current.state
+    if (state.kind !== 'result') throw new Error('not a result')
+    expect(api.getAttempt).toHaveBeenCalledWith(41)
+    expect(api.getPuzzle).toHaveBeenCalledWith(stored.attempt.puzzle_id)
+    expect(state.result).toBe(stored)
+    expect(state.view.id).toBe(stored.attempt.puzzle_id)
+  })
+
+  it('Next puzzle works after openAttempt, as after a submit', async () => {
+    const api = fakeApi()
+    const { result } = setup(api)
+    await answering(result)
+    act(() => result.current.openAttempt(41))
+    await waitFor(() => expect(result.current.state.kind).toBe('result'))
+    act(() => result.current.requestSkip())
+    const state = await answering(result)
+    expect(state.view.id).toBe(101)
+    expect(api.newPuzzle).toHaveBeenCalledTimes(2)
+  })
+
+  it('loads one at a time: a second open while one loads is ignored', async () => {
+    const slow = deferred<PuzzleView>()
+    const api = fakeApi({ getPuzzle: vi.fn(() => slow.promise) })
+    const { result } = setup(api)
+    await answering(result)
+    act(() => {
+      result.current.openPuzzle(1)
+      result.current.openPuzzle(2)
+      result.current.openAttempt(3)
+    })
+    expect(api.getPuzzle).toHaveBeenCalledTimes(1)
+    expect(api.getAttempt).not.toHaveBeenCalled()
+    await act(async () => slow.resolve(withId(puzzleFixture('river'), 1)))
+    expect((await answering(result)).view.id).toBe(1)
+  })
+
+  it('an open failure goes to the error state, and Retry tries again', async () => {
+    const getPuzzle = vi
+      .fn<FlowApi['getPuzzle']>()
+      .mockRejectedValueOnce(new ApiError(404, 'puzzle not found'))
+      .mockImplementation(async (id) => withId(puzzleFixture('river'), id))
+    const api = fakeApi({ getPuzzle })
+    const { result } = setup(api)
+    await answering(result)
+    act(() => result.current.openPuzzle(9))
+    await waitFor(() => expect(result.current.state.kind).toBe('error'))
+    const error = result.current.state
+    if (error.kind !== 'error') throw new Error('not an error')
+    expect(error.message).toContain("isn't stored")
+    expect(error.previous?.view.id).toBe(100)
+    act(() => error.retry())
+    expect((await answering(result)).view.id).toBe(9)
+  })
+
+  it('a failed attempt fetch shows an error with Retry', async () => {
+    const getAttempt = vi
+      .fn<FlowApi['getAttempt']>()
+      .mockRejectedValueOnce(new ApiError(0, undefined))
+      .mockResolvedValue(attemptFixture('bet'))
+    const api = fakeApi({ getAttempt })
+    const { result } = setup(api)
+    await answering(result)
+    act(() => result.current.openAttempt(5))
+    await waitFor(() => expect(result.current.state.kind).toBe('error'))
+    const error = result.current.state
+    if (error.kind !== 'error') throw new Error('not an error')
+    expect(error.message).toContain("Can't reach the server")
+    act(() => error.retry())
+    await waitFor(() => expect(result.current.state.kind).toBe('result'))
+  })
+
+  it('opening one before the first load counts as the first load: no puzzle is loaded over it', async () => {
+    const api = fakeApi()
+    const { result, rerender } = renderHook(({ enabled }) => usePuzzleFlow(api, { enabled }), {
+      wrapper: strict,
+      initialProps: { enabled: false },
+    })
+    act(() => result.current.openPuzzle(5))
+    expect((await answering(result)).view.id).toBe(5)
+    rerender({ enabled: true })
+    expect(api.currentPuzzle).not.toHaveBeenCalled()
+    expect(api.newPuzzle).not.toHaveBeenCalled()
+    expect((await answering(result)).view.id).toBe(5)
   })
 })

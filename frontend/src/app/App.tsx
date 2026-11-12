@@ -203,6 +203,14 @@ export function App({ api, progressApi = client }: AppProps = {}) {
             goal={settings?.daily_goal ?? null}
             onGoal={(goal) => flow.setSetting({ daily_goal: goal })}
             onNavigate={navigate}
+            onReplay={(id) => {
+              flow.openPuzzle(id)
+              navigate('puzzles')
+            }}
+            onResult={(attemptId) => {
+              flow.openAttempt(attemptId)
+              navigate('puzzles')
+            }}
           />
         </main>
       )}
