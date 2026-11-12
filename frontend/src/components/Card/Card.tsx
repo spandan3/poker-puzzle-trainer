@@ -12,6 +12,8 @@ export interface CardProps {
   size?: CardSize
   /** Delay before the deal-in animation; no animation when omitted. */
   dealDelayMs?: number
+  /** Turn face up with a flip (Villain's cards on reveal). */
+  flip?: boolean
   className?: string
 }
 
@@ -20,12 +22,20 @@ const W = 100
 const H = 140
 const RADIUS = 8
 
-export function Card({ card, faceDown = false, size = 'md', dealDelayMs, className }: CardProps) {
+export function Card({
+  card,
+  faceDown = false,
+  size = 'md',
+  dealDelayMs,
+  flip = false,
+  className,
+}: CardProps) {
   const dealing = dealDelayMs !== undefined
   const common = {
     className: [styles.card, className].filter(Boolean).join(' '),
     'data-size': size,
     'data-dealing': dealing ? 'true' : undefined,
+    'data-flip': flip && !faceDown && card !== null ? 'true' : undefined,
     style: dealing ? ({ animationDelay: `${dealDelayMs}ms` } as CSSProperties) : undefined,
   }
 

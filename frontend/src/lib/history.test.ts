@@ -160,4 +160,23 @@ describe('groupHistory', () => {
     expect(groups.filter((g) => g.toAct)).toHaveLength(1)
     expect(groups.at(-1)!.toAct).toBe('hero')
   })
+
+  it('shows a submitted answer in place of Hero to act', () => {
+    const view = puzzleFixture('flop_unopened')
+    const answer = {
+      actor: 'hero' as const,
+      street: 'flop' as const,
+      kind: 'check' as const,
+      to: 0,
+      pot_before: view.pot,
+      amount: 0,
+      all_in: false,
+      text: 'check',
+    }
+    const sections = groupHistory(view, answer)
+    const last = sections.at(-1)!
+    expect(last.toAct).toBeUndefined()
+    expect(last.answer).toEqual({ actor: 'hero', position: view.hero_position, text: 'checks' })
+    expect(sections.flatMap((s) => s.entries)).toHaveLength(view.history.length)
+  })
 })

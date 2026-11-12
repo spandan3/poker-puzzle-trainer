@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { puzzleFixture } from '../../test/fixture'
+import { answerEntry } from '../../lib/result'
+import { attemptFixture, puzzleFixture } from '../../test/fixture'
 import { HistoryPanel } from './HistoryPanel'
 
 describe('HistoryPanel', () => {
@@ -81,5 +82,13 @@ describe('HistoryPanel', () => {
     const view = puzzleFixture('flop_unopened')
     const { container } = render(<HistoryPanel view={view} />)
     expect(container.querySelectorAll('[data-face="up"]')).toHaveLength(view.board.length)
+  })
+
+  it("after a submit, shows Hero's answer instead of Hero to act", () => {
+    const view = puzzleFixture('flop_unopened')
+    render(<HistoryPanel view={view} answer={answerEntry(view, attemptFixture('bet'))} />)
+    expect(screen.queryByText('Hero to act')).toBeNull()
+    expect(screen.getByText('bets 1.5 bb (30% pot)')).toBeVisible()
+    expect(screen.getByText('your answer')).toBeVisible()
   })
 })

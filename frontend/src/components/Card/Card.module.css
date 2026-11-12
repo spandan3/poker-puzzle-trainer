@@ -95,20 +95,39 @@
   animation: deal-in var(--duration-deal-in) var(--ease-out) both;
 }
 
+/* individual transform properties, so a card's own `transform` (a seat's fan) is kept */
 @keyframes deal-in {
   from {
     opacity: 0;
-    transform: translateY(-0.75em) scale(0.92);
+    translate: 0 -0.75em;
+    scale: 0.92;
   }
 
   to {
     opacity: 1;
-    transform: none;
+    translate: none;
+    scale: none;
+  }
+}
+
+/* a face-down card turning over: the face grows from edge-on, like the second half of a flip */
+.card[data-flip='true'] {
+  animation: flip-up var(--duration-flip) var(--ease-out) both;
+}
+
+@keyframes flip-up {
+  from {
+    rotate: y 90deg;
+  }
+
+  to {
+    rotate: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card[data-dealing='true'] {
+  .card[data-dealing='true'],
+  .card[data-flip='true'] {
     animation: none;
   }
 }
