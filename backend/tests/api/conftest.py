@@ -52,9 +52,20 @@ def db_url(tmp_path):
     return f"sqlite:///{(tmp_path / 'api.db').as_posix()}"
 
 
+# Every LLM setting explicit: a PPT_LLM_* variable on a dev machine must not reach the tests.
+LLM_OFF = {
+    "llm_provider": "none",
+    "ollama_url": "http://127.0.0.1:11434",
+    "ollama_model": "llama3.2:3b",
+    "llm_timeout": 60.0,
+}
+
+
 @pytest.fixture
 def client(db_url, factory):
-    app = create_app(AppSettings(_env_file=None, database_url=db_url), puzzle_factory=factory)
+    app = create_app(
+        AppSettings(_env_file=None, database_url=db_url, **LLM_OFF), puzzle_factory=factory
+    )
     with TestClient(app) as c:
         yield c
 

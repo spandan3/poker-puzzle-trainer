@@ -342,7 +342,10 @@ class SettingsView(_Out):
     profile: str | None
     daily_goal: int
     llm_provider: str
-    llm_status: Literal["off", "on"]
+    # "off": provider none (templates only); else the last probe of the local model
+    llm_status: Literal["off", "ready", "unavailable"]
+    llm_model: str | None  # the model name when the provider is not "none"
+    llm_detail: str | None  # what to do when the status is "unavailable"
     profiles: list[ProfileInfo]
 
 

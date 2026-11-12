@@ -1,6 +1,6 @@
 import pytest
 
-from poker_trainer.explain.guardrail import check, numbers
+from poker_trainer.explain.guardrail import check, check_fields, numbers
 
 
 def test_numbers_are_normalised():
@@ -84,7 +84,34 @@ def test_leading_dot_decimals():
         (".5 bb", "Pot: 0.5 bb", True),
         ("one more card", "", True),
         ("Villain folds 35% of the time", "Fold frequency: 35%", True),
+        # Task 3: the LLM table (spec §9, Review Focus 1)
+        ("Calling loses 12.50 bb", "EV lost: 12.5 bb", True),
+        ("Calling loses 12.5 bb", "EV lost: 12.50 bb", True),
+        ("Calling loses 12.51 bb", "EV lost: 12.5 bb", False),
+        ("about 1,5 bb", "Call: 1.5 bb", True),
+        ("about 1,5 bb", "Call: 2.5 bb", False),
+        ("an EV of −2.25 bb", "Check: -2.25 bb", True),
+        ("an EV of −2.25 bb", "Check: -2.5 bb", False),
+        ("about half the pot", "Pot: 10 bb\nBet: 5 bb", False),
+        ("about half the pot", "Bet half pot", True),
+        ("the halves of the range", "Pot: 10 bb", False),
+        ("Villain folds twice as often", "Fold frequency: 40%", False),
+        ("you made two pair", "Your cards: K♠ 7♦\nBoard: K♣ 7♣ 2♦", False),
+        ("a ½ pot bet", "Bet 50% pot", False),
+        ("x² more often", "Fold frequency: 20%", False),
+        ("needs 25%", "Call: 25 bb", False),
+        ("needs 25 bb", "Pot odds: 25%", False),
+        ("the T♠ helps", "Board: T♠ 9♥ 2♣", True),
+        ("the T♠ helps", "Board: T♥ 9♥ 2♣", False),
+        ("Ten percent of the time", "Fold frequency: 10%", False),
     ],
 )
 def test_check(output, allowed, ok):
     assert check(output, allowed) is ok
+
+
+def test_check_fields_names_each_failing_field():
+    allowed = "Equity: 42.5%\nEV lost: 1.25 bb"
+    fields = {"headline": "You lost 1.25 bb.", "hand": "Two streets went by.", "verdict": "42.5%"}
+    assert check_fields(fields, allowed) == {"hand": {"word:two"}}
+    assert check_fields({"headline": "Fine.", "verdict": "42.5% equity"}, allowed) == {}

@@ -14,6 +14,8 @@ def test_settings_get_defaults(client):
     assert body["daily_goal"] == 10
     assert body["llm_provider"] == "none"
     assert body["llm_status"] == "off"
+    assert body["llm_model"] is None
+    assert body["llm_detail"] is None
     assert [p["name"] for p in body["profiles"]] == list(PROFILE_NAMES)
     assert len(body["profiles"]) == 4
     assert all(p["label"] and p["description"] for p in body["profiles"])
@@ -51,6 +53,8 @@ def test_settings_validation(client):
         {"daily_goal": True},
         {"llm_provider": "none"},
         {"llm_status": "off"},
+        {"llm_model": "mistral"},
+        {"llm_detail": "x"},
         {"profiles": []},
         {"bogus": 1},
     ]

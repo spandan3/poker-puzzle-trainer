@@ -1,0 +1,33 @@
+{
+  "fallback": null,
+  "headline": "In short: Bet 33% was the top play, and you found it.",
+  "model": "llama3.2:3b",
+  "sections": [
+    {
+      "id": "hand",
+      "paragraphs": [
+        "You held T\u2666 K\u2660 in the big blind, against Villain, a LAG player, on the button. Pre-flop, Villain opened to 2.5 bb and you called. The flop came 3\u2665 2\u2660 6\u2660. It was your turn to act with 5 bb in the pot."
+      ],
+      "title": "The hand"
+    },
+    {
+      "id": "verdict",
+      "paragraphs": [
+        "You chose Bet 33% (EV 2.57 bb), the top play against Villain's range. Verdict: Best. Your equity against Villain's whole range is 46.4%.",
+        "Bet 33%: Villain folds 34% of the time and you have 37.1% equity against the hands that continue. To profit on folds alone, a bet this size needs 23.1% folds (1.5 bb / (5 bb + 1.5 bb)).",
+        "Right now you are ahead of 47.0% of Villain's range. The largest parts of the range are Weak draw (20.6% of it; your equity 61%) and Air (20.6% of it; your equity 80%)."
+      ],
+      "title": "Why"
+    },
+    {
+      "id": "villain",
+      "paragraphs": [
+        "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+        "Villain's range narrowed with each action: Pre-flop: opens to 2.5 bb.",
+        "The range in the Range tab is the range this puzzle was graded on."
+      ],
+      "title": "Villain"
+    }
+  ],
+  "source": "llm"
+}

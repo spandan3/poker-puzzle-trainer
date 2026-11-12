@@ -33,6 +33,8 @@ from fastapi.testclient import TestClient
 from poker_trainer.api import service, views
 from poker_trainer.api.app import create_app
 from poker_trainer.api.schemas import StatsView
+from poker_trainer.explain import ollama
+from poker_trainer.explain.service import Explainer
 from poker_trainer.game.state import ActionKind, Street
 from poker_trainer.puzzle.generate import generate_puzzle
 from poker_trainer.puzzle.model import Puzzle
@@ -254,7 +256,10 @@ def write_stats_fixtures(
 
     with tempfile.TemporaryDirectory() as tmp, _scripted_clock(STATS_START) as now:
         url = f"sqlite:///{(Path(tmp) / 'stats.db').as_posix()}"
-        app = create_app(AppSettings(_env_file=None, database_url=url), puzzle_factory=factory)
+        app = create_app(
+            AppSettings(_env_file=None, database_url=url, llm_provider="none"),
+            puzzle_factory=factory,
+        )
         with TestClient(app) as client:
             res = client.patch("/api/settings", json={"daily_goal": STATS_GOAL})
             if res.status_code != 200:
@@ -285,13 +290,53 @@ def write_stats_fixtures(
             log("wrote history_page.json")
 
 
+def reword(_url: str, _model: str, _system: str, prompt: str, *_rest: Any) -> str:
+    """A fake model for ``explanation_llm.json``: the template's own text, visibly reworded
+    ("In short: ", the hand in one paragraph, the verdict's first two paragraphs joined) and
+    with no number added, so it passes the guardrail."""
+    fields = ollama.template_fields(prompt)
+    verdict = fields["verdict"].split("\n\n")
+    return json.dumps(
+        {
+            "headline": "In short: " + fields["headline"],
+            "hand": " ".join(fields["hand"].split("\n\n")),
+            "verdict": "\n\n".join([" ".join(verdict[:2]), *verdict[2:]]),
+        }
+    )
+
+
+def write_llm_fixture(
+    out: Path,
+    app: Any,
+    client: TestClient,
+    attempt_id: int,
+    log: Callable[[str], None] = lambda _m: None,
+) -> None:
+    """Write ``explanation_llm.json``: ``GET /api/attempts/{attempt_id}/explanation`` from the
+    real app with provider ``ollama`` and the fake model ``reword``. The app's explainer is
+    restored afterwards."""
+    settings = app.state.settings.model_copy(update={"llm_provider": "ollama"})
+    real = app.state.explainer
+    app.state.explainer = Explainer(settings, generate=reword, probe=lambda *_a: ("ready", None))
+    try:
+        res = client.get(f"/api/attempts/{attempt_id}/explanation")
+    finally:
+        app.state.explainer = real
+    body = res.json()
+    if res.status_code != 200 or body["source"] != "llm":
+        raise RuntimeError(f"no LLM explanation: {res.text}")
+    _dump(out / "explanation_llm.json", body)
+    log("wrote explanation_llm.json")
+
+
 def write_fixtures(
     out: Path,
     found: dict[str, tuple[int, str]],
     log: Callable[[str], None] = lambda _m: None,
     never_continues: tuple[int, str, int] | None = None,
 ) -> None:
-    """Write every puzzle in ``found``, the attempt results and the settings.
+    """Write every puzzle in ``found``, the attempt results, the settings and
+    ``explanation_llm.json`` (``attempt_bet``'s explanation from a fake model).
 
     ``never_continues`` is ``find_never_continues()``'s result; ``None`` skips
     ``attempt_never_continues.json``.
@@ -305,7 +350,10 @@ def write_fixtures(
 
     with tempfile.TemporaryDirectory() as tmp:
         url = f"sqlite:///{(Path(tmp) / 'fixtures.db').as_posix()}"
-        app = create_app(AppSettings(_env_file=None, database_url=url), puzzle_factory=factory)
+        app = create_app(
+            AppSettings(_env_file=None, database_url=url, llm_provider="none"),
+            puzzle_factory=factory,
+        )
         with TestClient(app) as client:
             ids: dict[str, int] = {}
             for name, key in found.items():
@@ -321,6 +369,7 @@ def write_fixtures(
                 log(f"wrote puzzle_{name}.json")
 
             # attempt results: a bet and a fold on the unopened flop
+            bet_attempt_id = 0
             flop_id = ids["flop_unopened"]
             options = client.get(f"/api/puzzles/{flop_id}").json()["options"]
             for kind in ("bet", "fold"):
@@ -344,6 +393,8 @@ def write_fixtures(
                 )
                 if res.status_code != 201:
                     raise RuntimeError(res.text)
+                if kind == "bet":
+                    bet_attempt_id = res.json()["attempt"]["id"]
                 _dump(out / f"attempt_{kind}.json", _fix_times(res.json()))
                 log(f"wrote attempt_{kind}.json")
 
@@ -400,6 +451,7 @@ def write_fixtures(
                 attempt("never_continues", res.json()["id"], {"option": index, "intent": intent})
             _dump(out / "settings.json", client.get("/api/settings").json())
             log("wrote settings.json")
+            write_llm_fixture(out, app, client, bet_attempt_id, log=log)
     # the found puzzles, once each, in the search order
     puzzles = list({key: chosen[key] for key in found.values()}.values())
     write_stats_fixtures(out, puzzles, log=log)
