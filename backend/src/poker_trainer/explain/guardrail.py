@@ -269,8 +269,10 @@ def check_fields(fields: Mapping[str, str], allowed_text: str) -> dict[str, set[
 
 _VERDICT_WORD = re.compile(r"\b(best|fine|mistake|blunder)\b", re.IGNORECASE)
 _RESULT = re.compile(
-    r"\b(?:won|win|wins|winning|showdown|lost the hand)\b"
-    r"|\bVillain (?:had|held)\b|\bVillain['’]s hand was\b",
+    r"\b(?:won|showdown|lost the hand)\b"
+    r"|\b(?:you|Villain) (?:wins?|winning) (?:the hand|at showdown)\b"
+    r"|\bVillain (?:had|held) (?:an?|the)\b|\bVillain (?:had|held) [2-9TJQKA][♣♦♥♠]"
+    r"|\bVillain['’]s hand was\b",
     re.IGNORECASE,
 )
 

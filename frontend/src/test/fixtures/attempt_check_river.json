@@ -90,7 +90,7 @@
         "paragraphs": [
           "You chose Check (EV 0.55 bb). The top play was Bet 33% (EV 2.88 bb), so your choice gives up 2.33 bb against Villain's range. Verdict: Mistake.",
           "Your equity against Villain's whole range is 5.4%.",
-          "Bet 33%: Villain folds 42% of the time, more than the 25.7% a bet this size needs to profit on folds alone (4.5 bb / (13 bb + 4.5 bb)), so the folds alone pay for it, even when every hand that continues beats you. On top of that, you have 1.4% equity against the hands that continue.",
+          "Bet 33%: Villain folds 42% of the time, more than the 25.7% a bet this size needs to profit on folds alone (4.5 bb / (13 bb + 4.5 bb)), so folds alone pay for it, even when every hand that continues beats you. On top of that, you have 1.4% equity against the hands that continue.",
           "The largest parts of the range are Air (35.3% of it; your equity 15%) and Weak made hand (24.7% of it; your equity 0%)."
         ],
         "title": "The verdict"

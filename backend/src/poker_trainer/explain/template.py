@@ -134,7 +134,7 @@ def _equity(f: Facts) -> str:
     if f.check_best and f.best_bet is not None:
         # the Check EV is in the choice paragraph already
         text += (
-            f" Checking does better than the strongest bet, "
+            f" Checking does better than the most profitable bet, "
             f"{f.best_bet.label} (EV {f.best_bet.ev})."
         )
     return text
@@ -150,7 +150,7 @@ def _fold_equity(o: OptionFact) -> str:
     )
     eq = o.equity_vs_continue
     if o.folds_pay:
-        text += ", so the folds alone pay for it, even when every hand that continues beats you."
+        text += ", so folds alone pay for it, even when every hand that continues beats you."
         if eq is not None:
             text += f" On top of that, you have {eq} equity against the hands that continue."
         return text

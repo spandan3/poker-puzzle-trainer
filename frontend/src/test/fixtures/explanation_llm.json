@@ -14,7 +14,7 @@
       "id": "verdict",
       "paragraphs": [
         "You chose Bet 33% (EV 2.57 bb), the top play against Villain's range. Verdict: Best. Your equity against Villain's whole range is 46.4%.",
-        "Bet 33%: Villain folds 34% of the time, more than the 23.1% a bet this size needs to profit on folds alone (1.5 bb / (5 bb + 1.5 bb)), so the folds alone pay for it, even when every hand that continues beats you. On top of that, you have 37.1% equity against the hands that continue.",
+        "Bet 33%: Villain folds 34% of the time, more than the 23.1% a bet this size needs to profit on folds alone (1.5 bb / (5 bb + 1.5 bb)), so folds alone pay for it, even when every hand that continues beats you. On top of that, you have 37.1% equity against the hands that continue.",
         "Right now you are ahead of 47.0% of Villain's range. The largest parts of the range are Weak draw (20.6% of it; your equity 61%) and Air (20.6% of it; your equity 80%)."
       ],
       "title": "The verdict"
