@@ -1,0 +1,82 @@
+.panel {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.headline {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.views {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.view,
+.cats {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.choice {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.legend {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.button {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-panel-border);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.button[aria-checked='true'] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.size {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
