@@ -37,6 +37,19 @@ test('a puzzle end to end: answer, submit, verdict, reveal, next', async ({ page
   await expect(page.getByText('your answer')).toBeVisible()
   await expect(page.getByRole('button', { name: /Next puzzle/ })).toBeFocused()
 
+  // the details: one landmark in each tab
+  const panel = page.getByRole('tabpanel')
+  await page.getByRole('tab', { name: 'Options' }).click()
+  await expect(panel.getByRole('table')).toBeVisible()
+  await page.getByRole('tab', { name: 'Maths' }).click()
+  await expect(panel.getByRole('heading', { level: 3 }).first()).toBeVisible()
+  await page.getByRole('tab', { name: 'Range' }).click()
+  await expect(panel.getByRole('heading', { level: 3 }).first()).toBeVisible()
+  await page.getByRole('tab', { name: 'Hand' }).click()
+  await expect(panel.getByRole('heading', { level: 3, name: 'Villain' })).toBeVisible()
+  await expect(panel.getByRole('group', { name: "Villain's hand" }).getByRole('img')).toHaveCount(2)
+  await page.getByRole('button', { name: /Next puzzle/ }).focus()
+
   await page.keyboard.press('n')
   await expect(page.getByRole('textbox', { name: 'Equity' })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Equity' })).toHaveValue('')
@@ -93,3 +106,42 @@ test('layout: the tallest answer panel fits 1280×800, even with an error showin
   expect(await height()).toBe(800)
   expect(await width()).toBe(1280)
 })
+
+for (const [width, height] of [
+  [1024, 768],
+  [1280, 800],
+] as const) {
+  test(`result page: no horizontal scroll at ${width}×${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    const fixtureText = (name: string) =>
+      readFileSync(resolve(import.meta.dirname, `../src/test/fixtures/${name}.json`), 'utf8')
+    // the widest options table: a custom size among the standard ones
+    await page.route('**/api/puzzles/current', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: fixtureText('puzzle_custom_allowed'),
+      }),
+    )
+    await page.route('**/api/puzzles/*/attempts', (route) =>
+      route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: fixtureText('attempt_custom'),
+      }),
+    )
+    await page.goto('/')
+    await page.getByRole('textbox', { name: 'Equity' }).fill('50')
+    await page.keyboard.press('Escape')
+    await page.locator('[aria-label="Action"] button:not([aria-disabled])').first().click()
+    const size = page.getByRole('group', { name: 'Size' }).getByRole('button')
+    if (await size.count()) await size.first().click()
+    await page.getByRole('button', { name: /^Submit/ }).click()
+    await expect(page.getByRole('region', { name: 'Result' })).toBeVisible()
+    for (const tab of ['Options', 'Maths', 'Range', 'Hand']) {
+      await page.getByRole('tab', { name: tab }).click()
+      const overflow = await page.locator('html').evaluate((el) => el.scrollWidth - el.clientWidth)
+      expect(overflow, `${tab} tab`).toBeLessThanOrEqual(0)
+    }
+  })
+}

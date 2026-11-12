@@ -123,6 +123,29 @@ describe('App', () => {
     ])
   })
 
+  it('deals no run-out after a fold, and the full board after a bet', async () => {
+    const view = puzzleFixture('facing_postflop_raise')
+    const fold = attemptFixture('fold')
+    fakeServer({ puzzles: [view], attempt: fold })
+    const { user } = setup()
+    await user.type(await screen.findByRole('textbox', { name: 'Equity' }), '45')
+    await user.click(screen.getByRole('button', { name: /^Fold/ }))
+    await user.click(screen.getByRole('button', { name: /^Submit/ }))
+    await screen.findByRole('region', { name: 'Result' })
+    expect(document.querySelectorAll('[data-face="up"]').length).toBeGreaterThan(0)
+    for (const card of fold.reveal.runout.slice(view.board.length)) expect(inDom(card)).toBeNull()
+    for (const card of view.board) expect(inDom(card)).not.toBeNull()
+  })
+
+  it('shows all five board cards after a bet', async () => {
+    fakeServer()
+    const attempt = attemptFixture('bet')
+    const { user } = setup()
+    await answerCheck(user)
+    await screen.findByRole('region', { name: 'Result' })
+    for (const card of attempt.reveal.runout) expect(inDom(card)).not.toBeNull()
+  })
+
   it('announces the verdict, shows the answer in the history, and focuses Next', async () => {
     fakeServer()
     const { user } = setup()

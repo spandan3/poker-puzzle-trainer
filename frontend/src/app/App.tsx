@@ -14,7 +14,7 @@ import { TopBar } from '../components/TopBar/TopBar'
 import { decisionFromAttempt } from '../lib/decision'
 import type { Command } from '../lib/shortcuts'
 import { useShortcuts } from '../lib/shortcuts'
-import { answerEntry, VERDICT_LABELS, verdictLine } from '../lib/result'
+import { answerEntry, heroFolded, VERDICT_LABELS, verdictLine } from '../lib/result'
 import { seatsFromView } from '../lib/seats'
 import styles from './App.module.css'
 
@@ -205,11 +205,11 @@ export function App({ api }: AppProps = {}) {
                 }))}
                 centre={
                   <TableCentre
-                    board={result ? result.reveal.runout : view.board}
+                    board={result && !heroFolded(result) ? result.reveal.runout : view.board}
                     potChips={view.pot}
                     potOdds={view.pot_odds}
                     showPotOdds={showPotOdds}
-                    dealFrom={result ? view.board.length : 0}
+                    dealFrom={result && !heroFolded(result) ? view.board.length : 0}
                     dealBaseMs={result ? RUNOUT_BASE_MS : BOARD_DEAL_BASE_MS}
                     dealStaggerMs={result ? RUNOUT_STAGGER_MS : BOARD_DEAL_STAGGER_MS}
                   />

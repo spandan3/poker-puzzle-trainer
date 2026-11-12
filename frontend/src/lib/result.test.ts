@@ -7,6 +7,7 @@ import {
   chosenLabel,
   guessLines,
   optionLabel,
+  heroFolded,
   showdownLine,
   verdictLine,
 } from './result'
@@ -92,6 +93,18 @@ describe('guessLines', () => {
 describe('showdownLine', () => {
   it('names the winner', () => {
     expect(showdownLine(attemptFixture('bet'))).toBe('Hero wins: Pair vs Pair')
+  })
+
+  it('says there is no showdown after a fold', () => {
+    expect(showdownLine(attemptFixture('fold'))).toBe("You folded, so there's no showdown.")
+  })
+})
+
+describe('heroFolded', () => {
+  it('is true for a fold on any street, false otherwise', () => {
+    expect(heroFolded(attemptFixture('fold'))).toBe(true)
+    expect(heroFolded(attemptFixture('fold_preflop'))).toBe(true)
+    expect(heroFolded(attemptFixture('bet'))).toBe(false)
   })
 })
 

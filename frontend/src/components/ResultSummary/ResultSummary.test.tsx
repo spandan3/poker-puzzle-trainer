@@ -5,7 +5,7 @@ import { attemptFixture } from '../../test/fixture'
 import { ResultSummary } from './ResultSummary'
 
 describe('ResultSummary', () => {
-  it('shows the verdict, the guesses, the profile and the note', () => {
+  it('shows the verdict, the guesses and the note (Villain and the run-out are in the Hand tab)', () => {
     const result = attemptFixture('bet')
     render(<ResultSummary result={result} onNext={() => {}} onDetails={() => {}} shortcutsOn />)
     const status = screen.getByRole('region', { name: 'Result' })
@@ -14,7 +14,8 @@ describe('ResultSummary', () => {
     expect(screen.getByRole('region', { name: 'Result' })).toHaveAttribute('data-verdict', 'best')
     expect(screen.getByText(/you 45% · actual 46.4%/)).toBeVisible()
     expect(screen.getByText(/you 50% · actual 47.0%/)).toBeVisible()
-    expect(screen.getByText('LAG')).toBeVisible()
+    expect(screen.queryByText('LAG')).toBeNull()
+    expect(screen.queryByText(/Hero wins/)).toBeNull()
     expect(screen.getByText(result.judged_on_range_note)).toBeVisible()
     expect(screen.getByText(result.grade.intent_flag!)).toBeVisible()
   })
