@@ -196,13 +196,19 @@ def _clamp(x: float) -> float:
 
 def _stats_answer(p: Puzzle, k: int) -> dict[str, Any]:
     """A deterministic answer for first attempt ``k``: mostly the best option, every fourth a
-    rotating other one; equity guesses a little high on average, range reads around the truth."""
+    fold when folding isn't best (so the "Folding too often" leak shows), else a rotating other
+    one; equity guesses about 9 pts high on average (the "Overestimating your equity" leak),
+    range reads around the truth."""
     sol = p.solution
-    index = sol.best if k % 4 != 3 else (k // 4) % len(sol.options)
+    index = sol.best
+    if k % 4 == 3:
+        folds = [i for i, o in enumerate(sol.options) if o.option.action.kind == ActionKind.FOLD]
+        best_kind = sol.options[sol.best].option.action.kind
+        index = folds[0] if folds and best_kind != ActionKind.FOLD else (k // 4) % len(sol.options)
     kind = sol.options[index].option.action.kind
     body: dict[str, Any] = {
         "option": index,
-        "equity_guess": _clamp(sol.equity + ((k * 7) % 21 - 6) / 100),
+        "equity_guess": _clamp(sol.equity + ((k * 8) % 21 - 1) / 100),
     }
     if sol.ahead_now is not None:
         body["range_read_guess"] = _clamp(sol.ahead_now + ((k * 11) % 25 - 12) / 100)

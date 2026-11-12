@@ -38,6 +38,9 @@ def test_write_stats_fixtures(tmp_path, cached_puzzles):
     assert {"best", "mistake"} <= {
         v for row in stats.breakdowns.street for v, c in row.verdicts.model_dump().items() if c
     }
+    # the scripted answers show leaks of both kinds (the Progress page's leak list)
+    assert len(stats.leaks) >= 2
+    assert {leak.kind for leak in stats.leaks} == {"share", "mean"}
 
     empty = StatsView.model_validate(_load(tmp_path / "a" / "stats_empty.json"))
     assert empty.totals.first_attempts == 0 and empty.trend == []
