@@ -134,14 +134,14 @@ describe('TopBar', () => {
       expect(props.onNavigate).not.toHaveBeenCalled()
     })
 
-    it('shows the puzzle controls on Puzzles only; Help stays', () => {
-      const { props } = setup({ page: 'progress' })
+    it('shows the puzzle controls and Help on Puzzles only', () => {
+      setup({ page: 'progress' })
       expect(screen.queryByRole('combobox', { name: 'Street' })).toBeNull()
       expect(screen.queryByRole('combobox', { name: 'Villain' })).toBeNull()
       expect(screen.queryByRole('switch')).toBeNull()
       expect(screen.queryByRole('button', { name: 'New puzzle' })).toBeNull()
-      expect(screen.getByRole('button', { name: 'Keyboard shortcuts help' })).toBeInTheDocument()
-      expect(props.onHelp).not.toHaveBeenCalled()
+      // shortcuts are off on Progress: no help button either
+      expect(screen.queryByRole('button', { name: 'Keyboard shortcuts help' })).toBeNull()
     })
   })
 })

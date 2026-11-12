@@ -10,9 +10,9 @@ export interface LeakListProps {
 export function LeakList({ leaks }: LeakListProps) {
   return (
     <section aria-labelledby="leaks-title" className={styles.section}>
-      <h2 id="leaks-title" className={styles.h2}>
+      <h3 id="leaks-title" className={styles.sectionTitle}>
         Leaks
-      </h2>
+      </h3>
       {leaks.length === 0 ? (
         <p className={styles.card}>No leaks spotted in your last 200 puzzles.</p>
       ) : (
@@ -20,7 +20,7 @@ export function LeakList({ leaks }: LeakListProps) {
           {leaks.map((leak) => (
             <li key={leak.id} className={styles.leak} data-kind={leak.kind}>
               <div className={styles.leakHead}>
-                <h3 className={styles.leakTitle}>{leak.title}</h3>
+                <h4 className={styles.leakTitle}>{leak.title}</h4>
                 {leak.ev_lost_bb !== null && (
                   <span className={styles.cost}>{bb1(leak.ev_lost_bb)} lost</span>
                 )}

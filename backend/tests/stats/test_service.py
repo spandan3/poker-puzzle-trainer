@@ -388,7 +388,9 @@ def test_breakdown_orders_labels_and_values():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("name", ["Not/AZone", "../etc", "/etc/passwd", "Europe", "a" * 64, ""])
+@pytest.mark.parametrize(
+    "name", ["Not/AZone", "../etc", "/etc/passwd", "Europe", "a" * 64, "", "localtime", "Factory"]
+)
 def test_parse_tz_rejects(name):
     with pytest.raises(ValueError):
         parse_tz(name)

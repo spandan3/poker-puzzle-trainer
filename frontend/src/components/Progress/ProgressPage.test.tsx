@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/client'
@@ -66,12 +66,86 @@ describe('ProgressPage', () => {
     expect(tile('today')).toHaveTextContent(`${stats.days.current_streak}-day streak`)
   })
 
+  it('says "1 puzzle answered" and "1 practice attempt" in the singular', async () => {
+    const stats = structuredClone(statsFixture())
+    stats.totals = { ...stats.totals, first_attempts: 1, retries: 1 }
+    setup(fakeApi({ getStats: async () => stats }))
+    expect(await screen.findByTestId('progress-totals')).toHaveTextContent(
+      /^1 puzzle answered · 1 practice attempt$/,
+    )
+  })
+
+  it('colours the EV tile from the rounded difference: "same" is neutral', async () => {
+    const stats = structuredClone(statsFixture())
+    stats.headline = { ...stats.headline, ev_lost_bb_last50: 1.501, ev_lost_bb_prev50: 1.5 }
+    setup(fakeApi({ getStats: async () => stats }))
+    await screen.findByTestId('progress-totals')
+    const note = within(tile('ev')).getByText('same as the 50 before')
+    expect(note).not.toHaveAttribute('data-tone', 'good')
+    expect(note).not.toHaveAttribute('data-tone', 'bad')
+  })
+
+  it('colours a better EV tile good and a worse one bad', async () => {
+    setup(fakeApi())
+    await screen.findByTestId('progress-totals')
+    expect(within(tile('ev')).getByText(/better than/)).toHaveAttribute('data-tone', 'good')
+  })
+
+  it('nests headings: page h2, sections h3 (with a hidden Summary), chart titles h4', async () => {
+    setup(fakeApi())
+    await screen.findByTestId('progress-totals')
+    expect(screen.getByRole('heading', { level: 2, name: 'Progress' })).toBeVisible()
+    const h3 = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+    expect(h3).toEqual(['Summary', 'Trends', 'Daily goal', 'Leaks', 'Breakdown', 'History'])
+    expect(screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual(
+      expect.arrayContaining(['EV lost per decision', 'Equity error', 'Range-read error']),
+    )
+    expect(screen.queryAllByRole('heading', { level: 1 })).toHaveLength(0)
+  })
+
+  it('the Villain filter lists every profile from the settings, played or not', async () => {
+    const profiles = [
+      { name: 'tag', label: 'TAG' },
+      { name: 'maniac', label: 'Maniac (no attempts yet)' },
+    ]
+    render(
+      <ProgressPage
+        api={fakeApi()}
+        goal={null}
+        profiles={profiles}
+        onGoal={async () => true}
+        onReplay={vi.fn()}
+        onResult={vi.fn()}
+      />,
+    )
+    const select = await screen.findByLabelText('Villain', { selector: 'select' })
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['All', 'TAG', 'Maniac (no attempts yet)'])
+  })
+
+  it('the Villain filter falls back to the stats breakdown when the settings are not loaded', async () => {
+    setup(fakeApi())
+    const select = await screen.findByLabelText('Villain', { selector: 'select' })
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['All', ...statsFixture().breakdowns.profile.map((r) => r.label)])
+  })
+
   it('draws the three trend charts and the day chart, each with a data table', async () => {
     setup(fakeApi())
     await screen.findByTestId('progress-totals')
     expect(screen.getAllByTestId('line-chart')).toHaveLength(3)
     expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
     const evTable = screen.getByRole('table', { name: /EV lost per decision/ })
+    expect(within(evTable).getAllByRole('row')).toHaveLength(1) // rows only while open
+    const details = evTable.closest('details')!
+    details.open = true
+    fireEvent(details, new Event('toggle'))
     expect(within(evTable).getAllByRole('row')).toHaveLength(statsFixture().trend.length + 1)
     expect(screen.getByRole('table', { name: /Puzzles per day.*goal/ })).toBeInTheDocument()
   })

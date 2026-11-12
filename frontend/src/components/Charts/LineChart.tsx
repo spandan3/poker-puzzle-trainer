@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { chartScale } from '../../lib/stats'
 import styles from './Charts.module.css'
 
@@ -39,6 +40,8 @@ export function LineChart({
   width = 560,
   height = 240,
 }: LineChartProps) {
+  // the data table's rows exist only while it is open (a 500-row table would otherwise sit in the DOM)
+  const [open, setOpen] = useState(false)
   const all = series.flatMap((s) => s.points)
   const xs = all.map((p) => p.x)
   const xMin = xs.length > 0 ? Math.min(...xs) : 0
@@ -147,7 +150,10 @@ export function LineChart({
         })}
       </svg>
       <p className={styles.srOnly}>{summary}</p>
-      <details className={styles.data}>
+      <details
+        className={styles.data}
+        onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+      >
         <summary>Show data</summary>
         <div className={styles.dataTable}>
           <table>
@@ -163,7 +169,7 @@ export function LineChart({
               </tr>
             </thead>
             <tbody>
-              {rows.map((x) => (
+              {(open ? rows : []).map((x) => (
                 <tr key={x}>
                   <th scope="row">{x}</th>
                   {lookup.map((m, i) => {

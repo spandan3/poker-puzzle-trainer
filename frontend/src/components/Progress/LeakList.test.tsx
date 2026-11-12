@@ -18,6 +18,18 @@ describe('LeakList', () => {
     expect(items[1]).not.toHaveTextContent('lost')
   })
 
+  it('rounds the cost half up, like the backend (0.15 is "0.2 bb", not "0.1")', () => {
+    const leak = { ...statsFixture().leaks[0]!, ev_lost_bb: 0.15 }
+    render(<LeakList leaks={[leak]} />)
+    expect(screen.getByText('0.2 bb lost')).toBeVisible()
+  })
+
+  it('has a section heading with each leak title one level below', () => {
+    render(<LeakList leaks={statsFixture().leaks} />)
+    expect(screen.getByRole('heading', { level: 3, name: 'Leaks' })).toBeVisible()
+    expect(screen.getByRole('heading', { level: 4, name: 'Folding too often' })).toBeVisible()
+  })
+
   it('says so when there are none', () => {
     render(<LeakList leaks={[]} />)
     expect(screen.getByText('No leaks spotted in your last 200 puzzles.')).toBeVisible()

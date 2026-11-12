@@ -1,8 +1,7 @@
 import type { KeyboardEvent } from 'react'
 import { useId, useRef, useState } from 'react'
 import type { BreakdownRow, StatsView } from '../../api/types'
-import { formatEvBb } from '../../lib/format'
-import { pct, pts } from '../../lib/stats'
+import { bb2, pct, pts } from '../../lib/stats'
 import styles from './Progress.module.css'
 
 type TabId = 'street' | 'action' | 'profile'
@@ -57,7 +56,7 @@ function BreakdownTable({ rows, first }: { rows: BreakdownRow[]; first: string }
               <th scope="row">{r.label}</th>
               <td className={styles.num}>{r.count}</td>
               <td className={styles.num}>{pct(r.accuracy)}</td>
-              <td className={styles.num}>{formatEvBb(r.ev_lost_bb_avg)}</td>
+              <td className={styles.num}>{bb2(r.ev_lost_bb_avg)}</td>
               <td className={styles.num}>{pts(r.equity_error_avg)}</td>
               <td className={styles.num}>{r.verdicts.best}</td>
               <td className={styles.num}>{r.verdicts.fine}</td>
@@ -96,9 +95,9 @@ export function Breakdowns({ breakdowns }: BreakdownsProps) {
 
   return (
     <section aria-labelledby={`${baseId}-title`} className={styles.section}>
-      <h2 id={`${baseId}-title`} className={styles.h2}>
+      <h3 id={`${baseId}-title`} className={styles.sectionTitle}>
         Breakdown
-      </h2>
+      </h3>
       <div className={styles.card}>
         <div role="tablist" aria-label="Breakdown by" className={styles.tabs} onKeyDown={onKeyDown}>
           {TABS.map((tab) => (

@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type * as client from '../../api/client'
 import { ApiError } from '../../api/client'
@@ -25,6 +26,10 @@ export interface ProgressPageProps {
   onGoal: (goal: number) => Promise<boolean>
   /** a plain click on "Start a puzzle" goes here; without it the link is a normal navigation */
   onNavigate?: (page: Page) => void
+  /** Villain profiles from the settings (`null` until they arrive: the stats' own list shows) */
+  profiles?: { name: string; label: string }[] | null
+  /** the page heading, so the app can focus it after a page switch */
+  titleRef?: Ref<HTMLHeadingElement>
   /** "Replay" on a history row: answer that puzzle again (the app switches to Puzzles) */
   onReplay: (puzzleId: number) => void
   /** "Result" on a history row: reopen that attempt's stored result */
@@ -61,6 +66,8 @@ export function ProgressPage({
   goal,
   onGoal,
   onNavigate,
+  profiles = null,
+  titleRef,
   onReplay,
   onResult,
 }: ProgressPageProps) {
@@ -119,7 +126,9 @@ export function ProgressPage({
 
   return (
     <div className={styles.page} data-testid="progress-page">
-      <h2 className={styles.pageTitle}>Progress</h2>
+      <h2 className={styles.pageTitle} ref={titleRef} tabIndex={-1}>
+        Progress
+      </h2>
       {load.kind === 'loading' && (
         <p className={styles.status} role="status">
           Loading your progress…
@@ -167,7 +176,12 @@ export function ProgressPage({
             <Breakdowns breakdowns={load.stats.breakdowns} />
             <HistoryTable
               api={api}
-              profiles={load.stats.breakdowns.profile.map((r) => ({ key: r.key, label: r.label }))}
+              // every profile, played or not; the stats' own list when the settings aren't loaded
+              profiles={
+                profiles !== null
+                  ? profiles.map((p) => ({ key: p.name, label: p.label }))
+                  : load.stats.breakdowns.profile.map((r) => ({ key: r.key, label: r.label }))
+              }
               onReplay={onReplay}
               onResult={onResult}
             />

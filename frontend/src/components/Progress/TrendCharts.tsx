@@ -7,20 +7,21 @@ export interface TrendChartsProps {
   trend: TrendPoint[]
 }
 
-const ptsOf = (fraction: number) => `${fraction.toFixed(1)} pts`
+/** A value already in percentage points (the series are fractions x 100). */
+const formatPoints = (points: number) => `${points.toFixed(1)} pts`
 
 /** The EV-lost trend (full width), then equity error and range-read error side by side; all are rolling means over 50 puzzles. */
 export function TrendCharts({ trend }: TrendChartsProps) {
   return (
     <section aria-labelledby="trend-title" className={styles.section}>
-      <h2 id="trend-title" className={styles.h2}>
+      <h3 id="trend-title" className={styles.sectionTitle}>
         Trends
-      </h2>
+      </h3>
       <p className={styles.hint}>
         Each point averages your last 50 first attempts up to that puzzle.
       </p>
       <div className={styles.card}>
-        <h3 className={styles.h3}>EV lost per decision</h3>
+        <h4 className={styles.cardTitle}>EV lost per decision</h4>
         <LineChart
           title="EV lost per decision, rolling 50 puzzles"
           yLabel="bb"
@@ -37,11 +38,11 @@ export function TrendCharts({ trend }: TrendChartsProps) {
       </div>
       <div className={styles.pair}>
         <div className={styles.card}>
-          <h3 className={styles.h3}>Equity error</h3>
+          <h4 className={styles.cardTitle}>Equity error</h4>
           <LineChart
             title="Equity error, rolling 50 puzzles"
             yLabel="pts"
-            format={ptsOf}
+            format={formatPoints}
             series={[
               {
                 label: 'Equity error (pts)',
@@ -51,11 +52,11 @@ export function TrendCharts({ trend }: TrendChartsProps) {
           />
         </div>
         <div className={styles.card}>
-          <h3 className={styles.h3}>Range-read error</h3>
+          <h4 className={styles.cardTitle}>Range-read error</h4>
           <LineChart
             title="Range-read error, rolling 50 puzzles"
             yLabel="pts"
-            format={ptsOf}
+            format={formatPoints}
             series={[
               {
                 label: 'Range-read error (pts)',

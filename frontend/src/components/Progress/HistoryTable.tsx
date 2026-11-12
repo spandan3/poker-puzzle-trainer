@@ -39,10 +39,16 @@ const NO_FILTERS: Filters = { street: '', verdict: '', action: '', profile: '', 
 const VERDICTS: Verdict[] = ['best', 'fine', 'mistake', 'blunder']
 const ACTIONS: ActionKind[] = ['fold', 'check', 'call', 'bet', 'raise']
 
+/** A page and the offset it was fetched with (the range text must follow the rows on show). */
+interface Shown {
+  page: HistoryPage
+  offset: number
+}
+
 type Load =
-  | { kind: 'loading'; previous: HistoryPage | null }
-  | { kind: 'error'; message: string; previous: HistoryPage | null }
-  | { kind: 'ready'; page: HistoryPage }
+  | { kind: 'loading'; previous: Shown | null }
+  | { kind: 'error'; message: string; previous: Shown | null }
+  | { kind: 'ready'; shown: Shown }
 
 /** The date an attempt was made, in the viewer's time zone: "Nov 12". */
 function localDate(iso: string): string {
@@ -78,7 +84,7 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
     const mine = ++seq.current
     setLoad((now) => ({
       kind: 'loading',
-      previous: now.kind === 'ready' ? now.page : now.previous,
+      previous: now.kind === 'ready' ? now.shown : now.previous,
     }))
     api
       .getHistory({
@@ -92,14 +98,14 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
       })
       .then(
         (page) => {
-          if (mine === seq.current) setLoad({ kind: 'ready', page })
+          if (mine === seq.current) setLoad({ kind: 'ready', shown: { page, offset } })
         },
         (error: unknown) => {
           if (mine !== seq.current) return
           setLoad((now) => ({
             kind: 'error',
             message: errorMessage(error),
-            previous: now.kind === 'ready' ? now.page : now.previous,
+            previous: now.kind === 'ready' ? now.shown : now.previous,
           }))
         },
       )
@@ -110,12 +116,40 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
     setOffset(0)
   }, [])
 
-  const shown = load.kind === 'ready' ? load.page : load.previous
-  const total = shown?.total ?? 0
-  const items = shown?.items ?? []
+  const shown = load.kind === 'ready' ? load.shown : load.previous
+  const total = shown?.page.total ?? 0
+  const items = shown?.page.items ?? []
   const busy = load.kind === 'loading'
-  const from = total === 0 ? 0 : offset + 1
-  const to = Math.min(offset + HISTORY_PAGE_SIZE, total)
+  // the range follows the rows on show, not the page being fetched
+  const shownOffset = shown?.offset ?? 0
+  const from = total === 0 ? 0 : shownOffset + 1
+  const to = Math.min(shownOffset + HISTORY_PAGE_SIZE, total)
+  const atStart = offset === 0
+  const atEnd = offset + HISTORY_PAGE_SIZE >= total
+
+  // The pager buttons stay enabled while a page loads (a click then does nothing) and are
+  // disabled only at the ends. A button that has just become disabled must not hold focus: it
+  // goes to the other one.
+  const prevRef = useRef<HTMLButtonElement>(null)
+  const nextRef = useRef<HTMLButtonElement>(null)
+  const pressed = useRef<'prev' | 'next' | null>(null)
+  useEffect(() => {
+    const was = pressed.current
+    if (was === null) return
+    const [mine, other] =
+      was === 'prev' ? [prevRef.current, nextRef.current] : [nextRef.current, prevRef.current]
+    if (mine?.disabled === true) {
+      if (other?.disabled === false) other.focus()
+      pressed.current = null
+    } else if (!busy) {
+      pressed.current = null
+    }
+  })
+  const page = (delta: number) => {
+    if (busy) return
+    pressed.current = delta < 0 ? 'prev' : 'next'
+    setOffset(Math.max(0, offset + delta))
+  }
   const labelOf = (key: string) => profiles.find((p) => p.key === key)?.label ?? key
   // a profile with no first attempt isn't in the stats' list; keep a chosen one selectable
   const profileOptions =
@@ -125,9 +159,9 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
 
   return (
     <section className={styles.section} aria-labelledby={`${ids}-title`} data-testid="history">
-      <h2 className={styles.h2} id={`${ids}-title`}>
+      <h3 className={styles.sectionTitle} id={`${ids}-title`}>
         History
-      </h2>
+      </h3>
 
       <div className={styles.filters} role="group" aria-label="History filters">
         <label className={styles.filter}>
@@ -253,7 +287,13 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
                 </thead>
                 <tbody>
                   {items.map((row) => {
-                    const when = `${localDate(row.created_at)}, ${STREET_LABELS[row.street].toLowerCase()}`
+                    // unique enough to tell rows apart: date, street, verdict, and "practice" for a retry
+                    const when = [
+                      localDate(row.created_at),
+                      STREET_LABELS[row.street].toLowerCase(),
+                      VERDICT_LABELS[row.verdict].toLowerCase(),
+                      ...(row.is_first ? [] : ['practice']),
+                    ].join(', ')
                     return (
                       <tr key={row.attempt_id}>
                         <td>
@@ -307,8 +347,9 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
             <button
               type="button"
               className={styles.button}
-              disabled={offset === 0 || busy}
-              onClick={() => setOffset(Math.max(0, offset - HISTORY_PAGE_SIZE))}
+              ref={prevRef}
+              disabled={atStart}
+              onClick={() => page(-HISTORY_PAGE_SIZE)}
             >
               Previous
             </button>
@@ -318,8 +359,9 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
             <button
               type="button"
               className={styles.button}
-              disabled={offset + HISTORY_PAGE_SIZE >= total || busy}
-              onClick={() => setOffset(offset + HISTORY_PAGE_SIZE)}
+              ref={nextRef}
+              disabled={atEnd}
+              onClick={() => page(HISTORY_PAGE_SIZE)}
             >
               Next
             </button>

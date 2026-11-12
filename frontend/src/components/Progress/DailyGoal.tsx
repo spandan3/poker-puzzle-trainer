@@ -55,9 +55,9 @@ export function DailyGoal({ days, goal, onGoal, utcNote = false }: DailyGoalProp
 
   return (
     <section aria-labelledby={titleId} className={styles.section}>
-      <h2 id={titleId} className={styles.h2}>
+      <h3 id={titleId} className={styles.sectionTitle}>
         Daily goal
-      </h2>
+      </h3>
       <div className={styles.card}>
         <div className={styles.goalRow}>
           <div className={styles.goalInput}>

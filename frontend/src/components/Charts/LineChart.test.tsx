@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { LineChart } from './LineChart'
 
@@ -11,7 +11,34 @@ function setup(series: Parameters<typeof LineChart>[0]['series']) {
   return { container }
 }
 
+/** Opens the "Show data" disclosure (jsdom fires no toggle event by itself). */
+function openData() {
+  const details = document.querySelector('details')!
+  details.open = true
+  fireEvent(details, new Event('toggle'))
+}
+
 describe('LineChart', () => {
+  it('renders the data table rows only while the disclosure is open', () => {
+    setup([
+      {
+        label: 'A',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 2 },
+        ],
+      },
+    ])
+    const table = screen.getByRole('table', { name: 'EV lost' })
+    expect(within(table).getAllByRole('row')).toHaveLength(1) // the header only
+    openData()
+    expect(within(table).getAllByRole('row')).toHaveLength(3)
+    const details = document.querySelector('details')!
+    details.open = false
+    fireEvent(details, new Event('toggle'))
+    expect(within(table).getAllByRole('row')).toHaveLength(1)
+  })
+
   it('draws one path per series', () => {
     const { container } = setup([
       {
@@ -74,6 +101,7 @@ describe('LineChart', () => {
         ],
       },
     ])
+    openData()
     const table = screen.getByRole('table', { name: 'EV lost' })
     const rows = within(table).getAllByRole('row')
     expect(rows).toHaveLength(4) // header + 3

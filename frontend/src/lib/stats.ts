@@ -11,20 +11,45 @@ export function pct(x: number): string {
   return formatPct(x)
 }
 
-/** EV lost in bb with one decimal: `1.577` -> "1.6 bb". */
+/**
+ * EV lost in bb with one decimal, rounding half up as the backend does: `1.577` -> "1.6 bb",
+ * `0.15` -> "0.2 bb" (`toFixed` alone would give "0.1": 0.15 is stored just below).
+ */
 export function bb1(x: number): string {
-  return `${x.toFixed(1)} bb`
+  return `${(Math.floor(10 * x + 0.5) / 10).toFixed(1)} bb`
+}
+
+/** EV lost in bb with two fixed decimals, so a column lines up: `0.7` -> "0.70 bb". */
+export function bb2(x: number): string {
+  const n = Number(x.toFixed(2))
+  return `${n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)} bb`
+}
+
+export interface Delta {
+  text: string
+  /** `neutral` when the rounded difference is zero */
+  tone: 'good' | 'bad' | 'neutral'
 }
 
 /**
- * How the last 50 compare with the 50 before. EV lost is a cost, so lower is better. `null`
- * when either side is missing.
+ * How the last 50 compare with the 50 before. EV lost is a cost, so lower is better. The text
+ * and the tone come from the same rounded difference, so "same" is never coloured. `null` when
+ * either side is missing.
  */
-export function deltaText(last: number | null, prev: number | null): string | null {
+export function deltaText(last: number | null, prev: number | null): Delta | null {
   if (last === null || prev === null) return null
   const diff = Number(Math.abs(prev - last).toFixed(2))
-  if (diff === 0) return 'same as the 50 before'
-  return `${formatEvBb(diff)} ${last < prev ? 'better' : 'worse'} than the 50 before`
+  if (diff === 0) return { text: 'same as the 50 before', tone: 'neutral' }
+  const better = last < prev
+  return {
+    text: `${formatEvBb(diff)} ${better ? 'better' : 'worse'} than the 50 before`,
+    tone: better ? 'good' : 'bad',
+  }
+}
+
+/** "1 puzzle", "2 puzzles". */
+export function plural(n: number, one: string, many = `${one}s`): string {
+  return `${n} ${n === 1 ? one : many}`
 }
 
 /** The browser's IANA time zone, or "UTC" when it can't be read. */

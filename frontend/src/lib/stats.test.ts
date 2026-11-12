@@ -1,5 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { bb1, chartScale, deltaText, localTimeZone, pct, pts, shortDate } from './stats'
+import {
+  bb1,
+  bb2,
+  chartScale,
+  deltaText,
+  localTimeZone,
+  pct,
+  plural,
+  pts,
+  shortDate,
+} from './stats'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -20,6 +30,8 @@ describe('formatting', () => {
   it('shows bb with one decimal', () => {
     expect(bb1(1.5766)).toBe('1.6 bb')
     expect(bb1(140.17)).toBe('140.2 bb')
+    expect(bb1(0.15)).toBe('0.2 bb') // half up, like the backend (toFixed gives 0.1)
+    expect(bb1(0)).toBe('0.0 bb')
   })
 
   it('shortens a date without a time zone', () => {
@@ -31,17 +43,26 @@ describe('formatting', () => {
 
 describe('deltaText', () => {
   it('says better when EV lost fell', () => {
-    expect(deltaText(1.2, 1.5)).toBe('0.3 bb better than the 50 before')
+    expect(deltaText(1.2, 1.5)).toEqual({
+      text: '0.3 bb better than the 50 before',
+      tone: 'good',
+    })
   })
 
   it('says worse when EV lost rose', () => {
-    expect(deltaText(2.0, 1.5)).toBe('0.5 bb worse than the 50 before')
+    expect(deltaText(2.0, 1.5)).toEqual({
+      text: '0.5 bb worse than the 50 before',
+      tone: 'bad',
+    })
   })
 
   it('says same when the difference rounds to zero (2 decimals, as EV is shown)', () => {
-    expect(deltaText(1.5, 1.5)).toBe('same as the 50 before')
-    expect(deltaText(1.501, 1.5)).toBe('same as the 50 before')
-    expect(deltaText(1.52, 1.5)).toBe('0.02 bb worse than the 50 before')
+    expect(deltaText(1.5, 1.5)).toEqual({ text: 'same as the 50 before', tone: 'neutral' })
+    expect(deltaText(1.501, 1.5)).toEqual({ text: 'same as the 50 before', tone: 'neutral' })
+    expect(deltaText(1.52, 1.5)).toEqual({
+      text: '0.02 bb worse than the 50 before',
+      tone: 'bad',
+    })
   })
 
   it('is null when either side is missing', () => {
@@ -90,5 +111,19 @@ describe('chartScale', () => {
   it('has a unit scale for no data', () => {
     expect(chartScale(0).max).toBe(1)
     expect(chartScale(-3).max).toBe(1)
+  })
+})
+
+describe('bb2 and plural', () => {
+  it('bb2 keeps two decimals', () => {
+    expect(bb2(0)).toBe('0.00 bb')
+    expect(bb2(0.7)).toBe('0.70 bb')
+    expect(bb2(1.256)).toBe('1.26 bb')
+  })
+
+  it('plural agrees the noun with the count', () => {
+    expect(plural(1, 'puzzle')).toBe('1 puzzle')
+    expect(plural(0, 'puzzle')).toBe('0 puzzles')
+    expect(plural(2, 'practice attempt')).toBe('2 practice attempts')
   })
 })

@@ -12,8 +12,9 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from typing import Any
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, available_timezones
 
 from poker_trainer.stats import leaks
 
@@ -74,9 +75,24 @@ class StatRow:
         return self.verdict in GOOD_VERDICTS
 
 
+# Files that sit in a system tz directory (Linux, macOS) but are not zones: the machine's own
+# zone and the placeholder. Windows has neither, so both are refused everywhere.
+_NOT_ZONES = frozenset({"localtime", "Factory", "posixrules"})
+
+
+@lru_cache(maxsize=1)
+def _known_zones() -> frozenset[str]:
+    return frozenset(available_timezones()) - _NOT_ZONES
+
+
 def parse_tz(name: str) -> ZoneInfo:
     """The IANA zone ``name``; ``ValueError`` for an unknown or malformed name (a path, a
-    directory such as ``Europe``, an empty string)."""
+    directory such as ``Europe``, an empty string). Only names in ``available_timezones()`` (less
+    the non-zone files above) are accepted, so the answer is the same on Linux, macOS and Windows
+    (``ZoneInfo`` alone would also load ``localtime`` or ``Factory`` from a system tz directory).
+    ``UTC`` is always valid."""
+    if name != "UTC" and name not in _known_zones():
+        raise ValueError(f"unknown time zone {name!r}")
     try:
         return ZoneInfo(name)
     except (ValueError, KeyError, OSError) as e:  # KeyError covers ZoneInfoNotFoundError

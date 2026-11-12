@@ -373,14 +373,85 @@ describe('App', () => {
       expect(screen.getByRole('button', { name: /^Check/ })).toHaveAttribute('aria-pressed', 'true')
     })
 
-    it('the help button still opens the overlay on Progress', async () => {
+    it('the shortcuts help button is on Puzzles only', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      expect(screen.getByRole('button', { name: 'Keyboard shortcuts help' })).toBeVisible()
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      await screen.findByTestId('progress-totals')
+      expect(screen.queryByRole('button', { name: 'Keyboard shortcuts help' })).toBeNull()
+    })
+
+    it('a page switch scrolls to the top, sets the title, and focuses the Progress heading', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      expect(document.title).toBe('Poker Puzzle Trainer')
+      // nothing on the first render
+      expect(window.scrollTo).not.toHaveBeenCalled()
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'instant' })
+      expect(document.title).toBe('Progress · Poker Puzzle Trainer')
+      expect(screen.getByRole('heading', { level: 2, name: 'Progress' })).toHaveFocus()
+      vi.mocked(window.scrollTo).mockClear()
+      await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+      expect(window.scrollTo).toHaveBeenCalledTimes(1)
+      expect(document.title).toBe('Poker Puzzle Trainer')
+    })
+
+    it('landing on /progress sets the title but takes no focus and does not scroll', async () => {
+      window.history.replaceState(null, '', '/progress')
+      fakeServer()
+      setup()
+      const heading = await screen.findByRole('heading', { level: 2, name: 'Progress' })
+      await screen.findByTestId('progress-totals')
+      expect(document.title).toBe('Progress · Poker Puzzle Trainer')
+      expect(heading).not.toHaveFocus()
+      expect(window.scrollTo).not.toHaveBeenCalled()
+    })
+
+    it('Replay and Result scroll to the top too', async () => {
       fakeServer()
       const { user } = setup()
       await screen.findByRole('textbox', { name: 'Equity' })
       await user.click(screen.getByRole('link', { name: 'Progress' }))
-      await screen.findByTestId('progress-totals')
-      await user.click(screen.getByRole('button', { name: 'Keyboard shortcuts help' }))
-      expect(screen.getByRole('dialog')).toBeVisible()
+      vi.mocked(window.scrollTo).mockClear()
+      await user.click((await screen.findAllByRole('button', { name: /^Replay puzzle from / }))[0]!)
+      await screen.findByTestId('practice-note')
+      expect(window.scrollTo).toHaveBeenCalledTimes(1)
+    })
+
+    it('Replay is ignored while a load is in flight: the page stays on Progress', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      // a New puzzle request that never answers (skip is asked first, then confirmed)
+      const real = globalThis.fetch
+      vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) =>
+        String(input) === '/api/puzzles' && init?.method === 'POST'
+          ? new Promise<Response>(() => {})
+          : real(input, init),
+      )
+      await user.click(screen.getByRole('button', { name: /New puzzle/ }))
+      await user.click(screen.getByRole('button', { name: /New puzzle/ }))
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      const replay = (await screen.findAllByRole('button', { name: /^Replay puzzle from / }))[0]!
+      await user.click(replay)
+      expect(window.location.pathname).toBe('/progress')
+      expect(screen.getByRole('heading', { level: 2, name: 'Progress' })).toBeVisible()
+    })
+
+    it('the Villain filter on Progress lists every profile from the settings', async () => {
+      window.history.replaceState(null, '', '/progress')
+      fakeServer()
+      setup()
+      const select = await screen.findByLabelText('Villain', { selector: 'select' })
+      await waitFor(() =>
+        expect(within(select).getAllByRole('option')).toHaveLength(
+          settingsFixture().profiles.length + 1,
+        ),
+      )
     })
 
     it('modified clicks on the nav are left to the browser', async () => {

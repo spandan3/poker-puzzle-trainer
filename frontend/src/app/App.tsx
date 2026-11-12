@@ -136,6 +136,19 @@ export function App({ api, progressApi = client }: AppProps = {}) {
     }
   }, [state.kind, view?.id])
 
+  // A page switch: back to the top, the tab's title follows, and Progress's heading takes focus
+  // (the link that was clicked has just left the page's flow). Not on the first render.
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  const switchedFrom = useRef(page) // also makes StrictMode's second effect run a no-op
+  useEffect(() => {
+    document.title =
+      page === 'progress' ? 'Progress · Poker Puzzle Trainer' : 'Poker Puzzle Trainer'
+    if (switchedFrom.current === page) return
+    switchedFrom.current = page
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+    if (page === 'progress') titleRef.current?.focus({ preventScroll: true })
+  }, [page])
+
   const onNewPuzzle = () => {
     if (state.kind === 'answering') flow.requestSkip()
     else flow.newPuzzle()
@@ -200,16 +213,17 @@ export function App({ api, progressApi = client }: AppProps = {}) {
         <main className={styles.progress}>
           <ProgressPage
             api={progressApi}
+            profiles={settings?.profiles ?? null}
+            titleRef={titleRef}
             goal={settings?.daily_goal ?? null}
             onGoal={(goal) => flow.setSetting({ daily_goal: goal })}
             onNavigate={navigate}
             onReplay={(id) => {
-              flow.openPuzzle(id)
-              navigate('puzzles')
+              // ignored while a load or a submit is in flight: then stay on Progress
+              if (flow.openPuzzle(id)) navigate('puzzles')
             }}
             onResult={(attemptId) => {
-              flow.openAttempt(attemptId)
-              navigate('puzzles')
+              if (flow.openAttempt(attemptId)) navigate('puzzles')
             }}
           />
         </main>
