@@ -16,6 +16,7 @@ import * as client from '../api/client'
 import { ProgressPage } from '../components/Progress/ProgressPage'
 import type { ProgressApi } from '../components/Progress/ProgressPage'
 import { decisionFromAttempt } from '../lib/decision'
+import { useExplanation } from './useExplanation'
 import { usePage } from '../lib/page'
 import type { Command } from '../lib/shortcuts'
 import { useShortcuts } from '../lib/shortcuts'
@@ -155,6 +156,7 @@ export function App({ api, progressApi = client }: AppProps = {}) {
     else flow.newPuzzle()
   }
 
+  const explained = useExplanation(result, settings)
   const showPotOdds = settings?.show_pot_odds ?? true
   const showProfile = settings?.show_profile ?? true
 
@@ -300,7 +302,15 @@ export function App({ api, progressApi = client }: AppProps = {}) {
                 <DecisionDetails
                   ref={detailsRef}
                   decision={decisionFromAttempt(view, result)}
-                  whyTab={<ExplanationPanel explanation={result.explanation} />}
+                  whyTab={
+                    <ExplanationPanel
+                      explanation={explained?.explanation ?? result.explanation}
+                      pendingModel={explained?.pendingModel}
+                      requestFailed={explained?.requestFailed}
+                      llmStatus={settings?.llm_status}
+                      llmDetail={settings?.llm_detail}
+                    />
+                  }
                   handTab={<HandReveal view={view} result={result} />}
                 />
               </div>

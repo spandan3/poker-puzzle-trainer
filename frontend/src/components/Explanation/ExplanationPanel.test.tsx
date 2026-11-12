@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { Explanation } from '../../api/types'
 import { formatEvBb, formatPct } from '../../lib/format'
 import { guessLines } from '../../lib/result'
-import { attemptFixture, fixtureNames } from '../../test/fixture'
+import { attemptFixture, explanationLlmFixture, fixtureNames } from '../../test/fixture'
 import { ExplanationPanel } from './ExplanationPanel'
 
 const explanation: Explanation = {
@@ -89,5 +89,86 @@ describe('suits', () => {
     expect(text).toContain('A♥\uFE0E K♠\uFE0E')
     expect(text).toContain('Q♥\uFE0E J♦\uFE0E T♥\uFE0E.')
     expect(text).not.toContain('\uFE0F')
+  })
+})
+
+describe('status line and footer', () => {
+  const footer = (container: HTMLElement) =>
+    container.firstElementChild?.lastElementChild?.textContent
+  const llm = explanationLlmFixture()
+  const fallback = (f: Explanation['fallback']): Explanation => ({ ...explanation, fallback: f })
+
+  it('shows a status line while the rewrite is pending', () => {
+    render(<ExplanationPanel explanation={explanation} pendingModel="llama3.2:3b" />)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Rewriting in plain English with llama3.2:3b…',
+    )
+  })
+
+  it('has no status line otherwise', () => {
+    render(<ExplanationPanel explanation={explanation} />)
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('template: the trainer wrote it', () => {
+    const { container } = render(<ExplanationPanel explanation={explanation} llmStatus="ready" />)
+    expect(footer(container)).toBe('Written by the trainer from the graded numbers.')
+  })
+
+  it('llm: names the model', () => {
+    const { container } = render(<ExplanationPanel explanation={llm} llmStatus="ready" />)
+    expect(llm.source).toBe('llm')
+    expect(footer(container)).toBe(
+      `Reworded by ${llm.model}, a local model. Every number in it was checked against the grader's numbers.`,
+    )
+  })
+
+  it('off: points to the setup', () => {
+    const { container } = render(<ExplanationPanel explanation={explanation} llmStatus="off" />)
+    expect(footer(container)).toBe(
+      'Explanations come from templates. A local model (Ollama) can reword them: see backend/.env.example.',
+    )
+  })
+
+  it('unavailable: shows the settings detail', () => {
+    const { container } = render(
+      <ExplanationPanel
+        explanation={explanation}
+        llmStatus="unavailable"
+        llmDetail="model llama3.2:3b is not pulled"
+      />,
+    )
+    expect(footer(container)).toBe(
+      "The local model isn't available: model llama3.2:3b is not pulled.",
+    )
+  })
+
+  it.each([
+    [
+      'guardrail',
+      "The local model's text used a number the grader didn't compute, so the trainer's own text is shown.",
+    ],
+    ['timeout', "The local model didn't answer in time."],
+    ['error', "The local model's answer couldn't be used, so the trainer's own text is shown."],
+    ['invalid', "The local model's answer couldn't be used, so the trainer's own text is shown."],
+  ] as const)('fallback %s', (f, text) => {
+    const { container } = render(<ExplanationPanel explanation={fallback(f)} llmStatus="ready" />)
+    expect(footer(container)).toBe(text)
+  })
+
+  it('fallback unavailable uses the detail', () => {
+    const { container } = render(
+      <ExplanationPanel explanation={fallback('unavailable')} llmDetail="Ollama is not running" />,
+    )
+    expect(footer(container)).toBe("The local model isn't available: Ollama is not running.")
+  })
+
+  it('a failed request is noted', () => {
+    const { container } = render(
+      <ExplanationPanel explanation={explanation} llmStatus="ready" requestFailed />,
+    )
+    expect(footer(container)).toBe(
+      "The local model couldn't be reached, so the trainer's own text is shown.",
+    )
   })
 })

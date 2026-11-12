@@ -150,6 +150,52 @@ for (const [width, height] of [
   })
 }
 
+/** Answers the first action and submits, leaving the result on screen. */
+async function submitAnyAnswer(page: Page) {
+  await page.getByRole('textbox', { name: 'Equity' }).fill('50')
+  await page.keyboard.press('Escape')
+  await page.locator('[aria-label="Action"] button:not([aria-disabled])').first().click()
+  const size = page.getByRole('group', { name: 'Size' }).getByRole('button')
+  if (await size.count()) await size.first().click()
+  await page.getByRole('button', { name: /^Submit/ }).click()
+  await expect(page.getByRole('region', { name: 'Result' })).toBeVisible()
+}
+
+test('Why tab: pending line, then the local model’s text and its footer', async ({ page }) => {
+  const read = (name: string) =>
+    readFileSync(resolve(import.meta.dirname, `../src/test/fixtures/${name}.json`), 'utf8')
+  const settings = {
+    ...JSON.parse(read('settings')),
+    llm_status: 'ready',
+    llm_model: 'llama3.2:3b',
+  }
+  await page.route('**/api/settings', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(settings),
+        })
+      : route.fallback(),
+  )
+  await page.route('**/api/attempts/*/explanation', async (route) => {
+    await new Promise((r) => setTimeout(r, 800))
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: read('explanation_llm'),
+    })
+  })
+  await page.goto('/')
+  await submitAnyAnswer(page)
+  const panel = page.getByRole('tabpanel')
+  await page.getByRole('tab', { name: 'Why' }).click()
+  await expect(panel.getByRole('status')).toHaveText('Rewriting in plain English with llama3.2:3b…')
+  await expect(panel.getByText(/^In short: /)).toBeVisible()
+  await expect(panel.getByRole('status')).toHaveCount(0)
+  await expect(panel.getByText(/^Reworded by llama3\.2:3b, a local model\./)).toBeVisible()
+})
+
 test('progress page: no dead space below the content at 1280×800', async ({ page }) => {
   const stats = readFileSync(
     resolve(import.meta.dirname, '../src/test/fixtures/stats.json'),

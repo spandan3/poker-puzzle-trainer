@@ -34,3 +34,11 @@
   color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
+
+.pending {
+  max-width: 70ch;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-style: italic;
+}

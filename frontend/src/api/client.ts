@@ -3,6 +3,7 @@ import type {
   AttemptIn,
   AttemptResult,
   AttemptSummary,
+  Explanation,
   Health,
   HistoryPage,
   NewPuzzleIn,
@@ -123,4 +124,20 @@ export function getHistory(params: HistoryParams = {}): Promise<HistoryPage> {
 /** A stored result, as `POST .../attempts` returned it. */
 export function getAttempt(id: number): Promise<AttemptResult> {
   return request('GET', `/api/attempts/${id}`)
+}
+
+/** The explanation of a stored attempt, reworded by the local model when one is set up. */
+export async function getExplanation(
+  attemptId: number,
+  signal?: AbortSignal,
+): Promise<Explanation> {
+  let res: Response
+  try {
+    res = await fetch(`/api/attempts/${attemptId}/explanation`, { method: 'GET', signal })
+  } catch (cause) {
+    if (signal?.aborted) throw cause
+    throw new ApiError(0, cause instanceof Error ? cause.message : 'network error')
+  }
+  if (!res.ok) throw await failure(res)
+  return (await readBody(res)) as Explanation
 }

@@ -3,7 +3,7 @@ import { DecisionDetails } from '../../components/Decision/DecisionDetails'
 import { ExplanationPanel } from '../../components/Explanation/ExplanationPanel'
 import { ResultSummary } from '../../components/ResultSummary/ResultSummary'
 import { decisionFromAttempt } from '../../lib/decision'
-import { attemptFixture, puzzleFixture } from '../../test/fixture'
+import { attemptFixture, explanationLlmFixture, puzzleFixture } from '../../test/fixture'
 import { neverContinuesAttempt } from '../../test/synthetic'
 import type { GalleryEntry } from '../Gallery'
 
@@ -58,6 +58,55 @@ const cases = [
   },
 ]
 
+const bet = attemptFixture('bet')
+const whyView = puzzleFixture('flop_unopened')
+const llmModel = explanationLlmFixture().model ?? 'llama3.2:3b'
+
+const whyStates: { title: string; panel: ReactNode }[] = [
+  {
+    title: 'Why tab, reworded by the local model',
+    panel: <ExplanationPanel explanation={explanationLlmFixture()} llmStatus="ready" />,
+  },
+  {
+    title: 'Why tab, waiting for the local model',
+    panel: (
+      <ExplanationPanel explanation={bet.explanation} pendingModel={llmModel} llmStatus="ready" />
+    ),
+  },
+  {
+    title: 'Why tab, fallback: the guardrail rejected the text',
+    panel: (
+      <ExplanationPanel
+        explanation={{ ...bet.explanation, fallback: 'guardrail' }}
+        llmStatus="ready"
+      />
+    ),
+  },
+  {
+    title: 'Why tab, fallback: timeout',
+    panel: (
+      <ExplanationPanel
+        explanation={{ ...bet.explanation, fallback: 'timeout' }}
+        llmStatus="ready"
+      />
+    ),
+  },
+  {
+    title: 'Why tab, model unavailable',
+    panel: (
+      <ExplanationPanel
+        explanation={bet.explanation}
+        llmStatus="unavailable"
+        llmDetail="Ollama is not running"
+      />
+    ),
+  },
+  {
+    title: 'Why tab, model off',
+    panel: <ExplanationPanel explanation={bet.explanation} llmStatus="off" />,
+  },
+]
+
 const entry: GalleryEntry = {
   title: 'Results',
   render: () => (
@@ -74,6 +123,11 @@ const entry: GalleryEntry = {
           </Demo>
         )
       })}
+      {whyStates.map(({ title, panel }) => (
+        <Demo key={title} title={title}>
+          <DecisionDetails decision={decisionFromAttempt(whyView, bet)} whyTab={panel} />
+        </Demo>
+      ))}
     </div>
   ),
 }
