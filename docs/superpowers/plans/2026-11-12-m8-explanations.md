@@ -220,3 +220,35 @@ The intent flag and the "judged on range" note stay where they are (ResultSummar
 - urllib ignores system proxies, maps both timeout forms, orders `HTTPError` before `URLError`; the cache is locked and duplicate requests wait for the in-flight one.
 - Timeout 60 s with `keep_alive`. PATCH settings does not probe.
 
+
+## Follow-up after the final M8 review
+
+Decisions made while building (controller rulings):
+- Branch `m8-explanations`; once pushed, review fixes went in as new commits (no amends).
+- The verdict section is titled "The verdict" (not "Why", which is the tab's name). The Why tab is first and the default; the stored tab key moved to `ppt.resultTab.v2` so existing users see Why once.
+- Suits in the Why text are forced to text presentation (U+FE0E) in the panel; the API text is unchanged.
+- The template never says "win" or "lost": "takes the pot uncontested", "your choice gives up X bb". The highest-EV bet is "the most profitable bet" (not "best", a verdict word).
+- When a custom size loses nothing but is not the listed best, the choice paragraph says it "matched or beat the top listed play"; the headline follows `verdictLine`.
+- Every shown bet or raise (best or chosen) compares Villain's fold frequency with the fold equity it needs ("folds alone pay for it" / "relies on your X equity"), with the formula only when it reproduces the API number. The pot-odds sentence says "would beat" when neither call nor fold is chosen or best, and "exactly what it needs" / "falls just short" when the rounded numbers are equal.
+- Range steps are grouped by street ("Flop: checks, then raises to 4.5 bb").
+- Guardrail, beyond the plan: card tokens are compared as cards; ordinals, decade plurals, "thrice", "-fold" words, leading-dot decimals, ratios ("2 to 1", "1/3", "3:1", "50/50") and scientific notation count as numbers. "Percent" counts as %, "big blinds" as bb.
+- Claim checks on model text (`guardrail.check_claims`, fallback `guardrail`): only the actual verdict word may appear; the headline names the top play (and the chosen play when it lost); no result phrases ("won", "showdown", "lost the hand", "you/Villain win(s) the hand / at showdown", "Villain had/held a/an/the/<card>", "Villain's hand was").
+- The prompt lists the verdict words and the banned result words and contains no number (tested).
+- The explanation endpoint closes its DB session before calling the model. Duplicate requests wait for the in-flight one (up to `llm_timeout` + 5 s, then `timeout`). Only successes and guardrail rejections are cached, keyed by (attempt, model).
+- Footer texts added beyond the plan: `error`/`invalid` ("The local model's answer couldn't be used, so the trainer's own text is shown.") and a failed request ("The local model couldn't be reached, so the trainer's own text is shown."). The guardrail footer mentions "numbers and verdict". The unavailable footer adds "Reload the page once it's ready."
+- Ollama was not run in this container (downloads are blocked). The client is tested against a fake local server only; a real model check is left to the user on their own machine.
+
+## Open items for M9 and later (from the M8 reviews)
+
+- **Manual check (M9 sign-off):** run with a real model (`ollama pull llama3.2:3b`, `PPT_LLM_PROVIDER=ollama`), answer ten puzzles across streets, and note how often the guardrail rejects the model's text. If most are rejected, loosen the prompt or the claim rules (rejections only cost quality, never correctness).
+- **Guardrail limits** (stated in `guardrail.py`): a number swapped for another number from the facts, a flipped sign, a swapped headline order ("Check was the top play" when it lost but both names appear) and non-verdict praise ("a great play" on a Blunder) pass. Consider a headline-order check.
+- **Ollama version:** the probe doesn't call `/api/version`; an Ollama older than 0.5 shows "ready" and fails per request (`error`).
+- **Settings freshness:** the LLM status is read once per page load (PATCH doesn't probe); starting Ollama needs a reload. A settings page (M11) could refresh it.
+- **M11, layout:** the sticky Action panel overlaps the full-width Details region when the page is scrolled (since M6; `App.module.css` `.side` sticky in the `.main` grid).
+- **M11, Maths tab:** it still prints "X is above X" when equity and pot odds round to the same text, while the Why text now says "exactly what it needs".
+- **Wording:** hole cards keep the API order ("2♦ A♥"); EVs to 2 dp can differ from the EV lost by 0.01 (as in the Options table).
+- **Narrative in the side panel** (spec §11 "optionally the LLM narrative"): the narrative is only in the Why tab after an answer.
+- **Per-profile behaviour notes** (from M6/M7): the Villain section uses the profile's label and description and the range steps; richer notes need Villain-branch profile data.
+- **Leak texts** (`stats/leaks.py`) could share the explainer's format helpers.
+- **README (M9):** document the Ollama setup from `backend/.env.example`.
+- Carried from M7 and M6 unchanged: see the end of `2026-11-12-m7-progress.md`.
