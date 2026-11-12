@@ -62,7 +62,7 @@ export function App({ api, progressApi = client }: AppProps = {}) {
   const [puzzlesSeen, setPuzzlesSeen] = useState(page === 'puzzles')
   if (page === 'puzzles' && !puzzlesSeen) setPuzzlesSeen(true)
   const onPuzzles = page === 'puzzles'
-  const flow = usePuzzleFlow(api, { enabled: puzzlesSeen || onPuzzles })
+  const flow = usePuzzleFlow(api, { enabled: puzzlesSeen })
   const { state, settings } = flow
   const [helpOpen, setHelpOpen] = useState(false)
   const [shortcutsOn, setShortcutsOnState] = useState(readShortcutsOn)

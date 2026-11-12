@@ -84,7 +84,21 @@ export function ProgressPage({ api, goal, onGoal, onNavigate }: ProgressPageProp
     fetchNow(false)
   }, [fetchNow])
 
+  // The stats count days against their own goal; when the setting differs (it was changed
+  // elsewhere, or the stats are older), fetch again once per goal value so the page shows one goal.
+  const refetchedFor = useRef<number | null>(null)
+  const statsGoal = load.kind === 'ready' ? load.stats.days.goal : null
+  useEffect(() => {
+    if (statsGoal === null || goal === null || goal === statsGoal) return
+    if (refetchedFor.current === goal) return
+    refetchedFor.current = goal
+    fetchNow(true)
+  }, [goal, statsGoal, fetchNow])
+
   const saveGoal = async (next: number): Promise<boolean> => {
+    // the setting changes at once (optimistic): the stats are fetched when the save succeeds,
+    // not for the unsaved value
+    refetchedFor.current = next
     const saved = await onGoal(next)
     if (saved) fetchNow(true)
     return saved

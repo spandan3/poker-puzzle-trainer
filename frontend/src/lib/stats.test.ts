@@ -38,9 +38,10 @@ describe('deltaText', () => {
     expect(deltaText(2.0, 1.5)).toBe('0.5 bb worse than the 50 before')
   })
 
-  it('says same when the rounded difference is zero', () => {
+  it('says same when the difference rounds to zero (2 decimals, as EV is shown)', () => {
     expect(deltaText(1.5, 1.5)).toBe('same as the 50 before')
-    expect(deltaText(1.52, 1.5)).toBe('same as the 50 before')
+    expect(deltaText(1.501, 1.5)).toBe('same as the 50 before')
+    expect(deltaText(1.52, 1.5)).toBe('0.02 bb worse than the 50 before')
   })
 
   it('is null when either side is missing', () => {

@@ -1,6 +1,6 @@
 import type { TrendPoint } from '../../api/types'
 import { LineChart } from '../Charts/LineChart'
-import { bb1 } from '../../lib/stats'
+import { formatEvBb } from '../../lib/format'
 import styles from './Progress.module.css'
 
 export interface TrendChartsProps {
@@ -24,7 +24,7 @@ export function TrendCharts({ trend }: TrendChartsProps) {
         <LineChart
           title="EV lost per decision, rolling 50 puzzles"
           yLabel="bb"
-          format={bb1}
+          format={formatEvBb}
           width={1120}
           height={260}
           series={[

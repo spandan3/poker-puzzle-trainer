@@ -10,7 +10,7 @@ export const GOAL_MAX = 500
 
 export interface DailyGoalProps {
   days: StatsView['days']
-  /** the goal to show (the setting; it can be ahead of `days.goal` until the stats refetch) */
+  /** the goal setting, shown in the box (it can be ahead of `days.goal` until the stats refetch); everything computed shows `days.goal` */
   goal: number
   /** saves the goal; resolves true when it was saved */
   onGoal: (goal: number) => Promise<boolean>
@@ -21,6 +21,7 @@ export interface DailyGoalProps {
 /** Puzzles per day for two weeks against the goal, and the goal input (commits on Enter or blur). */
 export function DailyGoal({ days, goal, onGoal, utcNote = false }: DailyGoalProps) {
   const inputId = useId()
+  const titleId = useId()
   const errorId = useId()
   const [draft, setDraft] = useState(String(goal))
   const [seen, setSeen] = useState(goal)
@@ -41,9 +42,8 @@ export function DailyGoal({ days, goal, onGoal, utcNote = false }: DailyGoalProp
     }
     setError(null)
     if (n === goal) return
-    void onGoal(n).then((saved) => {
-      if (!saved) setDraft(String(goal))
-    })
+    // a failed save reverts the setting, and the box follows it back
+    void onGoal(n)
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -54,8 +54,8 @@ export function DailyGoal({ days, goal, onGoal, utcNote = false }: DailyGoalProp
   }
 
   return (
-    <section aria-labelledby="goal-title" className={styles.section}>
-      <h2 id="goal-title" className={styles.h2}>
+    <section aria-labelledby={titleId} className={styles.section}>
+      <h2 id={titleId} className={styles.h2}>
         Daily goal
       </h2>
       <div className={styles.card}>
@@ -79,7 +79,7 @@ export function DailyGoal({ days, goal, onGoal, utcNote = false }: DailyGoalProp
             />
           </div>
           <p className={styles.goalSummary}>
-            Today {days.today} / {goal} · current streak {days.current_streak} · best{' '}
+            Today {days.today} / {days.goal} · current streak {days.current_streak} · best{' '}
             {days.best_streak}
           </p>
         </div>
@@ -95,7 +95,7 @@ export function DailyGoal({ days, goal, onGoal, utcNote = false }: DailyGoalProp
         )}
         <BarChart
           title="Puzzles per day, last 14 days"
-          goal={goal}
+          goal={days.goal}
           width={1120}
           height={240}
           bars={days.recent.map((d) => ({ label: shortDate(d.date), value: d.count }))}

@@ -43,11 +43,14 @@ describe('DailyGoal', () => {
     expect(onGoal).not.toHaveBeenCalled()
   })
 
-  it('puts the old goal back when the save fails', async () => {
-    const { user } = setup(vi.fn(async () => false))
-    await user.clear(input())
-    await user.type(input(), '9{Enter}')
-    await vi.waitFor(() => expect(input()).toHaveValue(3))
+  it('shows the stats goal in the summary and the chart, not the box value', () => {
+    setup(
+      vi.fn(async () => true),
+      8,
+    )
+    expect(input()).toHaveValue(8)
+    expect(screen.getByText(/Today 1 \/ 3/)).toBeVisible()
+    expect(screen.getByTestId('bar-chart')).toHaveAccessibleName(/goal 3/)
   })
 
   it('follows a goal that changes from outside', () => {
