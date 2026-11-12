@@ -1,12 +1,6 @@
 import { forwardRef } from 'react'
 import type { AttemptResult } from '../../api/types'
-import {
-  guessLines,
-  SCORE_LABELS,
-  showdownLine,
-  VERDICT_LABELS,
-  verdictLine,
-} from '../../lib/result'
+import { guessLines, SCORE_LABELS, VERDICT_LABELS, verdictLine } from '../../lib/result'
 import styles from './ResultSummary.module.css'
 
 export interface ResultSummaryProps {
@@ -21,12 +15,11 @@ export interface ResultSummaryProps {
 }
 
 /**
- * The end of a puzzle, in place of the answer panel: the verdict, guesses vs truth, the
- * revealed profile, "Details" and "Next puzzle". The working is in `DecisionDetails` below.
+ * The end of a puzzle, in place of the answer panel: the verdict, guesses vs truth, "Details" and "Next puzzle". The working is in `DecisionDetails` below.
  */
 export const ResultSummary = forwardRef<HTMLButtonElement, ResultSummaryProps>(
   function ResultSummary({ result, onNext, loading = false, shortcutsOn, onDetails }, nextRef) {
-    const { grade, reveal } = result
+    const { grade } = result
     const verdict = VERDICT_LABELS[grade.verdict]
     return (
       <section className={styles.strip} aria-label="Result" data-verdict={grade.verdict}>
@@ -52,17 +45,6 @@ export const ResultSummary = forwardRef<HTMLButtonElement, ResultSummaryProps>(
               </dd>
             </div>
           ))}
-          <div className={styles.fact}>
-            <dt>Villain</dt>
-            <dd>
-              <span className={styles.profile}>{reveal.profile.label}</span>{' '}
-              <span className={styles.muted}>{reveal.profile.description}</span>
-            </dd>
-          </div>
-          <div className={styles.fact}>
-            <dt>Run-out</dt>
-            <dd>{showdownLine(result)}</dd>
-          </div>
         </dl>
 
         {grade.intent_flag && <p className={styles.note}>{grade.intent_flag}</p>}

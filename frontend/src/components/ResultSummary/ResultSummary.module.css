@@ -106,11 +106,6 @@
   color: var(--color-verdict-mistake);
 }
 
-.profile {
-  color: var(--color-profile-text);
-  font-weight: var(--weight-bold);
-}
-
 .muted {
   margin: 0;
   color: var(--color-text-muted);

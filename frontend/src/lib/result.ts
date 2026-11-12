@@ -90,8 +90,14 @@ export function guessLines(result: AttemptResult): GuessLine[] {
   return lines
 }
 
-/** The showdown of the sampled run-out, e.g. "Hero wins: Pair vs Pair". */
+/** Hero folded (on any street): there is no run-out and no showdown. */
+export function heroFolded(result: AttemptResult): boolean {
+  return result.answer.action.kind === 'fold'
+}
+
+/** The showdown of the sampled run-out, e.g. "Hero wins: Pair vs Pair"; none after a fold. */
 export function showdownLine(result: AttemptResult): string {
+  if (heroFolded(result)) return "You folded, so there's no showdown."
   const { showdown } = result.reveal
   const hands = `${showdown.hero_hand} vs ${showdown.villain_hand}`
   if (showdown.winner === 'split') return `Split pot: ${hands}`
