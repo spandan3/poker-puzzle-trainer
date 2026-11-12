@@ -9,6 +9,10 @@ each street in turn) and keeps the first puzzle that satisfies it. The puzzles a
 the real app (a temporary SQLite database and a ``puzzle_factory`` that hands out the chosen
 puzzles), so every file holds exactly what the API returns. Output is deterministic: sorted keys,
 LF line endings, fixed timestamps.
+
+``write_stats_fixtures`` answers a scripted series of puzzles on its own database, with the
+service clock replaced, for the Progress page's ``stats.json``, ``stats_empty.json`` and
+``history_page.json``.
 """
 
 from __future__ import annotations
@@ -17,23 +21,38 @@ import json
 import sys
 import tempfile
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 
-from poker_trainer.api import views
+from poker_trainer.api import service, views
 from poker_trainer.api.app import create_app
+from poker_trainer.api.schemas import StatsView
+from poker_trainer.db.models import DEFAULT_USER_ID
 from poker_trainer.game.state import ActionKind, Street
 from poker_trainer.puzzle.generate import generate_puzzle
 from poker_trainer.puzzle.model import Puzzle
 from poker_trainer.settings import AppSettings
+from poker_trainer.stats.service import compute
 
 STREETS = ("preflop", "flop", "turn", "river")
 MAX_SEED = 400  # per street; the search stops (and reports) when a predicate is not found
 NEVER_CONTINUES_MAX_SEED = 200
 FIXED_TIME = "2026-01-01T00:00:00+00:00"
+
+# stats fixtures: first attempt k (0-based) at STATS_START + k * STATS_STEP, so 105 of them span
+# about 30 days; FIXED_NOW is on the last one's day
+STATS_START = datetime(2026, 10, 24, 12, 0, tzinfo=UTC)
+STATS_STEP = timedelta(hours=7)
+STATS_FIRST_ATTEMPTS = 105  # over 100, so the headline's "previous 50" is set
+STATS_RETRY_AFTER = (50, 90, 100)  # first attempts followed by a retry of the same puzzle
+FIXED_NOW = STATS_START + (STATS_FIRST_ATTEMPTS - 1) * STATS_STEP + timedelta(hours=2)
+STATS_GOAL = 10
 
 View = dict[str, Any]
 
@@ -147,6 +166,101 @@ def _dump(path: Path, data: Any) -> None:
 def _fix_times(result: dict[str, Any]) -> dict[str, Any]:
     result["attempt"]["created_at"] = FIXED_TIME
     return result
+
+
+@contextmanager
+def _scripted_clock(start: datetime) -> Iterator[list[datetime]]:
+    """Replace ``api.service.utcnow`` (every stored timestamp comes from it) with a clock that
+    returns ``now[0]``; the caller moves it by assigning ``now[0]``."""
+    now = [start]
+    real = service.utcnow
+    service.utcnow = lambda: now[0]
+    try:
+        yield now
+    finally:
+        service.utcnow = real
+
+
+def _clamp(x: float) -> float:
+    return round(min(1.0, max(0.0, x)), 2)
+
+
+def _stats_answer(p: Puzzle, k: int) -> dict[str, Any]:
+    """A deterministic answer for first attempt ``k``: mostly the best option, every fourth a
+    rotating other one; equity guesses a little high on average, range reads around the truth."""
+    sol = p.solution
+    index = sol.best if k % 4 != 3 else (k // 4) % len(sol.options)
+    kind = sol.options[index].option.action.kind
+    body: dict[str, Any] = {
+        "option": index,
+        "equity_guess": _clamp(sol.equity + ((k * 7) % 21 - 6) / 100),
+    }
+    if sol.ahead_now is not None:
+        body["range_read_guess"] = _clamp(sol.ahead_now + ((k * 11) % 25 - 12) / 100)
+    if kind in (ActionKind.BET, ActionKind.RAISE):
+        truth = "value" if sol.equity >= 0.5 else "bluff"
+        body["intent"] = truth if k % 5 else ("bluff" if truth == "value" else "value")
+    return body
+
+
+def write_stats_fixtures(
+    out: Path, puzzles: Sequence[Puzzle], log: Callable[[str], None] = lambda _m: None
+) -> None:
+    """Write ``stats.json``, ``stats_empty.json`` and ``history_page.json``.
+
+    Runs on its own temporary database: ``STATS_FIRST_ATTEMPTS`` new puzzles (``puzzles`` in
+    turn, each a new puzzle row) answered by ``_stats_answer`` on a scripted clock, plus a retry
+    after each of ``STATS_RETRY_AFTER``. Deterministic: the same ``puzzles`` give the same bytes.
+    """
+    if not puzzles:
+        raise ValueError("write_stats_fixtures needs at least one puzzle")
+    out.mkdir(parents=True, exist_ok=True)
+    queue: list[Puzzle] = []
+
+    def factory(_seed: int, _street: Street | None, _profile: str | None) -> Puzzle:
+        return queue.pop(0)
+
+    def stats_of(rows: Sequence[Any]) -> dict[str, Any]:
+        view = compute(
+            rows,
+            tz=ZoneInfo("UTC"),
+            now=FIXED_NOW,
+            goal=STATS_GOAL,
+            profile_labels=service.profile_labels(),
+        )
+        return StatsView.model_validate(view).model_dump(mode="json")
+
+    def submit(pid: int, body: dict[str, Any]) -> None:
+        res = client.post(f"/api/puzzles/{pid}/attempts", json=body)
+        if res.status_code != 201:
+            raise RuntimeError(res.text)
+
+    with tempfile.TemporaryDirectory() as tmp, _scripted_clock(STATS_START) as now:
+        url = f"sqlite:///{(Path(tmp) / 'stats.db').as_posix()}"
+        app = create_app(AppSettings(_env_file=None, database_url=url), puzzle_factory=factory)
+        with TestClient(app) as client:
+            for k in range(STATS_FIRST_ATTEMPTS):
+                now[0] = STATS_START + k * STATS_STEP
+                p = puzzles[k % len(puzzles)]
+                queue.append(p)
+                res = client.post("/api/puzzles", json={})
+                if res.status_code != 201:
+                    raise RuntimeError(res.text)
+                pid = res.json()["id"]
+                submit(pid, _stats_answer(p, k))
+                if k in STATS_RETRY_AFTER:  # practice: the best option, a better equity guess
+                    now[0] += timedelta(hours=1)
+                    submit(
+                        pid, {"option": p.solution.best, "equity_guess": _clamp(p.solution.equity)}
+                    )
+            with app.state.sessionmaker() as db:
+                rows = service.stats_rows(db, DEFAULT_USER_ID)
+            _dump(out / "stats.json", stats_of(rows))
+            log("wrote stats.json")
+            _dump(out / "stats_empty.json", stats_of([]))
+            log("wrote stats_empty.json")
+            _dump(out / "history_page.json", client.get("/api/history?limit=25").json())
+            log("wrote history_page.json")
 
 
 def write_fixtures(
@@ -264,6 +378,9 @@ def write_fixtures(
                 attempt("never_continues", res.json()["id"], {"option": index, "intent": intent})
             _dump(out / "settings.json", client.get("/api/settings").json())
             log("wrote settings.json")
+    # the found puzzles, once each, in the search order
+    puzzles = list({key: chosen[key] for key in found.values()}.values())
+    write_stats_fixtures(out, puzzles, log=log)
 
 
 def main(argv: list[str] | None = None) -> None:

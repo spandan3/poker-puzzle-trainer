@@ -142,6 +142,23 @@ export interface paths {
         patch: operations["patch_user_settings_api_settings_patch"];
         trace?: never;
     };
+    "/api/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stats */
+        get: operations["stats_api_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -304,6 +321,22 @@ export interface components {
             /** Value Chips */
             value_chips: number;
         };
+        /** BreakdownRow */
+        BreakdownRow: {
+            /** Accuracy */
+            accuracy: number;
+            /** Count */
+            count: number;
+            /** Equity Error Avg */
+            equity_error_avg: number;
+            /** Ev Lost Bb Avg */
+            ev_lost_bb_avg: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            verdicts: components["schemas"]["VerdictCounts"];
+        };
         /** CategoryView */
         CategoryView: {
             /** Ahead */
@@ -334,6 +367,13 @@ export interface components {
             max_to: number | null;
             /** Min To */
             min_to: number | null;
+        };
+        /** DayCount */
+        DayCount: {
+            /** Count */
+            count: number;
+            /** Date */
+            date: string;
         };
         /** GradeView */
         GradeView: {
@@ -404,6 +444,28 @@ export interface components {
             items: components["schemas"]["AttemptSummary"][];
             /** Total */
             total: number;
+        };
+        /** Leak */
+        Leak: {
+            /** Count */
+            count: number;
+            /** Detail */
+            detail: string;
+            /** Ev Lost Bb */
+            ev_lost_bb: number | null;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "share" | "mean";
+            /** Mean Error */
+            mean_error: number | null;
+            /** Sample */
+            sample: number;
+            /** Title */
+            title: string;
         };
         /**
          * NewPuzzleIn
@@ -619,6 +681,73 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** StatsBreakdowns */
+        StatsBreakdowns: {
+            /** Action */
+            action: components["schemas"]["BreakdownRow"][];
+            /** Profile */
+            profile: components["schemas"]["BreakdownRow"][];
+            /** Street */
+            street: components["schemas"]["BreakdownRow"][];
+        };
+        /** StatsDays */
+        StatsDays: {
+            /** Best Streak */
+            best_streak: number;
+            /** Current Streak */
+            current_streak: number;
+            /** Goal */
+            goal: number;
+            /** Recent */
+            recent: components["schemas"]["DayCount"][];
+            /** Today */
+            today: number;
+        };
+        /**
+         * StatsHeadline
+         * @description Means over the last 50 first attempts; ``ev_lost_bb_prev50`` is attempts 51-100 back,
+         *     null until there are 100. All null with no attempts.
+         */
+        StatsHeadline: {
+            /** Accuracy Last50 */
+            accuracy_last50: number | null;
+            /** Equity Error Last50 */
+            equity_error_last50: number | null;
+            /** Ev Lost Bb Last50 */
+            ev_lost_bb_last50: number | null;
+            /** Ev Lost Bb Prev50 */
+            ev_lost_bb_prev50: number | null;
+            /** Range Read Error Last50 */
+            range_read_error_last50: number | null;
+        };
+        /** StatsStreak */
+        StatsStreak: {
+            /** Best */
+            best: number;
+            /** Current */
+            current: number;
+        };
+        /** StatsTotals */
+        StatsTotals: {
+            /** First Attempts */
+            first_attempts: number;
+            /** Retries */
+            retries: number;
+        };
+        /** StatsView */
+        StatsView: {
+            breakdowns: components["schemas"]["StatsBreakdowns"];
+            days: components["schemas"]["StatsDays"];
+            headline: components["schemas"]["StatsHeadline"];
+            /** Leaks */
+            leaks: components["schemas"]["Leak"][];
+            streak: components["schemas"]["StatsStreak"];
+            totals: components["schemas"]["StatsTotals"];
+            /** Trend */
+            trend: components["schemas"]["TrendPoint"][];
+            /** Tz */
+            tz: string;
+        };
         /** StoredAction */
         StoredAction: {
             /**
@@ -636,6 +765,30 @@ export interface components {
             /** To */
             to: number;
         };
+        /**
+         * TrendPoint
+         * @description One first attempt with rolling means over the last 50 first attempts ending at it.
+         */
+        TrendPoint: {
+            /** Attempt Id */
+            attempt_id: number;
+            /** Created At */
+            created_at: string;
+            /** Equity Error */
+            equity_error: number;
+            /** Equity Error Avg */
+            equity_error_avg: number;
+            /** Ev Lost Bb */
+            ev_lost_bb: number;
+            /** Ev Lost Bb Avg */
+            ev_lost_bb_avg: number;
+            /** N */
+            n: number;
+            /** Range Read Error */
+            range_read_error: number | null;
+            /** Range Read Error Avg */
+            range_read_error_avg: number | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -648,6 +801,17 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VerdictCounts */
+        VerdictCounts: {
+            /** Best */
+            best: number;
+            /** Blunder */
+            blunder: number;
+            /** Fine */
+            fine: number;
+            /** Mistake */
+            mistake: number;
         };
     };
     responses: never;
@@ -936,6 +1100,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stats_api_stats_get: {
+        parameters: {
+            query?: {
+                tz?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatsView"];
                 };
             };
             /** @description Validation Error */

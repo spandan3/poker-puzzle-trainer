@@ -322,3 +322,101 @@ class SettingsView(_Out):
     llm_provider: str
     llm_status: Literal["off", "on"]
     profiles: list[ProfileInfo]
+
+
+# ---------------------------------------------------------------------------
+# Stats (``stats.service.compute``): first attempts only; EV in bb, errors as fractions (0-1)
+# ---------------------------------------------------------------------------
+
+
+class StatsTotals(_Out):
+    first_attempts: int
+    retries: int
+
+
+class StatsHeadline(_Out):
+    """Means over the last 50 first attempts; ``ev_lost_bb_prev50`` is attempts 51-100 back,
+    null until there are 100. All null with no attempts."""
+
+    ev_lost_bb_last50: float | None
+    ev_lost_bb_prev50: float | None
+    accuracy_last50: float | None
+    equity_error_last50: float | None
+    range_read_error_last50: float | None
+
+
+class TrendPoint(_Out):
+    """One first attempt with rolling means over the last 50 first attempts ending at it."""
+
+    n: int  # 1-based first-attempt number over all time
+    attempt_id: int
+    created_at: str  # ISO 8601, always ending +00:00
+    ev_lost_bb: float
+    equity_error: float
+    range_read_error: float | None
+    ev_lost_bb_avg: float
+    equity_error_avg: float
+    range_read_error_avg: float | None  # mean of the window's non-null values
+
+
+class VerdictCounts(_Out):
+    best: int
+    fine: int
+    mistake: int
+    blunder: int
+
+
+class BreakdownRow(_Out):
+    key: str
+    label: str
+    count: int
+    accuracy: float
+    ev_lost_bb_avg: float
+    equity_error_avg: float
+    verdicts: VerdictCounts
+
+
+class StatsBreakdowns(_Out):
+    street: list[BreakdownRow]
+    action: list[BreakdownRow]
+    profile: list[BreakdownRow]
+
+
+class StatsStreak(_Out):
+    current: int
+    best: int
+
+
+class DayCount(_Out):
+    date: str  # YYYY-MM-DD, local
+    count: int
+
+
+class StatsDays(_Out):
+    goal: int
+    today: int
+    current_streak: int
+    best_streak: int
+    recent: list[DayCount]  # 14 days, oldest first, ending today
+
+
+class Leak(_Out):
+    id: str
+    kind: Literal["share", "mean"]
+    title: str
+    detail: str
+    count: int
+    sample: int
+    ev_lost_bb: float | None  # share rules
+    mean_error: float | None  # mean rules: the signed mean
+
+
+class StatsView(_Out):
+    tz: str
+    totals: StatsTotals
+    headline: StatsHeadline
+    trend: list[TrendPoint]
+    breakdowns: StatsBreakdowns
+    streak: StatsStreak
+    days: StatsDays
+    leaks: list[Leak]

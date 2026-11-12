@@ -37,6 +37,7 @@ from poker_trainer.api.schemas import (
     PuzzleView,
     SettingsPatch,
     SettingsView,
+    StatsView,
     StreetName,
     VerdictName,
 )
@@ -164,6 +165,16 @@ def history(
         action_kind=action_kind,
         profile=profile,
     )
+
+
+@router.get("/stats", response_model=StatsView)
+def stats(
+    db: Db,
+    user_id: UserId,
+    # IANA zone the days are counted in (the browser's own); 422 "unknown time zone"
+    tz: Annotated[str, Query(min_length=1, max_length=64)] = "UTC",
+) -> dict[str, Any]:
+    return service.stats(db, user_id, tz)
 
 
 @router.get("/settings", response_model=SettingsView)

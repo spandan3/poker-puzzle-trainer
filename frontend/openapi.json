@@ -494,6 +494,49 @@
         "title": "Branch",
         "type": "object"
       },
+      "BreakdownRow": {
+        "additionalProperties": false,
+        "properties": {
+          "accuracy": {
+            "title": "Accuracy",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "equity_error_avg": {
+            "title": "Equity Error Avg",
+            "type": "number"
+          },
+          "ev_lost_bb_avg": {
+            "title": "Ev Lost Bb Avg",
+            "type": "number"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "verdicts": {
+            "$ref": "#/components/schemas/VerdictCounts"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "count",
+          "accuracy",
+          "ev_lost_bb_avg",
+          "equity_error_avg",
+          "verdicts"
+        ],
+        "title": "BreakdownRow",
+        "type": "object"
+      },
       "CategoryView": {
         "additionalProperties": false,
         "properties": {
@@ -588,6 +631,25 @@
           "max_to"
         ],
         "title": "CustomSizes",
+        "type": "object"
+      },
+      "DayCount": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "count"
+        ],
+        "title": "DayCount",
         "type": "object"
       },
       "GradeView": {
@@ -839,6 +901,73 @@
           "total"
         ],
         "title": "HistoryPage",
+        "type": "object"
+      },
+      "Leak": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "ev_lost_bb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ev Lost Bb"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "share",
+              "mean"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "mean_error": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Error"
+          },
+          "sample": {
+            "title": "Sample",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "detail",
+          "count",
+          "sample",
+          "ev_lost_bb",
+          "mean_error"
+        ],
+        "title": "Leak",
         "type": "object"
       },
       "NewPuzzleIn": {
@@ -1488,6 +1617,234 @@
         "title": "Simplification",
         "type": "object"
       },
+      "StatsBreakdowns": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "items": {
+              "$ref": "#/components/schemas/BreakdownRow"
+            },
+            "title": "Action",
+            "type": "array"
+          },
+          "profile": {
+            "items": {
+              "$ref": "#/components/schemas/BreakdownRow"
+            },
+            "title": "Profile",
+            "type": "array"
+          },
+          "street": {
+            "items": {
+              "$ref": "#/components/schemas/BreakdownRow"
+            },
+            "title": "Street",
+            "type": "array"
+          }
+        },
+        "required": [
+          "street",
+          "action",
+          "profile"
+        ],
+        "title": "StatsBreakdowns",
+        "type": "object"
+      },
+      "StatsDays": {
+        "additionalProperties": false,
+        "properties": {
+          "best_streak": {
+            "title": "Best Streak",
+            "type": "integer"
+          },
+          "current_streak": {
+            "title": "Current Streak",
+            "type": "integer"
+          },
+          "goal": {
+            "title": "Goal",
+            "type": "integer"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/DayCount"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "today": {
+            "title": "Today",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "goal",
+          "today",
+          "current_streak",
+          "best_streak",
+          "recent"
+        ],
+        "title": "StatsDays",
+        "type": "object"
+      },
+      "StatsHeadline": {
+        "additionalProperties": false,
+        "description": "Means over the last 50 first attempts; ``ev_lost_bb_prev50`` is attempts 51-100 back,\nnull until there are 100. All null with no attempts.",
+        "properties": {
+          "accuracy_last50": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracy Last50"
+          },
+          "equity_error_last50": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equity Error Last50"
+          },
+          "ev_lost_bb_last50": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ev Lost Bb Last50"
+          },
+          "ev_lost_bb_prev50": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ev Lost Bb Prev50"
+          },
+          "range_read_error_last50": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Read Error Last50"
+          }
+        },
+        "required": [
+          "ev_lost_bb_last50",
+          "ev_lost_bb_prev50",
+          "accuracy_last50",
+          "equity_error_last50",
+          "range_read_error_last50"
+        ],
+        "title": "StatsHeadline",
+        "type": "object"
+      },
+      "StatsStreak": {
+        "additionalProperties": false,
+        "properties": {
+          "best": {
+            "title": "Best",
+            "type": "integer"
+          },
+          "current": {
+            "title": "Current",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "current",
+          "best"
+        ],
+        "title": "StatsStreak",
+        "type": "object"
+      },
+      "StatsTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "first_attempts": {
+            "title": "First Attempts",
+            "type": "integer"
+          },
+          "retries": {
+            "title": "Retries",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "first_attempts",
+          "retries"
+        ],
+        "title": "StatsTotals",
+        "type": "object"
+      },
+      "StatsView": {
+        "additionalProperties": false,
+        "properties": {
+          "breakdowns": {
+            "$ref": "#/components/schemas/StatsBreakdowns"
+          },
+          "days": {
+            "$ref": "#/components/schemas/StatsDays"
+          },
+          "headline": {
+            "$ref": "#/components/schemas/StatsHeadline"
+          },
+          "leaks": {
+            "items": {
+              "$ref": "#/components/schemas/Leak"
+            },
+            "title": "Leaks",
+            "type": "array"
+          },
+          "streak": {
+            "$ref": "#/components/schemas/StatsStreak"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/StatsTotals"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/TrendPoint"
+            },
+            "title": "Trend",
+            "type": "array"
+          },
+          "tz": {
+            "title": "Tz",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tz",
+          "totals",
+          "headline",
+          "trend",
+          "breakdowns",
+          "streak",
+          "days",
+          "leaks"
+        ],
+        "title": "StatsView",
+        "type": "object"
+      },
       "StoredAction": {
         "additionalProperties": false,
         "properties": {
@@ -1530,6 +1887,75 @@
         "title": "StoredAction",
         "type": "object"
       },
+      "TrendPoint": {
+        "additionalProperties": false,
+        "description": "One first attempt with rolling means over the last 50 first attempts ending at it.",
+        "properties": {
+          "attempt_id": {
+            "title": "Attempt Id",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "equity_error": {
+            "title": "Equity Error",
+            "type": "number"
+          },
+          "equity_error_avg": {
+            "title": "Equity Error Avg",
+            "type": "number"
+          },
+          "ev_lost_bb": {
+            "title": "Ev Lost Bb",
+            "type": "number"
+          },
+          "ev_lost_bb_avg": {
+            "title": "Ev Lost Bb Avg",
+            "type": "number"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "range_read_error": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Read Error"
+          },
+          "range_read_error_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Read Error Avg"
+          }
+        },
+        "required": [
+          "n",
+          "attempt_id",
+          "created_at",
+          "ev_lost_bb",
+          "equity_error",
+          "range_read_error",
+          "ev_lost_bb_avg",
+          "equity_error_avg",
+          "range_read_error_avg"
+        ],
+        "title": "TrendPoint",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1568,6 +1994,35 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VerdictCounts": {
+        "additionalProperties": false,
+        "properties": {
+          "best": {
+            "title": "Best",
+            "type": "integer"
+          },
+          "blunder": {
+            "title": "Blunder",
+            "type": "integer"
+          },
+          "fine": {
+            "title": "Fine",
+            "type": "integer"
+          },
+          "mistake": {
+            "title": "Mistake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "best",
+          "fine",
+          "mistake",
+          "blunder"
+        ],
+        "title": "VerdictCounts",
         "type": "object"
       }
     }
@@ -2027,6 +2482,48 @@
           }
         },
         "summary": "Patch User Settings"
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "operationId": "stats_api_stats_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "default": "UTC",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Tz",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stats"
       }
     }
   }

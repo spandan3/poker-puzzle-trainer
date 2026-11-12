@@ -1,0 +1,89 @@
+{
+  "breakdowns": {
+    "action": [],
+    "profile": [],
+    "street": []
+  },
+  "days": {
+    "best_streak": 0,
+    "current_streak": 0,
+    "goal": 10,
+    "recent": [
+      {
+        "count": 0,
+        "date": "2026-11-10"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-11"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-12"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-13"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-14"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-15"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-16"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-17"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-18"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-19"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-20"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-21"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-22"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-23"
+      }
+    ],
+    "today": 0
+  },
+  "headline": {
+    "accuracy_last50": null,
+    "equity_error_last50": null,
+    "ev_lost_bb_last50": null,
+    "ev_lost_bb_prev50": null,
+    "range_read_error_last50": null
+  },
+  "leaks": [],
+  "streak": {
+    "best": 0,
+    "current": 0
+  },
+  "totals": {
+    "first_attempts": 0,
+    "retries": 0
+  },
+  "trend": [],
+  "tz": "UTC"
+}
