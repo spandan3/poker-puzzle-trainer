@@ -16,6 +16,8 @@ from poker_trainer.puzzle.grade import Answer, grade
 from poker_trainer.puzzle.model import load_config
 from poker_trainer.puzzle.options import custom_action
 from poker_trainer.settings import AppSettings
+from poker_trainer.stats import hero
+from poker_trainer.stats.hero import hero_category
 from poker_trainer.villain.features import load_thresholds
 from poker_trainer.villain.profiles import load_profile
 
@@ -348,6 +350,40 @@ def test_attempt_kinds_stored(client, sessions, cached_puzzles):
         }
         assert row.chosen == views.option_ev_to_dict(p.solution.options[0])
         assert row.equity_guess == 0.4 and row.range_read_guess == 0.5
+
+
+@pytest.mark.parametrize("street", ["preflop", "flop", "turn", "river"])
+def test_attempt_stats_stored(client, sessions, cached_puzzles, street):
+    """Each attempt stores the puzzle's true equity, ahead-now and Hero's category for stats."""
+    p = cached_puzzles[street]
+    pid = _new(client, street=street)["id"]
+    aid = _submit(client, pid, option=0).json()["attempt"]["id"]
+    with sessions() as db:
+        row = db.get(AttemptRow, aid)
+        assert row.true_equity == p.solution.equity
+        assert row.ahead_now == p.solution.ahead_now
+        assert row.hero_category == hero_category(p)
+        assert (row.ahead_now is None) == (street == "river")
+        assert (row.hero_category is None) == (street == "preflop")
+
+
+def test_attempt_hero_category_null_when_categories_stale(
+    client, sessions, cached_puzzles, monkeypatch
+):
+    """Live category thresholds newer than the puzzle's: no ``hero_category`` is stored, while
+    the facts that don't depend on the thresholds are."""
+    p = cached_puzzles["flop"]
+    live = replace(load_thresholds(), version=load_thresholds().version + 1)
+    monkeypatch.setattr(hero, "load_thresholds", lambda: live)
+    pid = _new(client, street="flop")["id"]
+    aid = _submit(client, pid, option=0).json()["attempt"]["id"]
+    with sessions() as db:
+        row = db.get(AttemptRow, aid)
+        assert db.get(PuzzleRow, pid).categories_version != live.version
+        assert row.hero_category is None
+        assert row.true_equity == p.solution.equity
+        assert row.ahead_now == p.solution.ahead_now
+        assert row.ahead_now is not None
 
 
 def test_attempt_config_version_is_live(client, sessions, monkeypatch):

@@ -141,3 +141,9 @@ class AttemptRow(Base):
     best_label: Mapped[str] = mapped_column(String(64))
     best_ev_chips: Mapped[float] = mapped_column()
     config_version: Mapped[int] = mapped_column(Integer)  # live load_config().version at grading
+
+    # Stats facts, from the puzzle at submit time, so stats never decode a puzzle blob.
+    # Null on rows the 0003 backfill couldn't fill.
+    true_equity: Mapped[float | None] = mapped_column()  # solution.equity
+    ahead_now: Mapped[float | None] = mapped_column()  # solution.ahead_now; null on the river
+    hero_category: Mapped[str | None] = mapped_column(String(16))  # CategoryCode; null pre-flop
