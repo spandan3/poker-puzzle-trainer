@@ -1,8 +1,8 @@
 # Handoff: improving the Villain "poker bot"
 
-This is for working on the Villain model while the main line of work (M3, the puzzle generator and grader) continues on its own branch.
+This is for working on the Villain model while the main line of work (M6, the results view) continues on its own branch.
 
-Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M4 merge (2026-11-11). M3 (the puzzle generator and grader) and M4 (API and storage) are done. M5 (table UI) is next.
+Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M5 merge (2026-11-12). M3 (the puzzle generator and grader), M4 (API and storage) and M5 (table UI) are done. M6 (results view) is next.
 
 ## 1. What the project is
 
@@ -67,6 +67,7 @@ uv run python -m poker_trainer.analysis.competence --profile all --hands 400   #
 - `src/poker_trainer/puzzle/**` (generator, solver, grader, `config.json`)
 - the API, the database and migrations (`src/poker_trainer/api/**`, `db/**`, `settings.py`, `tests/api/**`, `tests/db/**`)
 - `tests/engine/**`, `tests/puzzle/**`
+- the frontend (`frontend/**`, at the repo root)
 - `docs/superpowers/**` (plans and spec)
 
 You can still *use* the puzzle code to see your changes in action (§6).
@@ -109,7 +110,7 @@ Old puzzles are frozen with the `profile_version` they were generated under. Tha
 
 ## 5. Current status
 
-M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader) and M4 (API and storage) are done and reviewed.
+M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage) and M5 (table UI) are done and reviewed.
 
 M4 note for Villain work: custom bet sizes on a stored puzzle are refused (409) once its profile or `categories.json` version changes, so version bumps are still the right way to change data.
 
