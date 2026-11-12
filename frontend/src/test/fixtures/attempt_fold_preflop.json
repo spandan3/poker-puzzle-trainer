@@ -38,7 +38,7 @@
         "paragraphs": [
           "You chose Fold (EV 0 bb). The top play was Raise 2.5x (EV 0.37 bb), so your choice gives up 0.37 bb against Villain's range. That is close to the top play, so the verdict is Fine.",
           "Your equity against Villain's whole range is 52.2%.",
-          "Raise 2.5x: Villain folds 16% of the time and you have 49.4% equity against the hands that continue.",
+          "Raise 2.5x: Villain folds 16% of the time, less than the 57.1% a raise this size needs to profit on folds alone (2 bb / (1.5 bb + 2 bb)), so folds alone don't pay for it: it relies on your 49.4% equity against the hands that continue.",
           "Right now you are ahead of 70.9% of Villain's range."
         ],
         "title": "The verdict"

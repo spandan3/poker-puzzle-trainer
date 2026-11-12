@@ -130,23 +130,40 @@ describe('status line and footer', () => {
     )
   })
 
-  it('unavailable: shows the settings detail', () => {
+  // the backend's probe details (explain/ollama.py), each a sentence ending with a full stop
+  it.each([
+    [
+      'Ollama is running but the model llama3.2:3b isn\'t pulled: run "ollama pull llama3.2:3b".',
+      'The local model isn\'t available: Ollama is running but the model llama3.2:3b isn\'t pulled: run "ollama pull llama3.2:3b". Reload the page after starting it.',
+    ],
+    [
+      "Ollama isn't answering at http://127.0.0.1:11434.",
+      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Reload the page after starting it.",
+    ],
+    [
+      'Not checked yet.',
+      "The local model isn't available: Not checked yet. Reload the page after starting it.",
+    ],
+  ])('unavailable: shows the settings detail once stopped (%s)', (detail, text) => {
     const { container } = render(
-      <ExplanationPanel
-        explanation={explanation}
-        llmStatus="unavailable"
-        llmDetail="model llama3.2:3b is not pulled"
-      />,
+      <ExplanationPanel explanation={explanation} llmStatus="unavailable" llmDetail={detail} />,
+    )
+    expect(footer(container)).toBe(text)
+  })
+
+  it('unavailable without a detail', () => {
+    const { container } = render(
+      <ExplanationPanel explanation={explanation} llmStatus="unavailable" />,
     )
     expect(footer(container)).toBe(
-      "The local model isn't available: model llama3.2:3b is not pulled.",
+      "The local model isn't available. Reload the page after starting it.",
     )
   })
 
   it.each([
     [
       'guardrail',
-      "The local model's text used a number the grader didn't compute, so the trainer's own text is shown.",
+      "The local model's text didn't keep to the grader's numbers and verdict, so the trainer's own text is shown.",
     ],
     ['timeout', "The local model didn't answer in time."],
     ['error', "The local model's answer couldn't be used, so the trainer's own text is shown."],
@@ -158,9 +175,14 @@ describe('status line and footer', () => {
 
   it('fallback unavailable uses the detail', () => {
     const { container } = render(
-      <ExplanationPanel explanation={fallback('unavailable')} llmDetail="Ollama is not running" />,
+      <ExplanationPanel
+        explanation={fallback('unavailable')}
+        llmDetail="Ollama isn't answering at http://127.0.0.1:11434."
+      />,
     )
-    expect(footer(container)).toBe("The local model isn't available: Ollama is not running.")
+    expect(footer(container)).toBe(
+      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Reload the page after starting it.",
+    )
   })
 
   it('a failed request is noted', () => {

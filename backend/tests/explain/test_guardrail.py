@@ -1,6 +1,10 @@
-import pytest
+from dataclasses import replace
 
-from poker_trainer.explain.guardrail import check, check_fields, numbers
+import pytest
+from explain_cases import facts, puzzle, result
+
+from poker_trainer.explain.guardrail import check, check_claims, check_fields, numbers
+from poker_trainer.explain.ollama import fields_of
 
 
 def test_numbers_are_normalised():
@@ -157,3 +161,90 @@ def test_check_fields_names_each_failing_field():
     fields = {"headline": "You lost 1.25 bb.", "hand": "Two streets went by.", "verdict": "42.5%"}
     assert check_fields(fields, allowed) == {"hand": {"word:two"}}
     assert check_fields({"headline": "Fine.", "verdict": "42.5% equity"}, allowed) == {}
+
+
+# ---------------------------------------------------------------------------
+# check_claims
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def lost():
+    """attempt_check_river's facts: Check chosen, Bet 33% the top play, verdict Mistake."""
+    p = puzzle(1, "river")
+    return facts(result(p, option=0), p)
+
+
+def _fields(headline, verdict="It was a Mistake.", hand="You held a draw."):
+    return {"headline": headline, "hand": hand, "verdict": verdict}
+
+
+LOST_HEADLINE = "Bet 33% was the top play; checking cost you."
+
+
+@pytest.mark.parametrize(
+    ("fields", "expected"),
+    [
+        (_fields(LOST_HEADLINE), {}),
+        # verdict words: only the actual verdict's, case-insensitive, whole words
+        (_fields(LOST_HEADLINE, "It was a mistake."), {}),
+        (_fields(LOST_HEADLINE, "Not the best, a Mistake."), {"verdict": "Best"}),
+        (_fields(LOST_HEADLINE, "FINE, or a blunder?"), {"verdict": "Blunder, Fine"}),
+        (_fields(LOST_HEADLINE, "Finesse and bestow are no verdicts."), {}),
+        # the headline names the top play and, after a loss, the choice (label or gerund)
+        (_fields("Bet 33% was the top play; Check cost you."), {}),
+        (_fields("bet 33% beats checking here."), {}),
+        (_fields("Checking cost you."), {"headline": "missing Bet 33%"}),
+        (_fields("Bet 33% was the top play."), {"headline": "missing Check"}),
+        (
+            _fields("Bet 3% was the top play; checks cost you."),
+            {"headline": "missing Bet 33%, Check"},
+        ),
+        (_fields("Betting 33% beats checking."), {}),
+        # nothing about the result of the hand
+        (_fields(LOST_HEADLINE, hand="Villain had a flush."), {"result": "villain had"}),
+        (_fields(LOST_HEADLINE, hand="Villain held K♠."), {"result": "villain held"}),
+        (_fields(LOST_HEADLINE, hand="Villain's hand was weak."), {"result": "villain's hand was"}),
+        (_fields(LOST_HEADLINE, hand="Villain’s hand was weak."), {"result": "villain’s hand was"}),
+        (_fields(LOST_HEADLINE, hand="You won."), {"result": "won"}),
+        (
+            _fields(LOST_HEADLINE, hand="You lost the hand at showdown."),
+            {"result": "lost the hand, showdown"},
+        ),
+        (
+            _fields(LOST_HEADLINE, hand="Winning is not the point; you win some."),
+            {"result": "win, winning"},
+        ),
+        (_fields(LOST_HEADLINE, hand="A window, a winner, a lost hand: none of them banned."), {}),
+    ],
+)
+def test_check_claims(lost, fields, expected):
+    assert check_claims(fields, lost) == expected
+
+
+def test_check_claims_when_the_top_play_was_found(lost):
+    top = replace(lost, verdict="Best", loss_case="top", chosen_label="Bet 33%")
+    assert check_claims(_fields("Bet 33% was right.", "Best."), top) == {}
+    assert check_claims(_fields("You found it.", "Best."), top) == {"headline": "missing Bet 33%"}
+    # a custom size that matched the top play: the headline names the choice, as the template's
+    custom = replace(top, chosen_label="Bet 1 bb")
+    assert check_claims(_fields("Bet 1 bb was the top play.", "Best."), custom) == {}
+    assert check_claims(_fields("Bet 33% was the top play.", "Best."), custom) == {
+        "headline": "missing Bet 1 bb"
+    }
+
+
+def test_check_claims_close_needs_both_plays(lost):
+    close = replace(
+        lost, verdict="Fine", loss_case="close", chosen_label="Fold", best_label="Raise 2.5x"
+    )
+    assert check_claims(_fields("Fold was close to Raise 2.5x.", "Fine."), close) == {}
+    assert check_claims(_fields("Folding was close.", "Fine."), close) == {
+        "headline": "missing Raise 2.5x"
+    }
+
+
+def test_the_template_passes_its_own_claim_checks(lost):
+    p = puzzle(1, "river")
+    template = result(p, option=0)["explanation"]
+    assert check_claims(fields_of(template), lost) == {}

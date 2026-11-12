@@ -72,6 +72,27 @@ def custom_label(kind: str, to: int) -> str:
     return f"Raise to {bb(to)}" if kind == "raise" else f"Bet {bb(to)}"
 
 
+_GERUNDS = {
+    "Fold": "folding",
+    "Call": "calling",
+    "Check": "checking",
+    "Bet": "betting",
+    "Raise": "raising",
+}
+
+
+def gerund(label: str) -> str:
+    """A play's label as the headline writes it after a semicolon: ``"Bet 33%"`` ->
+    ``"betting 33%"``, ``"All-in"`` -> ``"going all-in"``."""
+    if label == "All-in":
+        return "going all-in"
+    first, _, rest = label.partition(" ")
+    verb = _GERUNDS.get(first)
+    if verb is None:
+        return label
+    return f"{verb} {rest}" if rest else verb
+
+
 _BB_LABEL = re.compile(r"\b(to|bets?) (\d+)(?![\d%])", re.ASCII)
 _HERO_VERB = re.compile(r"\bHero (fold|call)s\b", re.ASCII)
 

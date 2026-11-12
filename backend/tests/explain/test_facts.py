@@ -1,10 +1,11 @@
 import copy
 
+import pytest
 from explain_cases import facts, puzzle, result
 
 from poker_trainer.engine.cards import card_str
 from poker_trainer.explain import format as fmt
-from poker_trainer.explain.facts import FRACTION_TOL, _fraction_formula
+from poker_trainer.explain.facts import FRACTION_TOL, _fold_relation, _fraction_formula
 from poker_trainer.explain.template import render
 from poker_trainer.game.state import total_pot
 
@@ -106,20 +107,56 @@ def test_no_formula_when_the_api_number_differs():
     p = _river_facing_bet()
     res = copy.deepcopy(result(p, option=2, intent="bluff"))  # raise 2.5x: pot odds and bluff check
     g = res["grade"]
-    assert facts(res, p).pot_odds_formula is not None and facts(res, p).bluff_formula is not None
-    g["pot_odds"] += 0.002
-    g["bluff_check"]["required"] += 0.002
+    raise_ = next(o for o in res["options"] if o["is_chosen"])
     f = facts(res, p)
-    assert f.pot_odds_formula is None and f.bluff_formula is None
+    assert f.pot_odds_formula is not None and f.chosen.required_formula is not None
+    g["pot_odds"] += 0.002
+    raise_["required_fold_equity"] += 0.002
+    f = facts(res, p)
+    assert f.pot_odds_formula is None and f.chosen.required_formula is None
     why = "\n".join(render(f)["sections"][1]["paragraphs"])
     assert f"needs {fmt.pct(g['pot_odds'], 1)} equity" in why
-    assert f"needs {fmt.pct(g['bluff_check']['required'], 1)} folds." in why
+    needed = fmt.pct(raise_["required_fold_equity"], 1)
+    assert f"the {needed} a raise this size needs to profit on folds alone," in why
     assert "/" not in why
-    assert not any("formula" in line for line in f.as_lines())
+    lines = f.as_lines()
+    assert not any("formula" in line for line in lines)
+    chosen_line = next(line for line in lines if line.startswith(f"Option: {f.chosen.label}:"))
+    assert f"fold equity needed {needed}," in chosen_line and " / " not in chosen_line
 
 
 def test_no_villain_actually_folds_fact():
     p = _river_facing_bet()
     f = facts(result(p, option=2, intent="bluff"), p)
-    assert f.bluff_required is not None
+    assert f.chosen.required_fold_equity is not None
     assert not any(line.startswith("Villain actually folds") for line in f.as_lines())
+
+
+def test_every_bet_and_raise_has_its_required_fold_equity():
+    p = puzzle(1, "river")  # attempt_check_river: Check chosen, Bet 33% the top play
+    res = result(p, option=0)
+    f = facts(res, p)
+    for o, raw in zip(f.options, res["options"], strict=True):
+        if o.aggressive:
+            assert o.required_fold_equity == fmt.pct(raw["required_fold_equity"], 1)
+            assert o.folds_pay == (raw["fold_freq"] >= raw["required_fold_equity"])
+        else:
+            assert o.required_fold_equity is None and o.folds_pay is None
+    assert f.best.label == "Bet 33%"
+    assert f.best.required_formula == "4.5 bb / (13 bb + 4.5 bb)"
+    lines = "\n".join(f.as_lines())
+    assert f"fold equity needed 4.5 bb / (13 bb + 4.5 bb) = {f.best.required_fold_equity}" in lines
+
+
+@pytest.mark.parametrize(
+    ("folds", "required", "relation"),
+    [
+        (0.42, 0.257, "more than"),
+        (0.20, 0.257, "less than"),
+        (0.424, 0.423, "close to"),  # shown 42% against 42.3%: the shown strings disagree
+        (0.4252, 0.4253, "close to"),  # shown 43% against 42.5%, exact a hair below
+        (0.2, 0.2, "close to"),  # shown 20% against 20.0%
+    ],
+)
+def test_fold_relation(folds, required, relation):
+    assert _fold_relation(folds, required) == relation

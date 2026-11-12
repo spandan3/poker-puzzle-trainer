@@ -118,7 +118,7 @@
         "id": "villain",
         "paragraphs": [
           "Villain is a Sticky player. Competent, but defends wide and calls down lighter than most.",
-          "Villain's range narrowed with each action: Pre-flop: calls; Flop: checks; Flop: raises to 4.5 bb.",
+          "Villain's range narrowed with each action: Pre-flop: calls; Flop: checks, then raises to 4.5 bb.",
           "The range in the Range tab is the range this puzzle was graded on."
         ],
         "title": "Villain"

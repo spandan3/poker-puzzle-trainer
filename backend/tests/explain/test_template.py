@@ -1,6 +1,7 @@
 """The template explanation: golden texts, the guardrail against its own facts, and what it
 must never say."""
 
+import dataclasses
 import re
 
 import pytest
@@ -10,7 +11,8 @@ from poker_trainer.api import views
 from poker_trainer.engine.cards import card_str
 from poker_trainer.explain import format as fmt
 from poker_trainer.explain.facts import EV_EPSILON
-from poker_trainer.explain.guardrail import unknown_numbers
+from poker_trainer.explain.guardrail import check_claims, unknown_numbers
+from poker_trainer.explain.ollama import fields_of
 from poker_trainer.explain.template import GRADED_ON_RANGE, explain, render, text_of
 from poker_trainer.game.state import ActionKind
 
@@ -31,6 +33,10 @@ def _ev(res, label):
 
 def _folds(res, label):
     return fmt.pct(_opt(res, label)["fold_freq"], 0)
+
+
+def _needs(res, label):
+    return fmt.pct(_opt(res, label)["required_fold_equity"], 1)
 
 
 def _eq_continue(res, label):
@@ -116,10 +122,11 @@ def flop_bet_best(res):
             ),
             f"Your equity against Villain's whole range is {n['eq']}.",
             (
-                f"Bet 33%: Villain folds {_folds(res, 'Bet 33%')} of the time and you have "
-                f"{_eq_continue(res, 'Bet 33%')} equity against the hands that continue. To "
-                f"profit on folds alone, a bet this size needs {n['needs']} folds "
-                "(1.5 bb / (5 bb + 1.5 bb))."
+                f"Bet 33%: Villain folds {_folds(res, 'Bet 33%')} of the time, more than the "
+                f"{n['needs']} a bet this size needs to profit on folds alone "
+                "(1.5 bb / (5 bb + 1.5 bb)), so the folds alone pay for it, even when every "
+                "hand that continues beats you. On top of that, you have "
+                f"{_eq_continue(res, 'Bet 33%')} equity against the hands that continue."
             ),
             (
                 f"Right now you are ahead of {n['ahead']} of Villain's range. The largest parts "
@@ -152,8 +159,10 @@ def preflop_fold(res):
             ),
             f"Your equity against Villain's whole range is {n['eq']}.",
             (
-                f"Raise 2.5x: Villain folds {_folds(res, 'Raise 2.5x')} of the time and you have "
-                f"{_eq_continue(res, 'Raise 2.5x')} equity against the hands that continue."
+                f"Raise 2.5x: Villain folds {_folds(res, 'Raise 2.5x')} of the time, less than "
+                f"the {_needs(res, 'Raise 2.5x')} a raise this size needs to profit on folds "
+                "alone (2 bb / (1.5 bb + 2 bb)), so folds alone don't pay for it: it relies on "
+                f"your {_eq_continue(res, 'Raise 2.5x')} equity against the hands that continue."
             ),
             f"Right now you are ahead of {n['ahead']} of Villain's range.",
         ],
@@ -189,15 +198,14 @@ def river_check_best_bet_chosen(res):
                 "Villain's range. Verdict: Mistake."
             ),
             (
-                f"Your equity against Villain's whole range is {n['eq']}. Checking "
-                f"(EV {_ev(res, 'Check')}) does better than the best bet, Bet 33% "
-                f"(EV {_ev(res, 'Bet 33%')})."
+                f"Your equity against Villain's whole range is {n['eq']}. Checking does better "
+                f"than the strongest bet, Bet 33% (EV {_ev(res, 'Bet 33%')})."
             ),
             (
-                f"Bet 75%: Villain folds {_folds(res, 'Bet 75%')} of the time and you have "
-                f"{_eq_continue(res, 'Bet 75%')} equity against the hands that continue. To "
-                f"profit on folds alone, a bet this size needs {n['needs']} folds "
-                "(10 bb / (13 bb + 10 bb))."
+                f"Bet 75%: Villain folds {_folds(res, 'Bet 75%')} of the time, less than the "
+                f"{n['needs']} a bet this size needs to profit on folds alone "
+                "(10 bb / (13 bb + 10 bb)), so folds alone don't pay for it: it relies on your "
+                f"{_eq_continue(res, 'Bet 75%')} equity against the hands that continue."
             ),
             (
                 f"The largest parts of the range are {_cat(res, 'Weak made hand')} "
@@ -277,6 +285,8 @@ def _assert_sound(p, res):
         assert fmt.card(card_str(c)) not in text
     assert not _LOSS.search(text), text
     assert "showdown" not in text.lower()
+    # the claim checks a model's text must pass, on the template's own fields
+    assert check_claims(fields_of(res["explanation"]), f) == {}, text
     # the summary's strings: equity always, the EV lost when it is shown as lost
     assert fmt.pct(res["grade"]["equity"], 1) in text
     if res["grade"]["ev_loss_bb"] >= EV_EPSILON:
@@ -343,3 +353,60 @@ def test_explain_is_what_the_view_adds():
     res = result(p, option=0)
     rest = {k: v for k, v in res.items() if k != "explanation"}
     assert explain(rest, p, views.action_log(p.spot)) == res["explanation"]
+
+
+def test_check_best_states_the_check_ev_once():
+    res = result(puzzle(4, "river"), option=3, intent="bluff")  # check best, bet 75% chosen
+    check_ev = f"EV {_ev(res, 'Check')}"
+    assert text_of(res["explanation"]).count(check_ev) == 1
+
+
+def test_range_steps_are_grouped_by_street():
+    res = result(puzzle(17, "flop"), option=1)  # attempt_call: Villain checks, then raises
+    villain = res["explanation"]["sections"][2]["paragraphs"][1]
+    assert villain == (
+        "Villain's range narrowed with each action: Pre-flop: calls; "
+        "Flop: checks, then raises to 4.5 bb."
+    )
+
+
+def _with(f, **changes):
+    return dataclasses.replace(f, **changes)
+
+
+def _pot_odds_sentence(f):
+    return render(f)["sections"][1]["paragraphs"][1]
+
+
+def test_pot_odds_conclusion_follows_the_choice():
+    p = puzzle(3, "preflop")  # BB facing an open: fold, call, raises
+    raised = facts(result(p, option=2), p)  # raise chosen and best: call and fold neither
+    assert raised.chosen.kind == "raise" and raised.best.kind == "raise"
+    assert _pot_odds_sentence(raised).endswith(", so calling would beat folding.")
+    called = facts(result(p, option=1), p)  # call chosen
+    assert _pot_odds_sentence(called).endswith(", so calling beats folding.")
+    folded = facts(result(p, option=0), p)
+    assert _pot_odds_sentence(folded).endswith(", so calling beats folding.")
+
+
+def test_pot_odds_equal_strings_are_never_above():
+    p = puzzle(3, "preflop")
+    f = facts(result(p, option=1), p)
+    even = _with(f, equity=f.pot_odds, equity_beats_pot_odds=True)
+    text = _pot_odds_sentence(even)
+    assert f"{f.pot_odds} is exactly what it needs, so calling beats folding." in text
+    assert "above" not in text
+    short = _with(f, equity=f.pot_odds, equity_beats_pot_odds=False)
+    text = _pot_odds_sentence(short)
+    assert f"{f.pot_odds} falls just short of that, so folding beats calling." in text
+    assert "below" not in text
+
+
+def test_fold_equity_close_to_when_the_shown_numbers_disagree():
+    p = puzzle(1, "river")  # attempt_check_river: Bet 33% best, Check chosen
+    f = facts(result(p, option=0), p)
+    best = _with(f.best, fold_relation="close to", folds_pay=False)
+    options = tuple(best if o.is_best else o for o in f.options)
+    text = render(_with(f, options=options))["sections"][1]["paragraphs"][2]
+    assert text.startswith(f"Bet 33%: Villain folds {f.best.fold_freq} of the time, close to the ")
+    assert "so folds alone don't pay for it: it relies on your" in text

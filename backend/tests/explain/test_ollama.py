@@ -238,7 +238,7 @@ def test_probe_model_missing(fake):
     status, detail = ollama.probe(fake.url, "llama3.2:3b")
     assert status == "unavailable"
     assert detail == (
-        "Ollama is running but the model llama3.2:3b isn't pulled: run `ollama pull llama3.2:3b`."
+        'Ollama is running but the model llama3.2:3b isn\'t pulled: run "ollama pull llama3.2:3b".'
     )
     assert ollama.probe(fake.url, "llama3.2")[0] == "unavailable"  # ":latest" isn't ":3b"
 

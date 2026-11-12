@@ -9,7 +9,7 @@ frontend view that shows the same quantity:
 | equity vs the whole range, ahead now  | pct, 1 digit | the summary (``guessLines``)  |
 | pot odds                              | pct, 1 digit | Maths                         |
 | fold frequency of an option           | pct, 0 digit | Options table                 |
-| required fold equity (bluff check)    | pct, 1 digit | Maths                         |
+| fold equity a bet or raise needs      | pct, 1 digit | Maths                         |
 | equity vs the continuing range        | pct, 1 digit | Options table                 |
 | category share                        | pct, 1 digit | CategoryTable                 |
 | Hero's equity against a category      | pct, 0 digit | CategoryTable                 |
@@ -21,6 +21,7 @@ The run-out after the decision and Villain's hole cards are never read.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any, Literal
 
 from poker_trainer.engine.cards import card_str
@@ -33,6 +34,7 @@ from poker_trainer.explain.format import (
     ev_bb,
     option_label,
     pct,
+    to_fixed,
 )
 from poker_trainer.game.state import Street, amount_to_call, position_name, total_pot
 from poker_trainer.puzzle.model import Puzzle
@@ -63,6 +65,13 @@ class OptionFact:
     never_continues: bool  # a bet or raise Villain always folds to
     is_best: bool
     is_chosen: bool
+    # a bet or raise: the fold equity it needs to profit on folds alone ("put / (pot + put)")
+    required_fold_equity: str | None = None
+    required_formula: str | None = None  # "1.5 bb / (5 bb + 1.5 bb)" when it reproduces it
+    folds_pay: bool | None = None  # fold frequency >= required (Maths' "Folds alone pay")
+    # how the shown strings compare: "more than", "less than", or "close to" when the rounded
+    # strings disagree with the exact comparison (fold frequency has no decimal)
+    fold_relation: str | None = None
 
     @property
     def aggressive(self) -> bool:
@@ -96,7 +105,6 @@ class Facts:
     verdict: str
     loss_case: LossCase
     ev_loss: str
-    hero_folded: bool
     best_is_chosen: bool
     equity: str
     ahead_now: str | None
@@ -105,8 +113,6 @@ class Facts:
     call_amount: str | None
     equity_beats_pot_odds: bool | None
     options: tuple[OptionFact, ...]
-    bluff_required: str | None
-    bluff_formula: str | None
     check_best: bool
     best_bet: OptionFact | None  # the highest-EV bet or raise
     categories: tuple[CategoryFact, ...]  # the largest two by share
@@ -160,13 +166,14 @@ class Facts:
             parts = [f"EV {o.ev}"]
             if o.fold_freq is not None:
                 parts.append(f"Villain folds {o.fold_freq}")
+            if o.required_fold_equity is not None:
+                needed = o.required_fold_equity
+                if o.required_formula is not None:
+                    needed = f"{o.required_formula} = {needed}"
+                parts.append(f"fold equity needed {needed}")
             if o.equity_vs_continue is not None:
                 parts.append(f"equity against the continuing range {o.equity_vs_continue}")
             out.append(("Option", f"{o.label}: {', '.join(parts)}"))
-        if self.bluff_required is not None:
-            out.append(("Fold equity needed", self.bluff_required))
-        if self.bluff_formula is not None:
-            out.append(("Fold equity formula", f"{self.bluff_formula} = {self.bluff_required}"))
         for c in self.categories:
             out.append(
                 (
@@ -252,8 +259,22 @@ def _opt_pct(x: float | None, digits: int) -> str | None:
     return None if x is None else pct(x, digits)
 
 
-def _option(o: dict[str, Any], chosen_label: str) -> OptionFact:
+def _fold_relation(fold_freq: float, required: float) -> str:
+    """``"more than"`` / ``"less than"`` when the shown strings (fold frequency with no decimal,
+    the requirement with one) agree with the exact comparison, else ``"close to"``."""
+    shown = Decimal(to_fixed(fold_freq * 100, 0)) - Decimal(to_fixed(required * 100, 1))
+    if fold_freq >= required and shown > 0:
+        return "more than"
+    if fold_freq < required and shown < 0:
+        return "less than"
+    return "close to"
+
+
+def _option(o: dict[str, Any], chosen_label: str, pot_chips: int) -> OptionFact:
     aggressive = o["kind"] in ("bet", "raise")
+    required = o["required_fold_equity"] if aggressive else None
+    folds = o["fold_freq"]
+    compare = required is not None and folds is not None
     return OptionFact(
         label=chosen_label if o["is_chosen"] else option_label(o["label"]),
         kind=o["kind"],
@@ -265,6 +286,12 @@ def _option(o: dict[str, Any], chosen_label: str) -> OptionFact:
         and o["ahead_vs_continue"] is None,
         is_best=bool(o["is_best"]),
         is_chosen=bool(o["is_chosen"]),
+        required_fold_equity=_opt_pct(required, 1),
+        required_formula=None
+        if required is None
+        else _fraction_formula(int(o["put"]), pot_chips, required),
+        folds_pay=folds >= required if compare else None,
+        fold_relation=_fold_relation(folds, required) if compare else None,
     )
 
 
@@ -292,8 +319,8 @@ def build_facts(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]
     grade = result["grade"]
     raw_options = result["options"]
     chosen_label = _chosen_label(result)
-    options = tuple(_option(o, chosen_label) for o in raw_options)
     pot_chips = int(total_pot(s))
+    options = tuple(_option(o, chosen_label, pot_chips) for o in raw_options)
     to_call_chips = int(amount_to_call(s))
 
     board = [card(c) for c in _board_strs(puzzle)]
@@ -309,19 +336,11 @@ def build_facts(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]
         po_formula = _fraction_formula(int(call["put"]), pot_chips, pot_odds)
         beats = grade["equity"] >= pot_odds
 
-    bluff = grade["bluff_check"]
-    chosen_raw = next(o for o in raw_options if o["is_chosen"])
-    bluff_formula = (
-        None
-        if bluff is None
-        else _fraction_formula(int(chosen_raw["put"]), pot_chips, bluff["required"])
-    )
-
     aggressive = [o for o in raw_options if o["kind"] in ("bet", "raise")]
     best_bet = None
     if aggressive:
         top = max(range(len(aggressive)), key=lambda i: (aggressive[i]["ev_bb"], -i))
-        best_bet = _option(aggressive[top], chosen_label)
+        best_bet = _option(aggressive[top], chosen_label, pot_chips)
     best = next(o for o in options if o.is_best)
 
     cats = result["categories"] or []
@@ -352,7 +371,6 @@ def build_facts(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]
         verdict=VERDICT_WORDS[grade["verdict"]],
         loss_case=_loss_case(loss_bb, grade["verdict"]),
         ev_loss=ev_bb(loss_bb),
-        hero_folded=result["answer"]["action"]["kind"] == "fold",
         best_is_chosen=best.is_chosen,
         equity=pct(grade["equity"], 1),
         ahead_now=_opt_pct(grade["ahead_now"], 1),
@@ -361,8 +379,6 @@ def build_facts(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]
         call_amount=None if call is None else bb(int(call["put"])),
         equity_beats_pot_odds=beats,
         options=options,
-        bluff_required=None if bluff is None else pct(bluff["required"], 1),
-        bluff_formula=bluff_formula,
         check_best=best.kind == "check",
         best_bet=best_bet,
         categories=categories,
