@@ -51,7 +51,7 @@ export function formatEvBb(bb: number): string {
  */
 export function bbLabel(label: string): string {
   return label
-    .replace(/\b(to|bets?) (\d+)/g, (_m, word: string, chips: string) => {
+    .replace(/\b(to|bets?) (\d+)(?![\d%])/g, (_m, word: string, chips: string) => {
       return `${word} ${formatBb(Number(chips))}`
     })
     .replace(/\bHero (fold|call)s\b/g, 'you $1')

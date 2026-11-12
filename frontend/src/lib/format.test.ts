@@ -91,4 +91,12 @@ describe('bbLabel', () => {
     expect(bbLabel('Villain calls')).toBe('Villain calls')
     expect(bbLabel('Villain folds')).toBe('Villain folds')
   })
+
+  it('leaves pot fractions and multiples alone, but converts custom chip sizes', () => {
+    expect(bbLabel('bet 33%')).toBe('bet 33%')
+    expect(bbLabel('bet 100%')).toBe('bet 100%')
+    expect(bbLabel('raise 2.5x')).toBe('raise 2.5x')
+    expect(bbLabel('bet 14')).toBe('bet 7 bb')
+    expect(bbLabel('raise to 14')).toBe('raise to 7 bb')
+  })
 })

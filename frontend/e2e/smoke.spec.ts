@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 const FACE_UP = { name: / of (spades|hearts|diamonds|clubs)$/ }
 
@@ -164,3 +165,92 @@ test('progress page: no dead space below the content at 1280×800', async ({ pag
     )
   expect(scrollHeight - Math.max(bottom, 800)).toBeLessThanOrEqual(50)
 })
+
+/** Answers the puzzle on screen: equity 50, the first enabled action (and its first size). */
+async function answerOnScreen(page: Page) {
+  await page.getByRole('textbox', { name: 'Equity' }).fill('50')
+  await page.keyboard.press('Escape')
+  const action = page.locator('[aria-label="Action"] button:not([aria-disabled])').first()
+  await action.click()
+  const kind = await action.getAttribute('data-kind')
+  if (kind === 'bet' || kind === 'raise') {
+    await page.getByRole('group', { name: 'Size' }).getByRole('button').first().click()
+  }
+  await page.getByRole('button', { name: /^Submit/ }).click()
+  await expect(page.getByRole('region', { name: 'Result' })).toBeVisible()
+}
+
+/** The Progress totals line as numbers (the DB is shared across tests, so tests compare). */
+async function totals(page: Page) {
+  const text = await page.getByTestId('progress-totals').innerText()
+  const match = /(\d+) puzzles answered · (\d+) practice attempts/.exec(text)
+  if (!match) throw new Error(`unexpected totals: ${text}`)
+  return { answered: Number(match[1]), practice: Number(match[2]) }
+}
+
+test('replay from history is practice: it shows in history and changes no stat', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await answerOnScreen(page)
+  await page.getByRole('link', { name: 'Progress' }).click()
+  await expect(page.getByTestId('progress-totals')).toBeVisible()
+  const before = await totals(page)
+  expect(before.answered).toBeGreaterThan(0)
+
+  // the newest row is the attempt just made: replay it
+  const history = page.getByTestId('history')
+  await expect(history.getByRole('row').nth(1)).toBeVisible()
+  await history
+    .getByRole('button', { name: /^Replay puzzle from / })
+    .first()
+    .click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByTestId('practice-note')).toHaveText(
+    "Practice — this attempt won't count toward your stats.",
+  )
+  await answerOnScreen(page)
+
+  await page.getByRole('link', { name: 'Progress' }).click()
+  await expect(page.getByTestId('progress-totals')).toHaveText(
+    `${before.answered} puzzles answered · ${before.practice + 1} practice attempts`,
+  )
+  await expect(
+    page.getByTestId('history').getByRole('row').nth(1).getByText('Practice'),
+  ).toBeVisible()
+
+  // Result reopens the stored result, and Next puzzle is focused
+  await page
+    .getByTestId('history')
+    .getByRole('button', { name: /^Result of the attempt from / })
+    .first()
+    .click()
+  await expect(page.getByRole('region', { name: 'Result' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Next puzzle/ })).toBeFocused()
+})
+
+for (const [width, height] of [
+  [1024, 768],
+  [1280, 800],
+] as const) {
+  test(`progress page: no horizontal scroll at ${width}×${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    const fixtureText = (name: string) =>
+      readFileSync(resolve(import.meta.dirname, `../src/test/fixtures/${name}.json`), 'utf8')
+    await page.route('**/api/stats*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: fixtureText('stats') }),
+    )
+    await page.route('**/api/history*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: fixtureText('history_page'),
+      }),
+    )
+    await page.goto('/progress')
+    await expect(page.getByTestId('progress-totals')).toBeVisible()
+    await expect(page.getByTestId('history').getByRole('row')).toHaveCount(26)
+    const overflow = await page.locator('html').evaluate((el) => el.scrollWidth - el.clientWidth)
+    expect(overflow).toBeLessThanOrEqual(0)
+  })
+}

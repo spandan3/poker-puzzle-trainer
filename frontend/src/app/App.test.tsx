@@ -5,7 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AttemptResult, PuzzleView } from '../api/types'
 import { cardName } from '../lib/cards'
 import { SHORTCUTS } from '../lib/shortcuts'
-import { attemptFixture, puzzleFixture, settingsFixture, statsFixture } from '../test/fixture'
+import {
+  attemptFixture,
+  historyFixture,
+  puzzleFixture,
+  settingsFixture,
+  statsFixture,
+} from '../test/fixture'
 import { App } from './App'
 
 interface Call {
@@ -51,6 +57,13 @@ function fakeServer(
       const answer = opts.stats?.(tz) ?? { status: 200, body: stats }
       return json(answer.status, answer.body)
     }
+    if (url.startsWith('/api/history')) return json(200, historyFixture())
+    const stored = /^\/api\/puzzles\/(\d+)$/.exec(url)
+    if (stored && method === 'GET') {
+      // a stored puzzle that has been answered before: a replay
+      return json(200, { ...puzzleFixture('river'), id: Number(stored[1]), attempts_so_far: 1 })
+    }
+    if (/^\/api\/attempts\/\d+$/.test(url) && method === 'GET') return json(200, attempt)
     if (url === '/api/puzzles/current') return json(404, { detail: 'no current puzzle' })
     if (url === '/api/puzzles' && method === 'POST') {
       const next = puzzles.shift()
@@ -423,6 +436,83 @@ describe('App', () => {
       await waitFor(() =>
         expect(calls.filter((c) => c.url.startsWith('/api/stats'))).toHaveLength(2),
       )
+    })
+  })
+
+  describe('history: replay and stored results', () => {
+    const first = () => historyFixture().items[0]!
+
+    it('Replay switches to Puzzles with that puzzle, the practice note, and no new puzzle', async () => {
+      const { calls } = fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      await screen.findByTestId('history')
+      const replay = (await screen.findAllByRole('button', { name: /^Replay puzzle from / }))[0]!
+      await user.click(replay)
+      expect(window.location.pathname).toBe('/')
+      expect(await screen.findByTestId('practice-note')).toHaveTextContent(
+        "Practice — this attempt won't count toward your stats.",
+      )
+      expect(screen.getByRole('textbox', { name: 'Equity' })).toHaveValue('')
+      expect(
+        calls.some((c) => c.method === 'GET' && c.url === `/api/puzzles/${first().puzzle_id}`),
+      ).toBe(true)
+      expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/puzzles')).toHaveLength(1)
+    })
+
+    it('Replay from a landing on /progress is not replaced by a first load', async () => {
+      window.history.replaceState(null, '', '/progress')
+      const { calls } = fakeServer()
+      const { user } = setup()
+      await user.click((await screen.findAllByRole('button', { name: /^Replay puzzle from / }))[0]!)
+      expect(await screen.findByTestId('practice-note')).toBeVisible()
+      await waitFor(() => expect(screen.getByRole('textbox', { name: 'Equity' })).toBeVisible())
+      expect(calls.filter((c) => c.url.startsWith('/api/puzzles') && c.method === 'POST')).toEqual(
+        [],
+      )
+      expect(calls.some((c) => c.url === '/api/puzzles/current')).toBe(false)
+    })
+
+    it('Result shows the stored result and focuses Next puzzle, which loads a new puzzle', async () => {
+      const { calls } = fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      const result = (
+        await screen.findAllByRole('button', { name: /^Result of the attempt from / })
+      )[0]!
+      await user.click(result)
+      expect(window.location.pathname).toBe('/')
+      expect(await screen.findByRole('region', { name: 'Result' })).toBeVisible()
+      expect(
+        calls.some((c) => c.method === 'GET' && c.url === `/api/attempts/${first().attempt_id}`),
+      ).toBe(true)
+      const next = screen.getByRole('button', { name: /Next puzzle/ })
+      await waitFor(() => expect(next).toHaveFocus())
+      await user.click(next)
+      expect(await screen.findByRole('textbox', { name: 'Equity' })).toBeVisible()
+      expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/puzzles')).toHaveLength(2)
+    })
+
+    it('a failed open shows the error banner with Retry on the Puzzles page', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      const replay = (await screen.findAllByRole('button', { name: /^Replay puzzle from / }))[0]!
+      const real = globalThis.fetch
+      vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) =>
+        /^\/api\/puzzles\/\d+$/.test(String(input))
+          ? new Response(JSON.stringify({ detail: 'puzzle not found' }), {
+              status: 404,
+              headers: { 'Content-Type': 'application/json' },
+            })
+          : real(input, init),
+      )
+      await user.click(replay)
+      expect(await screen.findByRole('alert')).toHaveTextContent("isn't stored")
+      expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible()
     })
   })
 })

@@ -7,13 +7,15 @@ import { isPlainLeftClick, pathOf } from '../../lib/page'
 import { localTimeZone } from '../../lib/stats'
 import { Breakdowns } from './Breakdowns'
 import { DailyGoal } from './DailyGoal'
+import { HistoryTable } from './HistoryTable'
+import type { HistoryApi } from './HistoryTable'
 import { LeakList } from './LeakList'
 import { StatTiles } from './StatTiles'
 import { TrendCharts } from './TrendCharts'
 import styles from './Progress.module.css'
 
 /** The parts of the API client the Progress page uses (injectable for tests). */
-export type ProgressApi = Pick<typeof client, 'getStats' | 'getHistory'>
+export type ProgressApi = Pick<typeof client, 'getStats'> & HistoryApi
 
 export interface ProgressPageProps {
   api: ProgressApi
@@ -23,6 +25,10 @@ export interface ProgressPageProps {
   onGoal: (goal: number) => Promise<boolean>
   /** a plain click on "Start a puzzle" goes here; without it the link is a normal navigation */
   onNavigate?: (page: Page) => void
+  /** "Replay" on a history row: answer that puzzle again (the app switches to Puzzles) */
+  onReplay: (puzzleId: number) => void
+  /** "Result" on a history row: reopen that attempt's stored result */
+  onResult: (attemptId: number) => void
 }
 
 type Load =
@@ -50,7 +56,14 @@ function errorMessage(error: unknown): string {
   return "Couldn't load your progress."
 }
 
-export function ProgressPage({ api, goal, onGoal, onNavigate }: ProgressPageProps) {
+export function ProgressPage({
+  api,
+  goal,
+  onGoal,
+  onNavigate,
+  onReplay,
+  onResult,
+}: ProgressPageProps) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' })
   const seq = useRef(0)
 
@@ -152,9 +165,12 @@ export function ProgressPage({ api, goal, onGoal, onNavigate }: ProgressPageProp
             />
             <LeakList leaks={load.stats.leaks} />
             <Breakdowns breakdowns={load.stats.breakdowns} />
-            {/* Task 5: the history table (filters, paging, Replay and Result buttons) goes here,
-                taking `api.getHistory`. */}
-            <section aria-label="History" data-testid="history-slot" />
+            <HistoryTable
+              api={api}
+              profiles={load.stats.breakdowns.profile.map((r) => ({ key: r.key, label: r.label }))}
+              onReplay={onReplay}
+              onResult={onResult}
+            />
           </>
         ))}
     </div>

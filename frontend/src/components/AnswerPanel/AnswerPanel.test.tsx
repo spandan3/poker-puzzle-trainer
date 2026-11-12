@@ -49,6 +49,13 @@ const action = (name: RegExp) => screen.getByRole('button', { name })
 const sizes = () => within(screen.getByRole('group', { name: /size/i })).getAllByRole('button')
 
 describe('AnswerPanel', () => {
+  it('says a replayed puzzle is practice, and says nothing for a first attempt', () => {
+    const { rerender } = setup()
+    expect(screen.queryByText(/Practice —/)).toBeNull()
+    rerender({ view: { ...puzzleFixture('flop_unopened'), attempts_so_far: 1 } })
+    expect(screen.getByText("Practice — this attempt won't count toward your stats.")).toBeVisible()
+  })
+
   it('shows five action buttons, disabling kinds that are not offered', () => {
     setup({ view: puzzleFixture('facing_all_in') })
     expect(action(/^fold/i)).not.toHaveAttribute('aria-disabled')
