@@ -1,8 +1,8 @@
 # Handoff: improving the Villain "poker bot"
 
-This is for working on the Villain model while the main line of work (M6, the results view) continues on its own branch.
+This is for working on the Villain model while the main line of work (M7, progress) continues on its own branch.
 
-Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M5 merge (2026-11-12). M3 (the puzzle generator and grader), M4 (API and storage) and M5 (table UI) are done. M6 (results view) is next.
+Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M6 merge (2026-11-12). M3 (the puzzle generator and grader), M4 (API and storage), M5 (table UI) and M6 (results view) are done. M7 (progress) is next.
 
 ## 1. What the project is
 
@@ -110,7 +110,7 @@ Old puzzles are frozen with the `profile_version` they were generated under. Tha
 
 ## 5. Current status
 
-M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage) and M5 (table UI) are done and reviewed.
+M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage), M5 (table UI) and M6 (results view) are done and reviewed.
 
 Roadmap after M5 (2026-11-12): M6 results view → M7 progress → M8 explanations (local LLM) → M9 Phase 1 sign-off → M10 Play vs Bots heads-up → M11 UI polish → M12 Play vs Bots 5-max (play) → M13 5-max analysis. See `docs/superpowers/plans/2026-11-10-roadmap.md`.
 
