@@ -31,6 +31,7 @@ from poker_trainer.puzzle.grade import Answer, Grade, grade
 from poker_trainer.puzzle.model import FORMAT, Puzzle, load_config
 from poker_trainer.puzzle.options import custom_action
 from poker_trainer.settings import AppSettings
+from poker_trainer.stats.hero import hero_category
 from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile
 
 PuzzleFactory = Callable[[int, Street | None, str | None], Puzzle]
@@ -258,6 +259,9 @@ def _grade_fields(p: Puzzle, inp: AttemptIn, action: Action, g: Grade) -> dict[s
         "best_label": g.best.option.label,
         "best_ev_chips": float(g.best.ev_chips),
         "config_version": load_config().version,
+        "true_equity": float(p.solution.equity),
+        "ahead_now": _opt(p.solution.ahead_now),
+        "hero_category": hero_category(p),
     }
     _check_finite(fields, "attempt")
     return fields
