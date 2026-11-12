@@ -220,7 +220,9 @@ describe('AnswerPanel', () => {
     await user.type(equityBox(), '40')
     await user.click(action(/^bet/i))
     expect(customBox()).toBeDisabled()
-    expect(screen.getByText('Custom sizes are unavailable for this puzzle')).toBeInTheDocument()
+    expect(customBox()).toHaveAccessibleDescription(
+      expect.stringContaining('Custom sizes are unavailable for this puzzle') as string,
+    )
     // 0 does nothing either
     await user.click(document.body)
     await user.keyboard('0')

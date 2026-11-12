@@ -90,5 +90,6 @@ describe('HistoryPanel', () => {
     expect(screen.queryByText('Hero to act')).toBeNull()
     expect(screen.getByText('bets 1.5 bb (30% pot)')).toBeVisible()
     expect(screen.getByText('your answer')).toBeVisible()
+    expect(screen.queryByText('No action yet')).toBeNull()
   })
 })

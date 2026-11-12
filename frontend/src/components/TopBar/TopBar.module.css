@@ -129,7 +129,14 @@
   color: var(--color-text);
 }
 
+.helpGlyph {
+  font: inherit;
+}
+
 .primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   height: 2.25rem;
   padding: 0 var(--space-4);
   background: var(--color-accent);
@@ -142,4 +149,15 @@
 
 .primary:hover {
   background: var(--color-accent-strong);
+}
+
+.kbd {
+  padding: 0 0.3em;
+  border: 1px solid var(--result-kbd-border);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--result-kbd-bg);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.3;
 }
