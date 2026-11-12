@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { DecisionDetails } from '../../components/Decision/DecisionDetails'
+import { ExplanationPanel } from '../../components/Explanation/ExplanationPanel'
 import { ResultSummary } from '../../components/ResultSummary/ResultSummary'
 import { decisionFromAttempt } from '../../lib/decision'
 import { attemptFixture, puzzleFixture } from '../../test/fixture'
@@ -66,7 +67,10 @@ const entry: GalleryEntry = {
         return (
           <Demo key={title} title={title}>
             <ResultSummary result={attempt} onNext={() => {}} onDetails={() => {}} shortcutsOn />
-            <DecisionDetails decision={decisionFromAttempt(view, attempt)} />
+            <DecisionDetails
+              decision={decisionFromAttempt(view, attempt)}
+              whyTab={<ExplanationPanel explanation={attempt.explanation} />}
+            />
           </Demo>
         )
       })}

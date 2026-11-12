@@ -40,6 +40,9 @@ test('a puzzle end to end: answer, submit, verdict, reveal, next', async ({ page
 
   // the details: one landmark in each tab
   const panel = page.getByRole('tabpanel')
+  await page.getByRole('tab', { name: 'Why' }).click()
+  await expect(panel.locator('p').first()).not.toBeEmpty()
+  await expect(panel.getByRole('heading', { level: 3 }).first()).toBeVisible()
   await page.getByRole('tab', { name: 'Options' }).click()
   await expect(panel.getByRole('table')).toBeVisible()
   await page.getByRole('tab', { name: 'Maths' }).click()
@@ -139,7 +142,7 @@ for (const [width, height] of [
     if (await size.count()) await size.first().click()
     await page.getByRole('button', { name: /^Submit/ }).click()
     await expect(page.getByRole('region', { name: 'Result' })).toBeVisible()
-    for (const tab of ['Options', 'Maths', 'Range', 'Hand']) {
+    for (const tab of ['Why', 'Options', 'Maths', 'Range', 'Hand']) {
       await page.getByRole('tab', { name: tab }).click()
       const overflow = await page.locator('html').evaluate((el) => el.scrollWidth - el.clientWidth)
       expect(overflow, `${tab} tab`).toBeLessThanOrEqual(0)
