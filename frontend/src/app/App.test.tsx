@@ -190,7 +190,9 @@ describe('App', () => {
     expect(screen.queryByText('Hero to act')).toBeNull()
     expect(screen.getByText('your answer')).toBeVisible()
     expect(screen.getByRole('button', { name: /Next puzzle/ })).toHaveFocus()
-    expect(screen.getByRole('tab', { name: 'Options' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Why' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel')).toHaveAccessibleName('Why')
+    await user.click(screen.getByRole('tab', { name: 'Options' }))
     expect(screen.getByRole('table')).toBeVisible()
   })
 

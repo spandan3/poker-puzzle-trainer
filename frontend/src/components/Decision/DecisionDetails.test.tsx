@@ -37,6 +37,40 @@ describe('DecisionDetails', () => {
     expect(screen.getByText('the hand')).toBeVisible()
   })
 
+  it('puts Why first and selected when given, and still honours a stored tab', async () => {
+    const user = userEvent.setup()
+    const first = render(
+      <DecisionDetails decision={decision} whyTab={<p>the why</p>} handTab={<p>the hand</p>} />,
+    )
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'Why',
+      'Options',
+      'Maths',
+      'Range',
+      'Hand',
+    ])
+    expect(screen.getByRole('tab', { name: 'Why' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('the why')).toBeVisible()
+    await user.click(screen.getByRole('tab', { name: 'Options' }))
+    first.unmount()
+    render(<DecisionDetails decision={decision} whyTab={<p>the why</p>} />)
+    expect(screen.getByRole('tab', { name: 'Options' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('cycles five tabs with the arrow keys', async () => {
+    const user = userEvent.setup()
+    render(<DecisionDetails decision={decision} whyTab={<p>w</p>} handTab={<p>h</p>} />)
+    screen.getByRole('tab', { name: 'Why' }).focus()
+    await user.keyboard('{ArrowLeft}')
+    expect(screen.getByRole('tab', { name: 'Hand' })).toHaveFocus()
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('tab', { name: 'Why' })).toHaveFocus()
+    await user.keyboard('{ArrowRight}{ArrowRight}')
+    expect(screen.getByRole('tab', { name: 'Maths' })).toHaveAttribute('aria-selected', 'true')
+    await user.keyboard('{Home}')
+    expect(screen.getByRole('tab', { name: 'Why' })).toHaveFocus()
+  })
+
   it('moves the selection with the arrow keys', async () => {
     const user = userEvent.setup()
     render(<DecisionDetails decision={decision} />)

@@ -8,9 +8,10 @@ import styles from './DecisionDetails.module.css'
 
 const TAB_KEY = 'ppt.resultTab'
 
-type TabId = 'options' | 'maths' | 'range' | 'hand'
+type TabId = 'why' | 'options' | 'maths' | 'range' | 'hand'
 
 const TAB_LABELS: Record<TabId, string> = {
+  why: 'Why',
   options: 'Options',
   maths: 'Maths',
   range: 'Range',
@@ -19,6 +20,8 @@ const TAB_LABELS: Record<TabId, string> = {
 
 export interface DecisionDetailsProps {
   decision: DecisionData
+  /** the Why tab's content (the plain-English explanation); no Why tab without it */
+  whyTab?: ReactNode
   /** the Hand tab's content (puzzle-specific); no Hand tab without it */
   handTab?: ReactNode
 }
@@ -44,14 +47,19 @@ function writeTab(tab: TabId): void {
   }
 }
 
-/** Options, Maths, Range and (when given) Hand, as WAI-ARIA tabs. */
+/** (Why,) Options, Maths, Range and (when given) Hand, as WAI-ARIA tabs. Why opens first when given. */
 export const DecisionDetails = forwardRef<DecisionDetailsHandle, DecisionDetailsProps>(
-  function DecisionDetails({ decision, handTab }, handleRef) {
+  function DecisionDetails({ decision, whyTab, handTab }, handleRef) {
     const baseId = useId()
-    const tabs: TabId[] =
-      handTab === undefined ? ['options', 'maths', 'range'] : ['options', 'maths', 'range', 'hand']
+    const tabs: TabId[] = [
+      ...(whyTab === undefined ? [] : (['why'] as const)),
+      'options',
+      'maths',
+      'range',
+      ...(handTab === undefined ? [] : (['hand'] as const)),
+    ]
     const [stored, setStored] = useState(readTab)
-    const selected: TabId = tabs.find((t) => t === stored) ?? 'options'
+    const selected: TabId = tabs.find((t) => t === stored) ?? tabs[0]!
     const rootRef = useRef<HTMLElement>(null)
     const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({})
 
@@ -86,6 +94,8 @@ export const DecisionDetails = forwardRef<DecisionDetailsHandle, DecisionDetails
 
     const panel = (tab: TabId): ReactNode => {
       switch (tab) {
+        case 'why':
+          return whyTab
         case 'options':
           return <OptionsTable decision={decision} />
         case 'maths':

@@ -6,6 +6,7 @@ import type { DecisionDetailsHandle } from '../components/Decision/DecisionDetai
 import { DecisionDetails } from '../components/Decision/DecisionDetails'
 import { HandReveal } from '../components/HandReveal/HandReveal'
 import { HistoryPanel } from '../components/HistoryPanel/HistoryPanel'
+import { ExplanationPanel } from '../components/Explanation/ExplanationPanel'
 import { ResultSummary } from '../components/ResultSummary/ResultSummary'
 import { ShortcutsOverlay } from '../components/ShortcutsOverlay/ShortcutsOverlay'
 import { Table } from '../components/Table/Table'
@@ -299,6 +300,7 @@ export function App({ api, progressApi = client }: AppProps = {}) {
                 <DecisionDetails
                   ref={detailsRef}
                   decision={decisionFromAttempt(view, result)}
+                  whyTab={<ExplanationPanel explanation={result.explanation} />}
                   handTab={<HandReveal view={view} result={result} />}
                 />
               </div>
