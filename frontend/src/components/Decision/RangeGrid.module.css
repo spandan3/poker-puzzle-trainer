@@ -1,0 +1,65 @@
+.grid {
+  --cell: minmax(1.5rem, 1fr);
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  max-width: 34rem;
+  min-width: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1rem repeat(13, var(--cell));
+  gap: 2px;
+}
+
+.head,
+.corner {
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-bg-sunken);
+  border-radius: 2px;
+  color: var(--color-text-muted);
+  font-size: 0.5625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--range-fill);
+  opacity: var(--w, 0);
+}
+
+.text {
+  position: relative;
+  letter-spacing: -0.02em;
+}
+
+.cell[data-strong] {
+  color: var(--color-text-on-accent);
+  font-weight: var(--weight-semibold);
+}
+
+.cell[data-blocked] {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 3px,
+    var(--range-blocked-hatch) 3px 5px
+  );
+  outline: 1px dashed var(--color-panel-border);
+  outline-offset: -1px;
+}

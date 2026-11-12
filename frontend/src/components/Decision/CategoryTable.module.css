@@ -1,0 +1,71 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  padding-bottom: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-panel-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table thead th {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.table tbody th,
+.table tfoot th {
+  font-weight: var(--weight-medium);
+}
+
+.table tfoot {
+  font-weight: var(--weight-bold);
+}
+
+.table .num {
+  text-align: right;
+}
+
+.bar {
+  display: inline-flex;
+  width: 5rem;
+  height: 0.5rem;
+  margin-right: var(--space-2);
+  overflow: hidden;
+  vertical-align: middle;
+  background: var(--color-bg-sunken);
+  border-radius: 999px;
+}
+
+.bar > span {
+  flex-basis: 0;
+}
+
+.bar [data-kind='win'] {
+  background: var(--color-accent);
+}
+
+.bar [data-kind='tie'] {
+  background: var(--color-text-faint);
+}
+
+.bar [data-kind='lose'] {
+  background: var(--color-panel-border);
+}
+
+.wtl {
+  color: var(--color-text-muted);
+}
