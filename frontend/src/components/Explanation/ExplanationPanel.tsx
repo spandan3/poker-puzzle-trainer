@@ -13,8 +13,15 @@ export interface ExplanationPanelProps {
   requestFailed?: boolean
 }
 
-const unavailableNote = (detail: string | null | undefined) =>
-  detail ? `The local model isn't available: ${detail}.` : "The local model isn't available."
+const RELOAD = 'Reload the page after starting it.'
+
+/** The settings' detail is a sentence with its own full stop (explain/ollama.py's probe). */
+function unavailableNote(detail: string | null | undefined): string {
+  const reason = detail?.trim().replace(/\.$/, '')
+  return reason
+    ? `The local model isn't available: ${reason}. ${RELOAD}`
+    : `The local model isn't available. ${RELOAD}`
+}
 
 /** The footer's one line: where the text comes from, or why it is the trainer's own. */
 function footerText(p: ExplanationPanelProps): string {
@@ -26,7 +33,7 @@ function footerText(p: ExplanationPanelProps): string {
     'Explanations come from templates. A local model (Ollama) can reword them: see backend/.env.example.'
   switch (e.fallback) {
     case 'guardrail':
-      return "The local model's text used a number the grader didn't compute, so the trainer's own text is shown."
+      return "The local model's text didn't keep to the grader's numbers and verdict, so the trainer's own text is shown."
     case 'timeout':
       return "The local model didn't answer in time."
     case 'unavailable':

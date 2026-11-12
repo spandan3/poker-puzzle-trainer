@@ -30,9 +30,25 @@ the facts' values (never the instructions or the fact names). A number with a un
 with the same unit (``"25%"`` is not ``"25 bb"``); a bare number may match the same number with
 any unit. Cards, number words and numeric characters must appear as such.
 
-Known limit: a number swapped for another number from the facts, or a flipped sign, passes.
+``check_claims(fields, facts)`` checks a few claims in words (a language model's text only;
+the template passes them by construction, which a test checks on every fixture spot):
+
+- ``verdict``: no verdict word (Best, Fine, Mistake, Blunder; case-insensitive, whole word)
+  other than the actual verdict's word;
+- ``headline``: the headline names the top play as the template's headline does (the choice's
+  label when it matched or beat the top play, else the top play's label) and, when the choice
+  lost EV (``loss_case`` is not ``"top"``), the choice too. A label matches as written or in
+  the headline's gerund form (``"Fold"`` or ``"folding"``), case-insensitive, as whole words;
+- ``result``: nothing about how the hand ended. Banned: the words ``won``, ``win``, ``wins``,
+  ``winning``, ``showdown`` and the phrase ``lost the hand``, and Villain's actual hand
+  ("Villain had", "Villain held", "Villain's hand was"). The template's own wording avoids all
+  of them ("takes the pot uncontested", "profit on folds alone").
+
+Known limits: a number swapped for another number from the facts, or a flipped sign, passes.
 So does a digit run glued to letters, when its digits are in the facts: ``"3bet"``, ``"1st"``,
-``"x2"`` and ``"1.5x"`` count as ``3``, ``1``, ``2`` and ``1.5`` (the same swap limit).
+``"x2"`` and ``"1.5x"`` count as ``3``, ``1``, ``2`` and ``1.5`` (the same swap limit). Any
+other claim in words that the model paraphrases wrongly (which play beats which, who is ahead,
+"Villain folds more often than needed" turned around) is not checked.
 """
 
 from __future__ import annotations
@@ -41,6 +57,9 @@ import re
 import unicodedata
 from collections.abc import Mapping
 from decimal import Decimal
+
+from poker_trainer.explain.facts import Facts
+from poker_trainer.explain.format import gerund
 
 _CARD = re.compile(r"[2-9TJQKA][♣♦♥♠]")
 _NUMBER = re.compile(r"\d+(?:\.\d+|,\d{1,2}(?!\d))?|(?<!\d)\.\d+", re.ASCII)
@@ -241,4 +260,46 @@ def check_fields(fields: Mapping[str, str], allowed_text: str) -> dict[str, set[
         bad = unknown_numbers(text, allowed_text)
         if bad:
             out[name] = bad
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Claims in words
+# ---------------------------------------------------------------------------
+
+_VERDICT_WORD = re.compile(r"\b(best|fine|mistake|blunder)\b", re.IGNORECASE)
+_RESULT = re.compile(
+    r"\b(?:won|win|wins|winning|showdown|lost the hand)\b"
+    r"|\bVillain (?:had|held)\b|\bVillain['’]s hand was\b",
+    re.IGNORECASE,
+)
+
+
+def _names(text: str, label: str) -> bool:
+    """True when ``text`` names the play ``label``, as written or as a gerund (whole words)."""
+    return any(
+        re.search(rf"(?<!\w){re.escape(form)}(?!\w)", text, re.IGNORECASE)
+        for form in (label, gerund(label))
+    )
+
+
+def check_claims(fields: Mapping[str, str], facts: Facts) -> dict[str, str]:
+    """``{rule: what hit}`` for every rule of the module doc a model's fields break (empty when
+    they pass): ``verdict``, ``headline``, ``result``."""
+    out: dict[str, str] = {}
+    text = "\n".join(fields.values())
+    wrong = sorted(
+        {m.group(1).capitalize() for m in _VERDICT_WORD.finditer(text)} - {facts.verdict}
+    )
+    if wrong:
+        out["verdict"] = ", ".join(wrong)
+    headline = fields.get("headline", "")
+    top = facts.chosen_label if facts.loss_case == "top" else facts.best_label
+    needed = [top] if facts.loss_case == "top" else [top, facts.chosen_label]
+    missing = [label for label in needed if not _names(headline, label)]
+    if missing:
+        out["headline"] = "missing " + ", ".join(missing)
+    said = sorted({m.group().lower() for m in _RESULT.finditer(text)})
+    if said:
+        out["result"] = ", ".join(said)
     return out

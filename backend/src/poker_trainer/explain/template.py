@@ -10,29 +10,12 @@ from __future__ import annotations
 from typing import Any
 
 from poker_trainer.explain.facts import ActionFact, Facts, OptionFact, build_facts
+from poker_trainer.explain.format import gerund
 from poker_trainer.puzzle.model import Puzzle
 
 GRADED_ON_RANGE = "The range in the Range tab is the range this puzzle was graded on."
 
-_GERUNDS = {
-    "Fold": "folding",
-    "Call": "calling",
-    "Check": "checking",
-    "Bet": "betting",
-    "Raise": "raising",
-}
 _PLACES = {"BTN": "on the button", "BB": "in the big blind"}
-
-
-def _gerund(label: str) -> str:
-    """``"Bet 33%"`` -> ``"betting 33%"``, ``"All-in"`` -> ``"going all-in"``."""
-    if label == "All-in":
-        return "going all-in"
-    first, _, rest = label.partition(" ")
-    verb = _GERUNDS.get(first)
-    if verb is None:
-        return label
-    return f"{verb} {rest}" if rest else verb
 
 
 def _join(items: list[str]) -> str:
@@ -65,7 +48,7 @@ def headline(f: Facts) -> str:
     if f.loss_case == "close":
         return f"{f.chosen_label} was close: within {f.ev_loss} of the top play, {f.best_label}."
     return (
-        f"{f.best_label} was the top play; {_gerund(f.chosen_label)} loses {f.ev_loss} "
+        f"{f.best_label} was the top play; {gerund(f.chosen_label)} loses {f.ev_loss} "
         "against Villain's range."
     )
 
@@ -126,51 +109,79 @@ def _choice(f: Facts) -> str:
     )
 
 
+def _pot_odds(f: Facts) -> str:
+    """The pot-odds sentence. "would" when neither calling nor folding is the choice or the top
+    play; equal shown percentages are "exactly what it needs" or "just short", never "above"."""
+    needs = f.pot_odds if f.pot_odds_formula is None else f"{f.pot_odds_formula} = {f.pot_odds}"
+    in_play = any(o.kind in ("call", "fold") and (o.is_chosen or o.is_best) for o in f.options)
+    verb = "beats" if in_play else "would beat"
+    beats = bool(f.equity_beats_pot_odds)
+    outcome = f"calling {verb} folding" if beats else f"folding {verb} calling"
+    if f.equity == f.pot_odds:
+        compare = "is exactly what it needs" if beats else "falls just short of that"
+    else:
+        compare = f"is {'above' if beats else 'below'} that"
+    return (
+        f"Calling {f.call_amount} into a pot of {f.pot} needs {needs} equity; "
+        f"{f.equity} {compare}, so {outcome}."
+    )
+
+
 def _equity(f: Facts) -> str:
     text = f"Your equity against Villain's whole range is {f.equity}."
     if f.pot_odds is not None and f.call_amount is not None:
-        needs = f.pot_odds if f.pot_odds_formula is None else f"{f.pot_odds_formula} = {f.pot_odds}"
-        outcome = (
-            "so calling beats folding" if f.equity_beats_pot_odds else "so folding beats calling"
-        )
-        side = "above" if f.equity_beats_pot_odds else "below"
-        text += (
-            f" Calling {f.call_amount} into a pot of {f.pot} needs {needs} equity; "
-            f"{f.equity} is {side} that, {outcome}."
-        )
+        text += " " + _pot_odds(f)
     if f.check_best and f.best_bet is not None:
+        # the Check EV is in the choice paragraph already
         text += (
-            f" Checking (EV {f.best.ev}) does better than the best bet, "
+            f" Checking does better than the strongest bet, "
             f"{f.best_bet.label} (EV {f.best_bet.ev})."
         )
     return text
 
 
-def _aggressive_line(f: Facts, o: OptionFact) -> str:
-    if o.never_continues:
-        text = f"{o.label}: Villain always folds to it, so it wins the pot uncontested."
-    else:
-        parts = []
-        if o.fold_freq is not None:
-            parts.append(f"Villain folds {o.fold_freq} of the time")
-        if o.equity_vs_continue is not None:
-            parts.append(f"you have {o.equity_vs_continue} equity against the hands that continue")
-        text = f"{o.label}: {_join(parts)}." if parts else ""
-    if o.is_chosen and f.bluff_required is not None:
-        word = f.chosen.kind
-        formula = "" if f.bluff_formula is None else f" ({f.bluff_formula})"
-        text += (
-            f" To profit on folds alone, a {word} this size needs {f.bluff_required} "
-            f"folds{formula}."
+def _fold_equity(o: OptionFact) -> str:
+    """Villain's fold frequency against what the bet needs to profit on folds alone, and what
+    that means (Maths' "Folds alone pay for the bet" line, in words)."""
+    formula = "" if o.required_formula is None else f" ({o.required_formula})"
+    text = (
+        f"{o.label}: Villain folds {o.fold_freq} of the time, {o.fold_relation} the "
+        f"{o.required_fold_equity} a {o.kind} this size needs to profit on folds alone{formula}"
+    )
+    eq = o.equity_vs_continue
+    if o.folds_pay:
+        text += ", so the folds alone pay for it, even when every hand that continues beats you."
+        if eq is not None:
+            text += f" On top of that, you have {eq} equity against the hands that continue."
+        return text
+    if eq is not None:
+        return (
+            text + f", so folds alone don't pay for it: it relies on your {eq} equity against "
+            "the hands that continue."
         )
-    return text.strip()
+    return text + (
+        ", so folds alone don't pay for it: it relies on your equity when Villain continues."
+    )
+
+
+def _aggressive_line(o: OptionFact) -> str:
+    if o.never_continues:
+        return f"{o.label}: Villain always folds to it, so it takes the pot uncontested."
+    if o.fold_freq is not None and o.required_fold_equity is not None:
+        return _fold_equity(o)
+    parts = []
+    if o.fold_freq is not None:
+        parts.append(f"Villain folds {o.fold_freq} of the time")
+    if o.equity_vs_continue is not None:
+        parts.append(f"you have {o.equity_vs_continue} equity against the hands that continue")
+    return f"{o.label}: {_join(parts)}." if parts else ""
 
 
 def _aggression(f: Facts) -> str | None:
     shown = [o for o in (f.best, f.chosen) if o.aggressive]
     lines = []
     for o in dict.fromkeys(shown):  # best first; once when best is chosen
-        line = _aggressive_line(f, o)
+        line = _aggressive_line(o)
         if line:
             lines.append(line)
     return " ".join(lines) or None
@@ -196,10 +207,27 @@ def verdict_paragraphs(f: Facts) -> list[str]:
     return out
 
 
+def _grouped_steps(steps: tuple[str, ...]) -> str:
+    """``"Flop: checks"``, ``"Flop: calls"`` -> ``"Flop: checks, then calls"``; streets joined
+    with ``"; "``. The steps' own text (in bb) is kept."""
+    groups: list[tuple[str, list[str]]] = []
+    for step in steps:
+        street, sep, action = step.partition(": ")
+        if not sep:
+            groups.append(("", [step]))
+        elif groups and groups[-1][0] == street:
+            groups[-1][1].append(action)
+        else:
+            groups.append((street, [action]))
+    return "; ".join(
+        f"{street}: {', then '.join(acts)}" if street else acts[0] for street, acts in groups
+    )
+
+
 def villain_paragraphs(f: Facts) -> list[str]:
     out = [f"Villain is a {f.profile_label} player. {f.profile_description}"]
     if f.range_steps:
-        out.append(f"Villain's range narrowed with each action: {'; '.join(f.range_steps)}.")
+        out.append(f"Villain's range narrowed with each action: {_grouped_steps(f.range_steps)}.")
     else:
         out.append("Villain had not acted yet, so the range is every hand Villain can hold.")
     out.append(GRADED_ON_RANGE)

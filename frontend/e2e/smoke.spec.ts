@@ -178,8 +178,15 @@ test('Why tab: pending line, then the local model’s text and its footer', asyn
         })
       : route.fallback(),
   )
+  // the rewrite is held until the pending line has been seen, then released
+  let release: () => void = () => {}
+  const gate = new Promise<void>((r) => {
+    release = r
+  })
+  // explanation_llm.json is attempt_bet's explanation (another spot than the puzzle on screen):
+  // the test checks the Why tab's states, not that the text matches this puzzle
   await page.route('**/api/attempts/*/explanation', async (route) => {
-    await new Promise((r) => setTimeout(r, 800))
+    await gate
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -191,6 +198,7 @@ test('Why tab: pending line, then the local model’s text and its footer', asyn
   const panel = page.getByRole('tabpanel')
   await page.getByRole('tab', { name: 'Why' }).click()
   await expect(panel.getByRole('status')).toHaveText('Rewriting in plain English with llama3.2:3b…')
+  release()
   await expect(panel.getByText(/^In short: /)).toBeVisible()
   await expect(panel.getByRole('status')).toHaveCount(0)
   await expect(panel.getByText(/^Reworded by llama3\.2:3b, a local model\./)).toBeVisible()

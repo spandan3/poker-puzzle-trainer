@@ -78,6 +78,8 @@ INSTRUCTIONS = (
     "write a number as a word. Never count things in words. Never write odds as a ratio or a "
     "fraction.\n"
     "- Keep card names exactly as written, with their suit symbols.\n"
+    "- Keep the verdict word and the play names exactly as written, and use no other verdict "
+    "word. The headline names the same plays as the explanation's headline.\n"
     "- Talk about Villain's range. Mention only the expected values the explanation already "
     "mentions. Never mention cards dealt after the decision, Villain's actual cards, or who won "
     "the hand.\n"
@@ -222,7 +224,8 @@ def _model_names(data: Any) -> set[str]:
 
 def probe(url: str, model: str, timeout: float = PROBE_TIMEOUT) -> tuple[ProbeStatus, str | None]:
     """``("ready", None)`` when Ollama at ``url`` lists ``model`` (a name without a tag means
-    ``name:latest``), else ``("unavailable", <what to do>)``."""
+    ``name:latest``), else ``("unavailable", <what to do>)``. A detail is a plain sentence (no Markdown) ending with a full
+    stop: the settings view shows it as text."""
     req = urllib.request.Request(_endpoint(url, "/api/tags"), method="GET")
     try:
         names = _model_names(_request_json(req, timeout))
@@ -240,5 +243,5 @@ def probe(url: str, model: str, timeout: float = PROBE_TIMEOUT) -> tuple[ProbeSt
         return "ready", None
     return (
         "unavailable",
-        f"Ollama is running but the model {model} isn't pulled: run `ollama pull {model}`.",
+        f'Ollama is running but the model {model} isn\'t pulled: run "ollama pull {model}".',
     )

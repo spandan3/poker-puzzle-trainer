@@ -2,9 +2,11 @@
 
 - Provider ``none``: the template, with ``fallback="off"``; nothing calls a network.
 - Provider ``ollama``: the model rewords the template's headline, hand and verdict. Its output
-  is used only when every field passes the guardrail against the facts' values; otherwise, or
-  when the model is unavailable, slow, broken or gives invalid output, the template is shown
-  with the reason in ``fallback``. The Villain section is always the template's.
+  is used only when every field passes the guardrail: its numbers against the facts' values,
+  then its claims in words (``guardrail.check_claims``: the verdict word, the plays the headline
+  names, nothing about who won or Villain's cards). Otherwise, or when the model is unavailable,
+  slow, broken or gives invalid output, the template is shown with the reason in ``fallback``.
+  The Villain section is always the template's.
 
 Successes and guardrail rejections are cached per ``(attempt_id, model)`` (LRU, ``CACHE_SIZE``
 entries); failures are not, so the next request retries. A request for a key whose generation is
@@ -166,6 +168,10 @@ class Explainer:
         if bad:
             numbers = {name: sorted(tokens) for name, tokens in bad.items()}
             log.info("explanation %d: guardrail rejected numbers %s", attempt_id, numbers)
+            return _fallback(template, "guardrail"), True
+        claims = guardrail.check_claims(fields, facts)
+        if claims:
+            log.info("explanation %d: guardrail rejected claims %s", attempt_id, claims)
             return _fallback(template, "guardrail"), True
         sections = {sec["id"]: sec for sec in template["sections"]}
         return {

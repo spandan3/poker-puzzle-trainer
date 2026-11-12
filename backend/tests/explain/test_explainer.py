@@ -110,7 +110,8 @@ def test_llm_success(case):
 
 def test_paragraphs_split_on_blank_lines(case):
     template, f = case
-    reply = json.dumps({"headline": "Fine.", "hand": "A.\n\n\nB.\n  \nC.", "verdict": "D.\n\n"})
+    headline = template["headline"]
+    reply = json.dumps({"headline": headline, "hand": "A.\n\n\nB.\n  \nC.", "verdict": "D.\n\n"})
     out = Explainer(_settings(), generate=FakeGenerate(reply)).explanation_for(1, template, f)
     assert out["sections"][0]["paragraphs"] == ["A.", "B.", "C."]
     assert out["sections"][1]["paragraphs"] == ["D."]
@@ -126,6 +127,31 @@ def test_guardrail_rejection_falls_back_and_is_cached(case, caplog):
     assert out == {**template, "fallback": "guardrail"}
     assert "99.9%" in caplog.text and "You had" not in caplog.text  # the numbers, not the text
     assert ex.explanation_for(3, template, f) == out
+    assert len(gen.calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("change", "rule"),
+    [
+        (lambda fl: {**fl, "verdict": fl["verdict"] + " A Blunder, really."}, "verdict"),
+        (lambda fl: {**fl, "headline": "Checking was a Mistake."}, "headline"),
+        (lambda fl: {**fl, "hand": fl["hand"] + " Villain had a flush."}, "result"),
+        (lambda fl: {**fl, "verdict": fl["verdict"] + " You would win more often."}, "result"),
+    ],
+)
+def test_claim_rejection_falls_back_and_is_cached(case, caplog, change, rule):
+    template, f = case  # verdict Mistake, top play Bet 33%, chosen Check
+
+    def reply(prompt: str) -> str:
+        return json.dumps(change(json.loads(_reword(prompt))))
+
+    gen = FakeGenerate(reply)
+    ex = Explainer(_settings(), generate=gen)
+    with caplog.at_level(logging.INFO, logger="poker_trainer.explain.service"):
+        out = ex.explanation_for(4, template, f)
+    assert out == {**template, "fallback": "guardrail"}
+    assert "rejected claims" in caplog.text and f"'{rule}'" in caplog.text
+    assert ex.explanation_for(4, template, f) == out
     assert len(gen.calls) == 1
 
 
