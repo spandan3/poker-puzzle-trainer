@@ -156,5 +156,18 @@ describe('ProgressPage', () => {
     const api = fakeApi()
     render(<ProgressPage api={api} goal={7} onGoal={async () => true} />)
     expect(await screen.findByRole('spinbutton', { name: 'Puzzles per day' })).toHaveValue(7)
+    // everything computed from the goal shows the stats' own goal, never the box's
+    expect(screen.queryByText(/\/ 7\b/)).toBeNull()
+  })
+
+  it('fetches once more when the goal setting differs from the stats goal, and does not loop', async () => {
+    const api = fakeApi()
+    render(<ProgressPage api={api} goal={10} onGoal={async () => true} />)
+    await screen.findByTestId('progress-totals')
+    await waitFor(() => expect(api.getStats).toHaveBeenCalledTimes(2))
+    await new Promise((r) => setTimeout(r, 50))
+    expect(api.getStats).toHaveBeenCalledTimes(2)
+    expect(tile('today')).toHaveTextContent('/ 3')
+    expect(screen.queryByText(/\/ 10\b/)).toBeNull()
   })
 })

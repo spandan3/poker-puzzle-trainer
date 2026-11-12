@@ -1,5 +1,5 @@
 // Formatting and scales for the Progress page. The numbers come from the API; this only shows them.
-import { formatPct } from './format'
+import { formatEvBb, formatPct } from './format'
 
 /** An equity or range-read error (a fraction) in percentage points: `0.042` -> "4.2 pts". */
 export function pts(x: number): string {
@@ -22,9 +22,9 @@ export function bb1(x: number): string {
  */
 export function deltaText(last: number | null, prev: number | null): string | null {
   if (last === null || prev === null) return null
-  const diff = Number(Math.abs(prev - last).toFixed(1))
+  const diff = Number(Math.abs(prev - last).toFixed(2))
   if (diff === 0) return 'same as the 50 before'
-  return `${diff.toFixed(1)} bb ${last < prev ? 'better' : 'worse'} than the 50 before`
+  return `${formatEvBb(diff)} ${last < prev ? 'better' : 'worse'} than the 50 before`
 }
 
 /** The browser's IANA time zone, or "UTC" when it can't be read. */

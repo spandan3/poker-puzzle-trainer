@@ -76,6 +76,15 @@ export function LineChart({
     return d
   }
 
+  // one sentence per series for screen readers: where it started, ended and peaked
+  const summary = series
+    .map((s) => {
+      const vals = s.points.flatMap((p) => (p.y === null ? [] : [p.y]))
+      if (vals.length === 0) return `${s.label}: no data.`
+      return `${s.label}: first ${format(vals[0]!)}, last ${format(vals[vals.length - 1]!)}, lowest ${format(Math.min(...vals))}, highest ${format(Math.max(...vals))}.`
+    })
+    .join(' ')
+
   // the data table: one row per x, one column per series
   const rows = [...new Set(xs)].sort((a, b) => a - b)
   const lookup = series.map((s) => new Map(s.points.map((p) => [p.x, p.y])))
@@ -137,32 +146,40 @@ export function LineChart({
           )
         })}
       </svg>
-      <table className={styles.srOnly}>
-        <caption>{title}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{xLabel}</th>
-            {series.map((s) => (
-              <th key={s.label} scope="col">
-                {series.length > 1 ? `${s.label} (${yLabel})` : yLabel}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((x) => (
-            <tr key={x}>
-              <th scope="row">{x}</th>
-              {lookup.map((m, i) => {
-                const y = m.get(x)
-                return (
-                  <td key={series[i]!.label}>{y === undefined || y === null ? '—' : format(y)}</td>
-                )
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <p className={styles.srOnly}>{summary}</p>
+      <details className={styles.data}>
+        <summary>Show data</summary>
+        <div className={styles.dataTable}>
+          <table>
+            <caption>{title}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{xLabel}</th>
+                {series.map((s) => (
+                  <th key={s.label} scope="col">
+                    {series.length > 1 ? `${s.label} (${yLabel})` : yLabel}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((x) => (
+                <tr key={x}>
+                  <th scope="row">{x}</th>
+                  {lookup.map((m, i) => {
+                    const y = m.get(x)
+                    return (
+                      <td key={series[i]!.label}>
+                        {y === undefined || y === null ? '—' : format(y)}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </figure>
   )
 }

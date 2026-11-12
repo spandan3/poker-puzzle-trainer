@@ -36,6 +36,8 @@ export function BarChart({
   const plotH = height - M.top - M.bottom
   const slot = bars.length > 0 ? plotW / bars.length : plotW
   const barW = Math.min(slot * 0.62, 56)
+  const met = bars.filter((b) => b.value >= goal).length
+  const most = Math.max(0, ...bars.map((b) => b.value))
   const sy = (y: number) => M.top + plotH - (y / scale.max) * plotH
 
   return (
@@ -101,25 +103,33 @@ export function BarChart({
           Goal {goal}
         </text>
       </svg>
-      <table className={styles.srOnly}>
-        <caption>
-          {title} (goal {goal} per day)
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">{xLabel}</th>
-            <th scope="col">{valueLabel}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {bars.map((b) => (
-            <tr key={b.label}>
-              <th scope="row">{b.label}</th>
-              <td>{b.value}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <p className={styles.srOnly}>
+        {met} of {bars.length} days reached the goal of {goal}; most in a day: {most}.
+      </p>
+      <details className={styles.data}>
+        <summary>Show data</summary>
+        <div className={styles.dataTable}>
+          <table>
+            <caption>
+              {title} (goal {goal} per day)
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{xLabel}</th>
+                <th scope="col">{valueLabel}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bars.map((b) => (
+                <tr key={b.label}>
+                  <th scope="row">{b.label}</th>
+                  <td>{b.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </figure>
   )
 }

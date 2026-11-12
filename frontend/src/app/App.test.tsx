@@ -45,7 +45,10 @@ function fakeServer(
     }
     if (url.startsWith('/api/stats?tz=')) {
       const tz = decodeURIComponent(url.slice('/api/stats?tz='.length))
-      const answer = opts.stats?.(tz) ?? { status: 200, body: statsFixture() }
+      // the stats count days against the same goal the settings hold
+      const stats = statsFixture()
+      stats.days = { ...stats.days, goal: settingsFixture().daily_goal }
+      const answer = opts.stats?.(tz) ?? { status: 200, body: stats }
       return json(answer.status, answer.body)
     }
     if (url === '/api/puzzles/current') return json(404, { detail: 'no current puzzle' })
@@ -381,7 +384,13 @@ describe('App', () => {
         stats: (tz) => {
           seen.push(tz)
           return tz === 'UTC'
-            ? { status: 200, body: statsFixture() }
+            ? {
+                status: 200,
+                body: {
+                  ...statsFixture(),
+                  days: { ...statsFixture().days, goal: settingsFixture().daily_goal },
+                },
+              }
             : { status: 422, body: { detail: 'unknown time zone' } }
         },
       })

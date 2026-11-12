@@ -145,3 +145,22 @@ for (const [width, height] of [
     }
   })
 }
+
+test('progress page: no dead space below the content at 1280×800', async ({ page }) => {
+  const stats = readFileSync(
+    resolve(import.meta.dirname, '../src/test/fixtures/stats.json'),
+    'utf8',
+  )
+  await page.route('**/api/stats*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: stats }),
+  )
+  await page.goto('/progress')
+  await expect(page.getByTestId('progress-totals')).toBeVisible()
+  const scrollHeight = await page.locator('html').evaluate((el) => el.scrollHeight)
+  const bottom = await page
+    .getByTestId('progress-page')
+    .evaluate(
+      (el) => el.getBoundingClientRect().bottom + el.ownerDocument.documentElement.scrollTop,
+    )
+  expect(scrollHeight - Math.max(bottom, 800)).toBeLessThanOrEqual(50)
+})
