@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { chartScale } from '../../lib/stats'
 import styles from './Charts.module.css'
 
@@ -31,6 +32,7 @@ export function BarChart({
   width = 560,
   height = 220,
 }: BarChartProps) {
+  const [open, setOpen] = useState(false) // the data table's rows exist only while it is open
   const scale = chartScale(Math.max(goal, ...bars.map((b) => b.value)))
   const plotW = width - M.left - M.right
   const plotH = height - M.top - M.bottom
@@ -106,7 +108,10 @@ export function BarChart({
       <p className={styles.srOnly}>
         {met} of {bars.length} days reached the goal of {goal}; most in a day: {most}.
       </p>
-      <details className={styles.data}>
+      <details
+        className={styles.data}
+        onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+      >
         <summary>Show data</summary>
         <div className={styles.dataTable}>
           <table>
@@ -120,7 +125,7 @@ export function BarChart({
               </tr>
             </thead>
             <tbody>
-              {bars.map((b) => (
+              {(open ? bars : []).map((b) => (
                 <tr key={b.label}>
                   <th scope="row">{b.label}</th>
                   <td>{b.value}</td>

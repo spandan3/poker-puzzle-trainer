@@ -116,18 +116,21 @@ export function TopBar(props: TopBarProps) {
           </>
         )}
 
-        <button
-          type="button"
-          className={styles.help}
-          aria-label="Keyboard shortcuts help"
-          onClick={props.onHelp}
-          {...hintAttrs('help')}
-        >
-          {/* the glyph is the button's key hint */}
-          <kbd className={styles.helpGlyph} aria-hidden="true">
-            ?
-          </kbd>
-        </button>
+        {/* shortcuts are off on Progress, so there is nothing to show help for */}
+        {onPuzzles && (
+          <button
+            type="button"
+            className={styles.help}
+            aria-label="Keyboard shortcuts help"
+            onClick={props.onHelp}
+            {...hintAttrs('help')}
+          >
+            {/* the glyph is the button's key hint */}
+            <kbd className={styles.helpGlyph} aria-hidden="true">
+              ?
+            </kbd>
+          </button>
+        )}
         {onPuzzles && (
           <button
             type="button"

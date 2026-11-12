@@ -1,6 +1,6 @@
 import type { StatsView } from '../../api/types'
 import { formatEvBb } from '../../lib/format'
-import { deltaText, pct, pts } from '../../lib/stats'
+import { deltaText, pct, plural, pts } from '../../lib/stats'
 import styles from './Progress.module.css'
 
 export interface StatTilesProps {
@@ -13,7 +13,7 @@ interface Tile {
   value: string
   note: string | null
   /** a tone for the note (the change against the 50 before) */
-  tone?: 'good' | 'bad'
+  tone?: 'good' | 'bad' | 'neutral'
 }
 
 function tiles({ headline, streak, days }: StatsView): Tile[] {
@@ -25,15 +25,9 @@ function tiles({ headline, streak, days }: StatsView): Tile[] {
       id: 'ev',
       label: 'EV lost per decision',
       value: ev === null ? '—' : formatEvBb(ev),
-      note: delta ?? 'last 50 puzzles',
-      tone:
-        delta === null || ev === null || prev === null
-          ? undefined
-          : ev < prev
-            ? 'good'
-            : ev > prev
-              ? 'bad'
-              : undefined,
+      note: delta?.text ?? 'last 50 puzzles',
+      // the same rounded difference as the text: "same as the 50 before" is never coloured
+      tone: delta?.tone,
     },
     {
       id: 'accuracy',
@@ -72,9 +66,13 @@ function tiles({ headline, streak, days }: StatsView): Tile[] {
 /** The totals line and a row of headline tiles (last 50 first attempts unless noted). */
 export function StatTiles({ stats }: StatTilesProps) {
   return (
-    <section aria-label="Summary" className={styles.summary}>
+    <section aria-labelledby="summary-title" className={styles.summary}>
+      <h3 id="summary-title" className={styles.srOnly}>
+        Summary
+      </h3>
       <p className={styles.totals} data-testid="progress-totals">
-        {stats.totals.first_attempts} puzzles answered · {stats.totals.retries} practice attempts
+        {plural(stats.totals.first_attempts, 'puzzle')} answered ·{' '}
+        {plural(stats.totals.retries, 'practice attempt')}
       </p>
       <ul className={styles.tiles}>
         {tiles(stats).map((t) => (

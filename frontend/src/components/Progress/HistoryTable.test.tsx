@@ -127,7 +127,9 @@ describe('HistoryTable', () => {
     const { user, onReplay, onResult } = setup()
     await screen.findByRole('table')
     const first = rows()[0]!
-    const replay = within(first).getByRole('button', { name: /^Replay puzzle from .+, [\w-]+$/ })
+    const replay = within(first).getByRole('button', {
+      name: /^Replay puzzle from .+, [\w-]+, \w+/,
+    })
     const result = within(first).getByRole('button', { name: /^Result of the attempt from /i })
     const item = historyFixture().items[0]!
     await user.click(replay)
@@ -135,6 +137,31 @@ describe('HistoryTable', () => {
     await user.click(result)
     expect(onResult).toHaveBeenCalledWith(item.attempt_id)
     expect(screen.getAllByRole('button', { name: /^Replay puzzle/ })).toHaveLength(rows().length)
+  })
+
+  it('names each row\'s buttons by date, street and verdict, and "practice" for a retry', async () => {
+    const page = structuredClone(historyFixture())
+    page.items = [
+      {
+        ...page.items[0]!,
+        attempt_id: 1,
+        street: 'preflop',
+        verdict: 'mistake',
+        is_first: true,
+        created_at: '2026-11-12T12:00:00Z',
+      },
+      { ...page.items[0]!, attempt_id: 2, street: 'preflop', verdict: 'mistake', is_first: false },
+    ]
+    setup(vi.fn(async () => ({ ...page, total: 2 })))
+    await screen.findByRole('table')
+    const names = screen
+      .getAllByRole('button', { name: /^Replay puzzle/ })
+      .map((b) => b.getAttribute('aria-label'))
+    expect(names[0]).toMatch(/^Replay puzzle from Nov \d+, pre-flop, mistake$/)
+    expect(names[1]).toMatch(/^Replay puzzle from Nov \d+, pre-flop, mistake, practice$/)
+    expect(
+      screen.getByRole('button', { name: /^Result of the attempt from .*, mistake, practice$/ }),
+    ).toBeVisible()
   })
 
   it('a filter change sends its query parameters and resets to page 1', async () => {
@@ -184,6 +211,48 @@ describe('HistoryTable', () => {
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Previous' }))
     await waitFor(() => expect(range).toHaveTextContent('26–50 of 60'))
+  })
+
+  it('keeps the pager enabled while a page loads, ignores clicks then, disables only at the ends', async () => {
+    const slow = deferred<HistoryPage>()
+    const getHistory = vi.fn((p?: { offset?: number }) =>
+      p?.offset === 25 ? slow.promise : Promise.resolve(pageOf(60, 1)),
+    )
+    const { user, api } = setup(getHistory)
+    await screen.findByRole('table')
+    const next = screen.getByRole('button', { name: 'Next' })
+    await user.click(next) // offset 25: slow
+    await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(2))
+    expect(next).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeEnabled()
+    await user.click(next) // busy: ignored
+    await user.click(screen.getByRole('button', { name: 'Previous' })) // busy: ignored
+    expect(api.getHistory).toHaveBeenCalledTimes(2)
+    // the range still describes the rows on show, not the page being fetched
+    expect(screen.getByTestId('history-range')).toHaveTextContent('1–25 of 60')
+    slow.resolve(pageOf(60, 2))
+    await waitFor(() =>
+      expect(screen.getByTestId('history-range')).toHaveTextContent('26–50 of 60'),
+    )
+  })
+
+  it('moves focus to the other pager button when the pressed one is disabled at an end', async () => {
+    const getHistory = vi.fn(async (p?: { offset?: number }) =>
+      p?.offset === 25 ? pageOf(40, 2, 15) : pageOf(40, 1),
+    )
+    const { user } = setup(getHistory)
+    await screen.findByRole('table')
+    await user.click(screen.getByRole('button', { name: 'Next' })) // the last page
+    await waitFor(() =>
+      expect(screen.getByTestId('history-range')).toHaveTextContent('26–40 of 40'),
+    )
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Previous' })).toHaveFocus()
+    expect(document.body).not.toHaveFocus()
+    await user.click(screen.getByRole('button', { name: 'Previous' })) // back to the first
+    await waitFor(() => expect(screen.getByTestId('history-range')).toHaveTextContent('1–25 of 40'))
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Next' })).toHaveFocus()
   })
 
   it('a slow older response never overwrites a newer one', async () => {

@@ -38,6 +38,19 @@ describe('Breakdowns', () => {
     expect(screen.getByRole('tab', { name: 'Street' })).toHaveFocus()
   })
 
+  it('shows EV lost with two fixed decimals so the column lines up', async () => {
+    const user = userEvent.setup()
+    const rows = [
+      { ...breakdowns.profile[0]!, key: 'a', label: 'A', ev_lost_bb_avg: 0 },
+      { ...breakdowns.profile[0]!, key: 'b', label: 'B', ev_lost_bb_avg: 0.7 },
+    ]
+    render(<Breakdowns breakdowns={{ ...breakdowns, profile: rows }} />)
+    await user.click(screen.getByRole('tab', { name: 'Villain' }))
+    const cells = within(screen.getByRole('tabpanel')).getAllByRole('row')
+    expect(cells[1]).toHaveTextContent('0.00 bb')
+    expect(cells[2]).toHaveTextContent('0.70 bb')
+  })
+
   it('says so when a tab has no rows', () => {
     render(<Breakdowns breakdowns={{ street: [], action: [], profile: [] }} />)
     expect(screen.getByText('No puzzles yet.')).toBeVisible()

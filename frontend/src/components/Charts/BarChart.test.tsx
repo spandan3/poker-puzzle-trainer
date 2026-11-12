@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { BarChart } from './BarChart'
 
@@ -29,6 +29,10 @@ describe('BarChart', () => {
   it('has a data table with a row per bar and the goal in its caption', () => {
     render(<BarChart title="Puzzles per day" bars={bars} goal={5} />)
     const table = screen.getByRole('table', { name: /Puzzles per day.*goal 5/ })
+    expect(within(table).getAllByRole('row')).toHaveLength(1) // closed: the header only
+    const details = document.querySelector('details')!
+    details.open = true
+    fireEvent(details, new Event('toggle'))
     const rows = within(table).getAllByRole('row')
     expect(rows).toHaveLength(4)
     expect(rows[2]).toHaveTextContent('Nov 11')

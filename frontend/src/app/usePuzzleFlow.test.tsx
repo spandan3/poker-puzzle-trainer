@@ -237,6 +237,14 @@ describe('submit', () => {
       result.current.newPuzzle()
     })
     expect(api.newPuzzle).toHaveBeenCalledTimes(1)
+    // opening a stored puzzle or attempt is ignored too, and says so
+    const opened: boolean[] = []
+    act(() => {
+      opened.push(result.current.openPuzzle(5))
+      opened.push(result.current.openAttempt(6))
+    })
+    expect(opened).toEqual([false, false])
+    expect(api.getPuzzle).not.toHaveBeenCalled()
     await act(async () => pending.resolve(attemptFixture('bet')))
     expect(api.submitAttempt).toHaveBeenCalledTimes(1)
     expect(api.submitAttempt).toHaveBeenCalledWith(state.view.id, BODY)
@@ -471,11 +479,13 @@ describe('opening stored puzzles and results', () => {
     const api = fakeApi({ getPuzzle: vi.fn(() => slow.promise) })
     const { result } = setup(api)
     await answering(result)
+    const opened: boolean[] = []
     act(() => {
-      result.current.openPuzzle(1)
-      result.current.openPuzzle(2)
-      result.current.openAttempt(3)
+      opened.push(result.current.openPuzzle(1))
+      opened.push(result.current.openPuzzle(2))
+      opened.push(result.current.openAttempt(3))
     })
+    expect(opened).toEqual([true, false, false]) // ignored opens say so
     expect(api.getPuzzle).toHaveBeenCalledTimes(1)
     expect(api.getAttempt).not.toHaveBeenCalled()
     await act(async () => slow.resolve(withId(puzzleFixture('river'), 1)))
@@ -490,7 +500,11 @@ describe('opening stored puzzles and results', () => {
     const api = fakeApi({ getPuzzle })
     const { result } = setup(api)
     await answering(result)
-    act(() => result.current.openPuzzle(9))
+    let accepted = false
+    act(() => {
+      accepted = result.current.openPuzzle(9)
+    })
+    expect(accepted).toBe(true)
     await waitFor(() => expect(result.current.state.kind).toBe('error'))
     const error = result.current.state
     if (error.kind !== 'error') throw new Error('not an error')

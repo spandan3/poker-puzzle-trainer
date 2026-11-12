@@ -183,9 +183,14 @@ async function answerOnScreen(page: Page) {
 /** The Progress totals line as numbers (the DB is shared across tests, so tests compare). */
 async function totals(page: Page) {
   const text = await page.getByTestId('progress-totals').innerText()
-  const match = /(\d+) puzzles answered · (\d+) practice attempts/.exec(text)
+  const match = /(\d+) puzzles? answered · (\d+) practice attempts?/.exec(text)
   if (!match) throw new Error(`unexpected totals: ${text}`)
   return { answered: Number(match[1]), practice: Number(match[2]) }
+}
+
+/** The totals line as the page words it ("1 puzzle", "2 puzzles"). */
+function totalsText(answered: number, practice: number) {
+  return `${answered} ${answered === 1 ? 'puzzle' : 'puzzles'} answered · ${practice} practice ${practice === 1 ? 'attempt' : 'attempts'}`
 }
 
 test('replay from history is practice: it shows in history and changes no stat', async ({
@@ -213,7 +218,7 @@ test('replay from history is practice: it shows in history and changes no stat',
 
   await page.getByRole('link', { name: 'Progress' }).click()
   await expect(page.getByTestId('progress-totals')).toHaveText(
-    `${before.answered} puzzles answered · ${before.practice + 1} practice attempts`,
+    totalsText(before.answered, before.practice + 1),
   )
   await expect(
     page.getByTestId('history').getByRole('row').nth(1).getByText('Practice'),

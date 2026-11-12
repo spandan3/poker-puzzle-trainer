@@ -53,10 +53,16 @@ export interface PuzzleFlow {
   setStreet: (street: StreetName | null) => void
   /** Loads a new puzzle now (after a result, or a confirmed skip). Ignored while one loads. */
   newPuzzle: () => void
-  /** Replays a stored puzzle (from history): answering state, a practice attempt. */
-  openPuzzle: (id: number) => void
-  /** Reopens a stored attempt's result (from history). "Next puzzle" works as after a submit. */
-  openAttempt: (attemptId: number) => void
+  /**
+   * Replays a stored puzzle (from history): answering state, a practice attempt. `false` when
+   * ignored because a load or a submit is in flight (nothing was opened).
+   */
+  openPuzzle: (id: number) => boolean
+  /**
+   * Reopens a stored attempt's result (from history). "Next puzzle" works as after a submit.
+   * `false` when ignored, as for `openPuzzle`.
+   */
+  openAttempt: (attemptId: number) => boolean
   /** `N`: next after a result; while answering, asks first and skips on the second press. */
   requestSkip: () => void
   cancelSkip: () => void
@@ -267,9 +273,9 @@ export function usePuzzleFlow(
     (
       fetchView: () => Promise<{ view: PuzzleView; result: AttemptResult | null }>,
       noun: string,
-    ) => {
-      const attempt = () => {
-        if (loadingRef.current) return
+    ): boolean => {
+      const attempt = (): boolean => {
+        if (loadingRef.current) return false
         loadingRef.current = true
         startedRef.current = true
         clearSkipTimer()
@@ -279,29 +285,34 @@ export function usePuzzleFlow(
             dispatch(result ? { type: 'opened', view, result } : { type: 'loaded', view }),
           )
           .catch((error: unknown) =>
-            dispatch({ type: 'loadFailed', message: openMessage(error, noun), retry: attempt }),
+            dispatch({
+              type: 'loadFailed',
+              message: openMessage(error, noun),
+              retry: () => void attempt(),
+            }),
           )
           .finally(() => {
             loadingRef.current = false
           })
+        return true
       }
-      attempt()
+      return attempt()
     },
     [],
   )
 
   const openPuzzle = useCallback(
     (id: number) => {
-      if (stateRef.current.kind === 'submitting') return
-      open(async () => ({ view: await api.getPuzzle(id), result: null }), 'puzzle')
+      if (stateRef.current.kind === 'submitting') return false
+      return open(async () => ({ view: await api.getPuzzle(id), result: null }), 'puzzle')
     },
     [api, open],
   )
 
   const openAttempt = useCallback(
     (attemptId: number) => {
-      if (stateRef.current.kind === 'submitting') return
-      open(async () => {
+      if (stateRef.current.kind === 'submitting') return false
+      return open(async () => {
         const result = await api.getAttempt(attemptId)
         return { view: await api.getPuzzle(result.attempt.puzzle_id), result }
       }, 'result')
