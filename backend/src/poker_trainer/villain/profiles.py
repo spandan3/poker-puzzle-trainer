@@ -52,6 +52,9 @@ class Profile:
     unopened: Mapping[str, Table]
     facing: Mapping[str, Table]
     bands: Bands
+    # Facing a bet above pot, the size-curve exponent grows by this much per extra pot,
+    # per category (see ``strategy._facing``). Pot-size bets and smaller don't use it.
+    overbet_slopes: Mapping[HandCategory, float]
     # River-only overrides of unopened rows: role -> category -> row. Missing roles or
     # categories fall back to ``unopened``. A river bet has no protection or draw value,
     # so WEAK/MEDIUM/AIR rows that are sensible on the flop over-bluff there.
@@ -97,6 +100,22 @@ def _river_overrides(raw: Any, where: str) -> Mapping[str, Table]:
                 for cat, row in rows.items()
             }
         )
+    return MappingProxyType(out)
+
+
+def _slopes(raw: Any, where: str) -> Mapping[HandCategory, float]:
+    names = {c.name for c in HandCategory}
+    if not isinstance(raw, dict) or set(raw) != names:
+        raise ValueError(f"{where}: categories must be exactly {sorted(names)}")
+    out = {}
+    for cat in HandCategory:
+        v = raw[cat.name]
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError(f"{where}.{cat.name}: slope must be a number")  # noqa: TRY004
+        v = float(v)
+        if not (math.isfinite(v) and v >= 0.0):
+            raise ValueError(f"{where}.{cat.name}: slope must be a finite number >= 0")
+        out[cat] = v
     return MappingProxyType(out)
 
 
@@ -166,6 +185,7 @@ def _profile_from_dict(name: str, raw: Any) -> Profile:
             preflop=_ranges(raw["preflop"], f"{name}.preflop"),
             unopened=unopened,
             facing=facing,
+            overbet_slopes=_slopes(raw["overbet_slopes"], f"{name}.overbet_slopes"),
             river_unopened=_river_overrides(raw.get("river_unopened"), f"{name}.river_unopened"),
             bands=Bands(
                 bluff_offset=_band(raw["bands"]["bluff_offset"], f"{name}.bands.bluff_offset"),

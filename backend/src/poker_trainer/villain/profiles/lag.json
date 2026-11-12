@@ -1,7 +1,7 @@
 {
   "name": "lag",
   "label": "LAG",
-  "version": 5,
+  "version": 6,
   "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
   "preflop": {
     "open": "22+, A2+, K2+, Q2+, J2+, T2s+, T4o+, 92s+, 95o+, 82s+, 85o+, 72s+, 75o+, 62s+, 64o+, 52s+, 54o, 42s+, 32s",
@@ -81,5 +81,6 @@
       "NUTS": {"fold": 0.0, "call": 0.4, "raise": 0.6}
     }
   },
+  "overbet_slopes": {"AIR": 2.0, "WEAK_DRAW": 3.0, "WEAK": 1.5, "MEDIUM": 6.0, "STRONG_DRAW": 12.0, "STRONG": 5.5, "NUTS": 0.0},
   "bands": {"bluff_offset": [-0.04, 0.12], "defence_ratio": [0.85, 1.2]}
 }

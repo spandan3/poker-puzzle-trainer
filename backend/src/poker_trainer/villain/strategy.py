@@ -52,7 +52,6 @@ _DRAWS = (HandCategory.WEAK_DRAW, HandCategory.STRONG_DRAW)
 _DRAW_BET_BOOST = 1.25
 _LOW_SPR = 1.0
 _COMMITTED = (HandCategory.MEDIUM, HandCategory.STRONG_DRAW, HandCategory.STRONG, HandCategory.NUTS)
-_OVERBET_SLOPE = 5.5  # size-curve exponent growth per pot above a pot-size bet
 _STRONG_FLOOR = 0.90  # STRONG's minimum continue facing any bet (capped by its pot-size rate)
 _BLOCKED_ROW = len(HandCategory)  # extra all-zero table row used for board-blocked combos
 
@@ -248,15 +247,16 @@ def _unopened(profile: Profile, s: HandState, r: str, lg: Legal) -> list[tuple[A
     return entries
 
 
-def _size_exponent(f: float) -> float:
-    """Exponent of the size curve ``continue = base ** e(f)``, f = bet / pot before it.
-
-    ``(1 + f) / 1.5`` up to a pot-size bet (e(1) = 4/3); above pot it grows by
-    ``_OVERBET_SLOPE`` per extra pot, so hands below STRONG fold much more to overbets.
-    """
+def _size_exponent(profile: Profile, f: float) -> np.ndarray:
+    """(8,) per-row exponent of the size curve ``continue = base ** e(f)``, f = bet / pot
+    before it: ``(1 + f) / 1.5`` up to a pot-size bet (e(1) = 4/3); above pot it grows by
+    the profile's ``overbet_slopes[category]`` per extra pot. Row 7 (blocked) is unused."""
     if f <= 1.0:
-        return (1.0 + f) / 1.5
-    return 4.0 / 3.0 + _OVERBET_SLOPE * (f - 1.0)
+        return np.full(_BLOCKED_ROW + 1, (1.0 + f) / 1.5)
+    slopes = np.zeros(_BLOCKED_ROW + 1)
+    for cat, k in profile.overbet_slopes.items():
+        slopes[int(cat)] = k
+    return 4.0 / 3.0 + slopes * (f - 1.0)
 
 
 def _facing(profile: Profile, s: HandState, r: str, lg: Legal) -> list[tuple[Action, np.ndarray]]:
@@ -264,7 +264,8 @@ def _facing(profile: Profile, s: HandState, r: str, lg: Legal) -> list[tuple[Act
 
     Each category continues ``cont = base ** e(f)``: ``base`` is the row's call + raise,
     f = call / pot before the call, ``e(f) = (1 + f) / 1.5`` up to pot and
-    ``4/3 + _OVERBET_SLOPE * (f - 1)`` above it (``_size_exponent``). STRONG never
+    ``4/3 + k * (f - 1)`` above it, k = the profile's ``overbet_slopes`` for the category
+    (``_size_exponent``). STRONG never
     continues less than ``min(_STRONG_FLOOR, base ** (4/3))``, its pot-size rate capped at
     0.90, so the floor only binds above pot. NUTS (base 1) never folds. Call and raise keep
     their table ratio. Without a legal raise the raise mass calls; at low SPR the committed
@@ -273,9 +274,9 @@ def _facing(profile: Profile, s: HandState, r: str, lg: Legal) -> list[tuple[Act
     m = _matrix(profile.facing[r], FACING_ACTIONS)  # fold, call, raise
     f = lg.call / (total_pot(s) - lg.call)
     base = m[:, 1] + m[:, 2]
-    cont = base ** _size_exponent(f)
+    cont = base ** _size_exponent(profile, f)
     strong = int(HandCategory.STRONG)
-    floor = min(_STRONG_FLOOR, base[strong] ** _size_exponent(1.0))
+    floor = min(_STRONG_FLOOR, base[strong] ** (4.0 / 3.0))
     cont[strong] = max(cont[strong], floor)
     share = np.divide(cont, base, out=np.zeros_like(base), where=base > 0)
     m[:, 1] *= share

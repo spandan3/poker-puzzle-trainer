@@ -531,7 +531,7 @@ def test_shipped_river_overrides_are_used(name):
 # ---------------------------------------------------------------------------
 
 # A monotone board: three hearts on the flop, two blanks after it.
-MONO_FLOP, MONO_TURN, MONO_RIVER = "Qh9h4h", "2c", "7d"
+MONO_FLOP, MONO_TURN, MONO_RIVER = "Th6h2h", "Ks", "4c"
 
 
 def _cont_of(dist: dict[Action, np.ndarray]) -> np.ndarray:
@@ -539,8 +539,8 @@ def _cont_of(dist: dict[Action, np.ndarray]) -> np.ndarray:
 
 
 def mono_river_overbet(name: str) -> tuple[HandState, np.ndarray]:
-    """BTN (Hero, seat 0) opens to 5, BB (Villain, seat 1) calls. Flop Qh9h4h: BB checks,
-    BTN bets 33%, BB calls. Turn 2c: BB checks, BTN bets 75%, BB calls. River 7d: BB
+    """BTN (Hero, seat 0) opens to 5, BB (Villain, seat 1) calls. Flop Th6h2h: BB checks,
+    BTN bets 33%, BB calls. Turn Ks: BB checks, BTN bets 75%, BB calls. River 4c: BB
     checks, BTN bets 2.5x pot. Returns the state facing that bet and BB's tracked range."""
     p = load_profile(name)
     tracker = RangeTracker(p, 1)
@@ -599,7 +599,9 @@ def test_strong_floor_and_nuts_any_size(name, frac):
     p = load_profile(name)
     s = overbet_flop(frac)
     cats = cats_for(DRY)
-    cont = _cont_of(action_distribution(p, s))
+    dist = action_distribution(p, s)
+    check_sums(dist, cats < 0)
+    cont = _cont_of(dist)
     strong, nuts = cats == HandCategory.STRONG, cats == HandCategory.NUTS
     assert strong.any() and nuts.any()
     assert cont[strong].min() >= 0.90 - 1e-12
@@ -635,6 +637,21 @@ def test_pot_or_smaller_unchanged(name):
             row = p.facing["facing_bet"][cat]
             want = (row["call"] + row["raise"]) ** ((1.0 + f) / 1.5)
             assert cont[cats == cat] == pytest.approx(want), (cat, frac)
+    # Facing a 3x raise of a 33% bet: call 6 into 16, f = 0.375.
+    s = act(manual_flop(10, (400, 400)), X)
+    s = apply(s, bet_to(s, 0.33))
+    s = apply(s, raise_to(s, RAISE_MULT))
+    assert role(s) == "facing_raise"
+    lg = legal_actions(s)
+    f = lg.call / (s.pot + sum(s.street_bets) - lg.call)
+    assert f == pytest.approx(0.375)
+    cont = _cont_of(action_distribution(p, s))
+    for cat in HandCategory:
+        if not (cats == cat).any():
+            continue
+        row = p.facing["facing_raise"][cat]
+        want = (row["call"] + row["raise"]) ** ((1.0 + f) / 1.5)
+        assert cont[cats == cat] == pytest.approx(want), cat
 
 
 @pytest.mark.parametrize("name", PROFILE_NAMES)
@@ -648,5 +665,7 @@ def test_strong_floor_facing_raise_jam(name):
     row = p.facing["facing_raise"][HandCategory.STRONG]
     floor = min(0.90, (row["call"] + row["raise"]) ** (4 / 3))
     cats = cats_for(DRY)
-    cont = _cont_of(action_distribution(p, s))
+    dist = action_distribution(p, s)
+    check_sums(dist, cats < 0)
+    cont = _cont_of(dist)
     assert cont[cats == HandCategory.STRONG].min() == pytest.approx(floor)

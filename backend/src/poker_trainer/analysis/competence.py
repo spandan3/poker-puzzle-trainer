@@ -13,17 +13,20 @@ Where the data comes from:
   facing spots (bets and raises) feed the fold/call checks.
 * Hero flop/turn/river unopened decisions ("probes"): Villain's predicted response to a
   Hero bet of 33%, 75% and 100% pot, 2x pot and all-in. Sizes that resolve to the same
-  chips (``bet_to`` clamps big sizes to all-in at low SPR) are probed once. Villain's range at a Hero decision does not depend
-  on what Hero then does, so a probe is the same spot a real bet would create.
+  chips (``bet_to`` clamps big sizes to all-in at low SPR) are probed once. Villain's
+  range at a Hero decision does not depend on what Hero then does, so a probe is the
+  same spot a real bet would create.
   - Defence ratios use the 33% / 75% probes, each weighted by how often Hero's tracked
     range makes that bet there. This estimates the average over the facing-a-bet spots
     self-play reaches without the noise (and the thin river sample) of using only the
     bets Hero happened to make. A defence probe counts toward ``samples`` only when that
     weight is at least MIN_PROBE_WEIGHT; lighter probes still enter the mean.
   - The fold/call checks use every probe. The Villain tables only bet 33% / 75% and
-    raise 3x, so a pot-size bet is almost never faced in self-play; the 100% probe (a
-    Hero size shortcut in the trainer) gives ``strong_fold_max`` its spots. These are
-    max-over-spots checks, so every probe counts as a sample whatever Hero's frequency.
+    raise 3x, so a pot-size bet is almost never faced in self-play; the 100%, 2x-pot and
+    all-in probes give ``strong_fold_max`` its spots (most of them now come from the
+    overbet probes). Against the biggest jams STRONG sits on its 0.90 floor, so every
+    profile reads exactly 0.100, the band limit. These are max-over-spots checks, so
+    every probe counts as a sample whatever Hero's frequency.
   - ``defence_overbet`` uses the overbet probes (2x pot and all-in) whose bet is between
     2x and 3x the pot before it, inclusive: continue rate (call + raise) over MDF, one
     record of weight 1 per probe (Hero's TAG policy never overbets, so there is no Hero
@@ -31,6 +34,14 @@ Where the data comes from:
     pot MDF (0.25-0.33) is a meaningful target; against a 20x-pot jam it is about 0.05,
     which NUTS and the STRONG floor alone exceed, so bigger jams only feed the fold/call
     checks.
+  - ``defence_overbet_p10`` is the 10th percentile of the same per-probe ratios (same
+    samples), band [defence_ratio low - _P10_MARGIN, inf). The mean can sit in band
+    while weak-range spots defend far too little, and there an any-two-cards overbet
+    bluff is clearly profitable. Each profile's ``defence_ratio`` band already encodes
+    how much it may under-defend on average (Tight's 0.70 floor is its nitty style), so
+    the tail floor keeps the worst decile within _P10_MARGIN of that profile's own
+    average floor: a profile can't hide spots far weaker than its intended style.
+    Overbet bluffs beating Tight's weakest spots is a correct exploitative lesson.
 * ``cbet_flop``: Villain's whole-range bet frequency (any size) at each flop decision
   in the c-bettor role, averaged over spots.
 * INFO_NAMES are printed for review but are not checks: ``river_stab`` (whole-range
@@ -91,6 +102,7 @@ CHECK_NAMES = (
     "defence_turn",
     "defence_river",
     "defence_overbet",
+    "defence_overbet_p10",
     "nuts_fold_max",
     "strong_fold_max",
     "air_call_max",
@@ -119,6 +131,9 @@ _FIXED_BANDS = {
     "cbet_flop": (0.45, 0.70),
 }
 _MAX_CHECKS = ("nuts_fold_max", "strong_fold_max", "air_call_max", "air_continue_max")
+_P10_CHECKS = ("defence_overbet_p10",)
+# defence_overbet_p10 floor: the profile's defence_ratio low minus this (see docstring).
+_P10_MARGIN = 0.15
 _STREET_NAMES = {Street.FLOP: "flop", Street.TURN: "turn", Street.RIVER: "river"}
 _TOL = 1e-9
 
@@ -351,7 +366,9 @@ def _probe_records(
             prior = total_pot(probe) - call
             lo, hi = _OVERBET_WINDOW
             if lo * prior <= call <= hi * prior:
-                out.append(("defence_overbet", _defence_ratio(probe, dist, villain), 1.0, True))
+                ratio = _defence_ratio(probe, dist, villain)
+                out.append(("defence_overbet", ratio, 1.0, True))
+                out.append(("defence_overbet_p10", ratio, 1.0, True))
 
 
 # ---------------------------------------------------------------------------
@@ -412,6 +429,8 @@ def _band(profile: Profile, name: str) -> tuple[float, float]:
         base = break_even_bluff_share(_BET_SIZES[name.removeprefix("bluff_share_")])
         lo, hi = profile.bands.bluff_offset
         return round(base + lo, 6), round(base + hi, 6)
+    if name in _P10_CHECKS:
+        return round(profile.bands.defence_ratio[0] - _P10_MARGIN, 6), math.inf
     if name.startswith("defence_"):
         return profile.bands.defence_ratio
     return _FIXED_BANDS[name]
@@ -461,6 +480,8 @@ def _aggregate(records: list[Record], name: str) -> tuple[float, int]:
         return math.nan, samples
     if name in _MAX_CHECKS:
         return max(num for num, _, _ in mine), samples
+    if name in _P10_CHECKS:
+        return float(np.percentile([num for num, _, _ in mine], 10)), samples
     return sum(num for num, _, _ in mine) / sum(den for _, den, _ in mine), samples
 
 

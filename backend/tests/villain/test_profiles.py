@@ -106,7 +106,7 @@ def _raw(name: str = "tag") -> dict:
 
 
 def test_loader_accepts_raw_profile():
-    assert _profile_from_dict("tag", _raw()).version == 5
+    assert _profile_from_dict("tag", _raw()).version == 6
 
 
 def test_bad_row_sum_raises():
@@ -136,6 +136,12 @@ def test_missing_category_raises():
         lambda r: r["river_unopened"]["cbet"].update(BOGUS={}),
         lambda r: r["river_unopened"]["cbet"]["AIR"].update(check=0.5),
         lambda r: r["river_unopened"]["cbet"]["AIR"].pop("bet_75"),
+        lambda r: r.pop("overbet_slopes"),
+        lambda r: r["overbet_slopes"].pop("MEDIUM"),
+        lambda r: r["overbet_slopes"].update(BOGUS=1.0),
+        lambda r: r["overbet_slopes"].update(WEAK=-0.5),
+        lambda r: r["overbet_slopes"].update(WEAK="steep"),
+        lambda r: r["overbet_slopes"].update(WEAK=float("nan")),
     ],
 )
 def test_structural_errors_raise_value_error(mutate):
@@ -167,3 +173,24 @@ def test_river_overrides_partial(profile: Profile):
         assert role in ROLES
         for row in rows.values():
             assert sum(row.values()) == pytest.approx(1.0)
+
+
+def test_overbet_slopes_loaded(profile: Profile):
+    assert set(profile.overbet_slopes) == set(HandCategory)
+    assert all(v >= 0.0 for v in profile.overbet_slopes.values())
+    with pytest.raises(TypeError):
+        profile.overbet_slopes[HandCategory.AIR] = 1.0  # type: ignore[index]
+
+
+def test_overbet_slopes_missing_category_raises():
+    raw = copy.deepcopy(_raw())
+    del raw["overbet_slopes"]["AIR"]
+    with pytest.raises(ValueError, match="overbet_slopes"):
+        _profile_from_dict("tag", raw)
+
+
+def test_overbet_slopes_negative_raises():
+    raw = copy.deepcopy(_raw())
+    raw["overbet_slopes"]["WEAK"] = -1.0
+    with pytest.raises(ValueError, match="overbet_slopes"):
+        _profile_from_dict("tag", raw)

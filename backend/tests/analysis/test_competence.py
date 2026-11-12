@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pytest
 
@@ -21,6 +23,7 @@ EXPECTED = (
     "defence_turn",
     "defence_river",
     "defence_overbet",
+    "defence_overbet_p10",
     "nuts_fold_max",
     "strong_fold_max",
     "air_call_max",
@@ -126,6 +129,8 @@ def test_overbet_probes_deep(monkeypatch):
     # Only the 2x probe is inside the 2x-3x window; the 19.5x all-in is not.
     overbet = [r for r in out if r[0] == "defence_overbet"]
     assert len(overbet) == 1
+    # The tail check gets the same per-probe ratio.
+    assert [r[1:] for r in out if r[0] == "defence_overbet_p10"] == [overbet[0][1:]]
     _name, num, den, counted = overbet[0]
     assert den == 1.0 and counted
     assert 0.0 < num  # continue rate / MDF
@@ -135,12 +140,14 @@ def test_overbet_probe_clamped_to_allin_is_probed_once(monkeypatch):
     out, seen = _probe(monkeypatch, (30, 30))  # 25 behind: 2x pot clamps to all-in (2.5x)
     assert [b for b, _ in seen] == [3, 8, 10, 25]
     assert _names(out).count("defence_overbet") == 1
+    assert _names(out).count("defence_overbet_p10") == 1
 
 
 def test_allin_below_2x_pot_gives_no_overbet_record(monkeypatch):
     out, seen = _probe(monkeypatch, (20, 20))  # 15 behind: pot, 2x and all-in are all 15
     assert [b for b, _ in seen] == [3, 8, 15]
     assert "defence_overbet" not in _names(out)
+    assert "defence_overbet_p10" not in _names(out)
 
 
 def test_overbet_record_is_continue_over_mdf(monkeypatch):
@@ -155,3 +162,25 @@ def test_overbet_record_is_continue_over_mdf(monkeypatch):
     (rec,) = [r for r in out if r[0] == "defence_overbet"]
     assert rec[1] == pytest.approx(rate / (1.0 / 3.0))
     assert np.isfinite(rec[1])
+
+
+def test_overbet_p10_is_tenth_percentile_with_fixed_band():
+    ratios = [0.1 * i for i in range(1, 41)]  # 0.1 .. 4.0
+    records = [("defence_overbet_p10", r, 1.0, True) for r in ratios]
+    value, samples = competence._aggregate(records, "defence_overbet_p10")
+    assert samples == 40
+    assert value == pytest.approx(float(np.percentile(ratios, 10)))
+    floors = {"tag": 0.70, "lag": 0.70, "tight": 0.55, "sticky": 0.85}
+    for name in PROFILE_NAMES:
+        p = load_profile(name)
+        lo = p.bands.defence_ratio[0] - competence._P10_MARGIN
+        assert competence._band(p, "defence_overbet_p10") == (pytest.approx(lo), math.inf)
+        assert lo == pytest.approx(floors[name])
+    # The mean check keeps the profile band.
+    tag = load_profile("tag")
+    assert competence._band(tag, "defence_overbet") == tag.bands.defence_ratio
+
+
+def test_format_table_prints_open_band():
+    r = CheckResult("tag", "defence_overbet_p10", 0.8, (0.70, math.inf), True, 40)
+    assert "[0.70, inf]" in competence.format_table([r])

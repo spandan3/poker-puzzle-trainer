@@ -1,7 +1,7 @@
 {
   "name": "tight",
   "label": "Tight",
-  "version": 5,
+  "version": 6,
   "description": "Tight and solid: narrow ranges, value-heavy, rarely bluffs.",
   "preflop": {
     "open": "22+, A2+, K2s+, K5o+, Q2s+, Q8o+, J4s+, J8o+, T6s+, T8o+, 95s+, 98o, 85s+, 87o, 74s+, 64s+, 53s+, 43s",
@@ -81,5 +81,6 @@
       "NUTS": {"fold": 0.0, "call": 0.45, "raise": 0.55}
     }
   },
+  "overbet_slopes": {"AIR": 2.0, "WEAK_DRAW": 1.0, "WEAK": 1.5, "MEDIUM": 4.0, "STRONG_DRAW": 12.0, "STRONG": 5.5, "NUTS": 0.0},
   "bands": {"bluff_offset": [-0.15, 0.02], "defence_ratio": [0.7, 1.0]}
 }
