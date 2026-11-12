@@ -31,6 +31,10 @@ export interface SeatInfo {
   faceDown: boolean
   profile?: SeatProfile
   showProfile: boolean
+  /** Deal-in delay per card (on a new puzzle); no animation when omitted. */
+  dealDelaysMs?: number[]
+  /** The cards were just revealed: they flip face up. */
+  flip?: boolean
 }
 
 export interface SeatsOptions {

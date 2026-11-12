@@ -43,3 +43,24 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* the pot fades in when it changes (the line is keyed by its value) */
+.pot[data-fade] {
+  animation: fade-update var(--duration-slow) var(--ease-out);
+}
+
+@keyframes fade-update {
+  from {
+    opacity: 0.25;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pot[data-fade] {
+    animation: none;
+  }
+}

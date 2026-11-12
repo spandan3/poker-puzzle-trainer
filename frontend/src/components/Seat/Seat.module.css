@@ -293,3 +293,24 @@
 .seat[data-slot='bottom-right'] .bet {
   bottom: calc(100% - var(--seat-tuck) + var(--card-w-md) * 1.4 + var(--seat-gap));
 }
+
+/* the stack fades in when it changes (the span is keyed by its value) */
+.stack[data-fade] {
+  animation: fade-update var(--duration-slow) var(--ease-out);
+}
+
+@keyframes fade-update {
+  from {
+    opacity: 0.25;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stack[data-fade] {
+    animation: none;
+  }
+}

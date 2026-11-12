@@ -55,4 +55,34 @@ describe('TableCentre', () => {
     render(<TableCentre board={[]} potChips={3} potOdds={null} showPotOdds />)
     expect(screen.getByText('Board: no cards yet')).toBeInTheDocument()
   })
+
+  it('slides in only the cards from dealFrom, staggered', () => {
+    const { container } = render(
+      <TableCentre
+        board={['Ah', 'Kd', '7c', '2s', '9h']}
+        potChips={20}
+        potOdds={null}
+        showPotOdds
+        dealFrom={3}
+        dealBaseMs={200}
+        dealStaggerMs={100}
+      />,
+    )
+    const cards = [...container.querySelectorAll('[data-face="up"]')]
+    expect(cards.map((c) => c.getAttribute('data-dealing'))).toEqual([
+      null,
+      null,
+      null,
+      'true',
+      'true',
+    ])
+    expect((cards[4] as HTMLElement).style.animationDelay).toBe('300ms')
+  })
+
+  it('does not animate without dealFrom', () => {
+    const { container } = render(
+      <TableCentre board={['Ah', 'Kd', '7c']} potChips={20} potOdds={null} showPotOdds />,
+    )
+    expect(container.querySelector('[data-dealing]')).toBeNull()
+  })
 })

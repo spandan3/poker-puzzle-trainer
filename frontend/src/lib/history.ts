@@ -58,6 +58,8 @@ export interface HistorySection {
   board: string[]
   entries: HistoryItem[]
   toAct?: 'hero'
+  /** Hero's submitted answer (after a submit), in place of "Hero to act". */
+  answer?: HistoryItem
 }
 
 const BOARD_SLICE: Record<StreetName, [number, number]> = {
@@ -67,9 +69,12 @@ const BOARD_SLICE: Record<StreetName, [number, number]> = {
   river: [4, 5],
 }
 
-/** One section per street from pre-flop to the decision street (even when it has no entries). */
-export function groupHistory(view: PuzzleView): HistorySection[] {
-  const texts = entryTexts(view.history)
+/**
+ * One section per street from pre-flop to the decision street (even when it has no entries).
+ * With `answer` (Hero's submitted action), the last section shows it instead of "Hero to act".
+ */
+export function groupHistory(view: PuzzleView, answer?: ActionLogEntry): HistorySection[] {
+  const texts = entryTexts(answer ? [...view.history, answer] : view.history)
   const streets = STREET_ORDER.slice(0, STREET_ORDER.indexOf(view.street) + 1)
   return streets.map((street, i) => {
     const [from, to] = BOARD_SLICE[street]
@@ -83,7 +88,13 @@ export function groupHistory(view: PuzzleView): HistorySection[] {
       })
     })
     const section: HistorySection = { street, board: view.board.slice(from, to), entries }
-    if (i === streets.length - 1) section.toAct = 'hero'
+    if (i === streets.length - 1) {
+      if (answer) {
+        section.answer = { actor: 'hero', position: view.hero_position, text: texts.at(-1)! }
+      } else {
+        section.toAct = 'hero'
+      }
+    }
     return section
   })
 }

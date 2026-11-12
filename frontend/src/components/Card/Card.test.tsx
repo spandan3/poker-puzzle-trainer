@@ -59,4 +59,14 @@ describe('Card', () => {
     )
     expect(screen.getByRole('img', { name: 'Five of diamonds' }).style.animationDelay).toBe('240ms')
   })
+
+  it('marks a revealed card to flip, never a face-down one', () => {
+    const { rerender } = render(<Card card={null} faceDown flip />)
+    expect(screen.getByRole('img', { name: 'face-down card' })).not.toHaveAttribute('data-flip')
+    rerender(<Card card="Qs" flip />)
+    expect(screen.getByRole('img', { name: 'Queen of spades' })).toHaveAttribute(
+      'data-flip',
+      'true',
+    )
+  })
 })

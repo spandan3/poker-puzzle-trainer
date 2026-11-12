@@ -145,3 +145,29 @@
   border-radius: var(--radius-pill);
   box-shadow: 0 0 0 3px var(--color-seat-hero-glow);
 }
+
+/* Hero's submitted answer: an entry framed like "Hero to act", with a "your answer" tag. */
+.answer {
+  --who: var(--history-hero);
+
+  display: grid;
+  grid-template-columns: minmax(6.5rem, auto) 1fr;
+  align-items: baseline;
+  gap: 0.15rem var(--space-2);
+  margin: var(--space-1) 0 0;
+  padding: 0.3rem var(--space-2);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-seat-hero-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.yours {
+  grid-column: 1 / -1;
+  order: -1;
+  color: var(--color-accent);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

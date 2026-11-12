@@ -29,6 +29,8 @@ export function Seat({ seat, className }: SeatProps) {
             card={card}
             faceDown={seat.faceDown}
             size={seat.isHero ? 'lg' : 'md'}
+            dealDelayMs={seat.dealDelaysMs?.[i]}
+            flip={seat.flip}
             className={styles.card}
           />
         ))}
@@ -45,7 +47,7 @@ export function Seat({ seat, className }: SeatProps) {
               <span className={styles.srOnly}>Stack 0 bb, </span>All-in
             </span>
           ) : (
-            <span className={styles.stack}>
+            <span key={seat.stackChips} className={styles.stack} data-fade="">
               <span className={styles.srOnly}>Stack </span>
               {formatBb(seat.stackChips)}
             </span>
