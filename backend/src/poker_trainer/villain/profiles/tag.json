@@ -1,7 +1,7 @@
 {
   "name": "tag",
   "label": "TAG",
-  "version": 4,
+  "version": 5,
   "description": "Solid tight-aggressive regular: value-heavy, bluffs in balance.",
   "preflop": {
     "open": "22+, A2+, K2+, Q2s+, Q5o+, J2s+, J7o+, T2s+, T7o+, 92s+, 97o+, 82s+, 86o+, 72s+, 76o, 62s+, 65o, 52s+, 54o, 42s+, 32s",

@@ -1,7 +1,7 @@
 {
   "name": "tight",
   "label": "Tight",
-  "version": 4,
+  "version": 5,
   "description": "Tight and solid: narrow ranges, value-heavy, rarely bluffs.",
   "preflop": {
     "open": "22+, A2+, K2s+, K5o+, Q2s+, Q8o+, J4s+, J8o+, T6s+, T8o+, 95s+, 98o, 85s+, 87o, 74s+, 64s+, 53s+, 43s",

@@ -12,7 +12,8 @@ Where the data comes from:
   action distribution. Unopened river spots feed the bluff-share and thin-value checks;
   facing spots (bets and raises) feed the fold/call checks.
 * Hero flop/turn/river unopened decisions ("probes"): Villain's predicted response to a
-  Hero bet of 33%, 75% and 100% pot. Villain's range at a Hero decision does not depend
+  Hero bet of 33%, 75% and 100% pot, 2x pot and all-in. Sizes that resolve to the same
+  chips (``bet_to`` clamps big sizes to all-in at low SPR) are probed once. Villain's range at a Hero decision does not depend
   on what Hero then does, so a probe is the same spot a real bet would create.
   - Defence ratios use the 33% / 75% probes, each weighted by how often Hero's tracked
     range makes that bet there. This estimates the average over the facing-a-bet spots
@@ -23,6 +24,13 @@ Where the data comes from:
     raise 3x, so a pot-size bet is almost never faced in self-play; the 100% probe (a
     Hero size shortcut in the trainer) gives ``strong_fold_max`` its spots. These are
     max-over-spots checks, so every probe counts as a sample whatever Hero's frequency.
+  - ``defence_overbet`` uses the overbet probes (2x pot and all-in) whose bet is between
+    2x and 3x the pot before it, inclusive: continue rate (call + raise) over MDF, one
+    record of weight 1 per probe (Hero's TAG policy never overbets, so there is no Hero
+    frequency to weight by). Overbet probes never feed ``defence_<street>``. Near 2-3x
+    pot MDF (0.25-0.33) is a meaningful target; against a 20x-pot jam it is about 0.05,
+    which NUTS and the STRONG floor alone exceed, so bigger jams only feed the fold/call
+    checks.
 * ``cbet_flop``: Villain's whole-range bet frequency (any size) at each flop decision
   in the c-bettor role, averaged over spots.
 * INFO_NAMES are printed for review but are not checks: ``river_stab`` (whole-range
@@ -70,6 +78,7 @@ from poker_trainer.villain.strategy import (
     HERO_PROFILE,
     UnsupportedSpot,
     action_distribution,
+    allin,
     bet_to,
     role,
     sample_action,
@@ -81,6 +90,7 @@ CHECK_NAMES = (
     "defence_flop",
     "defence_turn",
     "defence_river",
+    "defence_overbet",
     "nuts_fold_max",
     "strong_fold_max",
     "air_call_max",
@@ -97,6 +107,8 @@ VILLAIN_SEAT, HERO_SEAT = 0, 1
 
 _BET_SIZES = {"33": 0.33, "75": 0.75}
 _PROBE_SIZES = (0.33, 0.75, 1.0)
+_OVERBET_SIZE = 2.0
+_OVERBET_WINDOW = (2.0, 3.0)  # bet / pot before it, inclusive
 _BLUFF_EQUITY = 0.5
 _DOMINATED_EQUITY = 0.4
 _FIXED_BANDS = {
@@ -228,11 +240,10 @@ def _facing_records(
     cont = _sum_kind(dist, ActionKind.CALL, ActionKind.RAISE)
     calls = _sum_kind(dist, ActionKind.CALL)
     if defence_weight > 0.0:
-        mdf = prior / (prior + call)  # 1 / (1 + f)
-        rate = float(villain @ cont) / float(villain.sum())
         name = f"defence_{_STREET_NAMES[s.street]}"
         counted = defence_weight >= MIN_PROBE_WEIGHT
-        out.append((name, defence_weight * rate / mdf, defence_weight, counted))
+        ratio = _defence_ratio(s, dist, villain)
+        out.append((name, defence_weight * ratio, defence_weight, counted))
 
     nuts = _share(villain, cats == HandCategory.NUTS, fold)
     if nuts is not None:
@@ -250,6 +261,16 @@ def _facing_records(
         if air is not None and air_cont is not None:
             out.append(("air_call_max", air, 1.0, True))
             out.append(("air_continue_max", air_cont, 1.0, True))
+
+
+def _defence_ratio(s: HandState, dist: dict[Action, np.ndarray], villain: np.ndarray) -> float:
+    """Villain's whole-range continue rate (call + raise) facing the bet in ``s``, over
+    MDF = 1 / (1 + f), f = bet / pot before the bet."""
+    call = legal_actions(s).call
+    prior = total_pot(s) - call
+    mdf = prior / (prior + call)
+    cont = _sum_kind(dist, ActionKind.CALL, ActionKind.RAISE)
+    return float(villain @ cont) / float(villain.sum()) / mdf
 
 
 def _river_bet_records(
@@ -306,20 +327,31 @@ def _probe_records(
     """Villain's predicted response to each probe bet at a Hero unopened decision.
 
     Defence records are weighted by how often Hero's range makes that bet here (zero for
-    the 100% probe, which is not a Hero policy size).
+    the 100% probe, which is not a Hero policy size). The overbet probes (2x pot, all-in)
+    come after them, share ``seen`` (a size already probed is not probed again) and have
+    zero defence weight; those between 2x and 3x pot add a ``defence_overbet`` record.
     """
     hero_dist = action_distribution(hero_profile, s)
     hero_total = float(hero.sum())
     seen: set[Action] = set()
-    for frac in _PROBE_SIZES:
-        bet = bet_to(s, frac)
+    sized = [(bet_to(s, frac), False) for frac in _PROBE_SIZES]
+    sized += [(bet_to(s, _OVERBET_SIZE), True), (allin(s), True)]
+    for bet, overbet in sized:
         if bet in seen:
             continue
         seen.add(bet)
-        weight = float(hero @ hero_dist[bet]) / hero_total if bet in hero_dist else 0.0
+        weight = 0.0
+        if not overbet and bet in hero_dist:
+            weight = float(hero @ hero_dist[bet]) / hero_total
         probe = apply(s, bet)
         dist = action_distribution(villain_profile, probe)
         _facing_records(out, probe, dist, villain, cats, defence_weight=weight)
+        if overbet:
+            call = legal_actions(probe).call
+            prior = total_pot(probe) - call
+            lo, hi = _OVERBET_WINDOW
+            if lo * prior <= call <= hi * prior:
+                out.append(("defence_overbet", _defence_ratio(probe, dist, villain), 1.0, True))
 
 
 # ---------------------------------------------------------------------------

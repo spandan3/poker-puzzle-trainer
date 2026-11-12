@@ -1,7 +1,7 @@
 {
   "name": "lag",
   "label": "LAG",
-  "version": 4,
+  "version": 5,
   "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
   "preflop": {
     "open": "22+, A2+, K2+, Q2+, J2+, T2s+, T4o+, 92s+, 95o+, 82s+, 85o+, 72s+, 75o+, 62s+, 64o+, 52s+, 54o, 42s+, 32s",

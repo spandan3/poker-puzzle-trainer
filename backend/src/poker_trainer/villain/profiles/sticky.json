@@ -1,7 +1,7 @@
 {
   "name": "sticky",
   "label": "Sticky",
-  "version": 4,
+  "version": 5,
   "description": "Competent, but defends wide and calls down lighter than most.",
   "preflop": {
     "open": "22+, A2+, K2+, Q2s+, Q4o+, J2s+, J7o+, T2s+, T7o+, 92s+, 97o+, 83s+, 86o+, 73s+, 76o, 62s+, 65o, 52s+, 54o, 42s+, 32s",

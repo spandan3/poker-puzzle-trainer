@@ -1,5 +1,7 @@
+import numpy as np
 import pytest
 
+from poker_trainer.analysis import competence
 from poker_trainer.analysis.competence import (
     CHECK_NAMES,
     CheckResult,
@@ -7,7 +9,10 @@ from poker_trainer.analysis.competence import (
     competence_report,
     main,
 )
-from poker_trainer.villain.profiles import PROFILE_NAMES
+from poker_trainer.engine.cards import parse_cards
+from poker_trainer.game.state import Action, ActionKind, apply, deal, legal_actions, new_hand
+from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile
+from poker_trainer.villain.strategy import OPEN_MULT, raise_to
 
 EXPECTED = (
     "bluff_share_33",
@@ -15,6 +20,7 @@ EXPECTED = (
     "defence_flop",
     "defence_turn",
     "defence_river",
+    "defence_overbet",
     "nuts_fold_max",
     "strong_fold_max",
     "air_call_max",
@@ -70,3 +76,82 @@ def test_all_profiles_competent(full_reports, profile):
 def test_cbet_flop_ordering(full_reports):
     cbet = {p: next(r.value for r in rs if r.name == "cbet_flop") for p, rs in full_reports.items()}
     assert cbet["lag"] > cbet["tag"] > cbet["tight"], cbet
+
+
+# ---------------------------------------------------------------------------
+# Overbet probes
+# ---------------------------------------------------------------------------
+
+
+def _flop_lead(stacks: tuple[int, int]):
+    """BTN opens to 5, BB calls, flop Kh7d2c: BB (seat 1, the probing Hero) to act, pot 10."""
+    s = new_hand(0, stacks)
+    s = apply(s, raise_to(s, OPEN_MULT))
+    s = apply(s, Action(1, ActionKind.CALL, s.street, 5))
+    return deal(s, parse_cards("Kh7d2c"))
+
+
+def _probe(monkeypatch, stacks: tuple[int, int]):
+    """Run _probe_records at a flop lead spot; return (records, [(bet chips, defence_weight)])."""
+    s = _flop_lead(stacks)
+    assert s.pot == 10
+    live, cats = competence._board_info(s.board)
+    seen: list[tuple[int, float]] = []
+    real = competence._facing_records
+
+    def spy(out, probe, dist, villain, cats_, defence_weight):
+        last = probe.history[-1]
+        assert last.kind == ActionKind.BET
+        seen.append((last.to, defence_weight))
+        real(out, probe, dist, villain, cats_, defence_weight)
+
+    monkeypatch.setattr(competence, "_facing_records", spy)
+    out: list = []
+    tag = load_profile("tag")
+    competence._probe_records(out, s, tag, tag, live.copy(), live.copy(), cats)
+    return out, seen
+
+
+def _names(records) -> list[str]:
+    return [r[0] for r in records]
+
+
+def test_overbet_probes_deep(monkeypatch):
+    out, seen = _probe(monkeypatch, (200, 200))  # 195 behind: 2x pot and all-in are distinct
+    assert [b for b, _ in seen] == [3, 8, 10, 20, 195]
+    assert len({b for b, _ in seen}) == len(seen)
+    # Overbet probes never carry a defence weight, so they never feed defence_<street>.
+    assert dict(seen)[20] == 0.0 and dict(seen)[195] == 0.0
+    assert _names(out).count("defence_flop") <= 2
+    # Only the 2x probe is inside the 2x-3x window; the 19.5x all-in is not.
+    overbet = [r for r in out if r[0] == "defence_overbet"]
+    assert len(overbet) == 1
+    _name, num, den, counted = overbet[0]
+    assert den == 1.0 and counted
+    assert 0.0 < num  # continue rate / MDF
+
+
+def test_overbet_probe_clamped_to_allin_is_probed_once(monkeypatch):
+    out, seen = _probe(monkeypatch, (30, 30))  # 25 behind: 2x pot clamps to all-in (2.5x)
+    assert [b for b, _ in seen] == [3, 8, 10, 25]
+    assert _names(out).count("defence_overbet") == 1
+
+
+def test_allin_below_2x_pot_gives_no_overbet_record(monkeypatch):
+    out, seen = _probe(monkeypatch, (20, 20))  # 15 behind: pot, 2x and all-in are all 15
+    assert [b for b, _ in seen] == [3, 8, 15]
+    assert "defence_overbet" not in _names(out)
+
+
+def test_overbet_record_is_continue_over_mdf(monkeypatch):
+    out, _ = _probe(monkeypatch, (200, 200))
+    s = _flop_lead((200, 200))
+    live, _cats = competence._board_info(s.board)
+    probe = apply(s, Action(1, ActionKind.BET, s.street, 20))
+    dist = competence.action_distribution(load_profile("tag"), probe)
+    cont = competence._sum_kind(dist, ActionKind.CALL, ActionKind.RAISE)
+    rate = float(live @ cont) / float(live.sum())
+    assert legal_actions(probe).call == 20
+    (rec,) = [r for r in out if r[0] == "defence_overbet"]
+    assert rec[1] == pytest.approx(rate / (1.0 / 3.0))
+    assert np.isfinite(rec[1])
