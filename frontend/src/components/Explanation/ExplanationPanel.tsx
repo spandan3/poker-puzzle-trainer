@@ -13,7 +13,7 @@ export interface ExplanationPanelProps {
   requestFailed?: boolean
 }
 
-const RELOAD = 'Reload the page after starting it.'
+const RELOAD = "Reload the page once it's ready."
 
 /** The settings' detail is a sentence with its own full stop (explain/ollama.py's probe). */
 function unavailableNote(detail: string | null | undefined): string {

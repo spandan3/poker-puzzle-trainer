@@ -136,7 +136,7 @@ def test_guardrail_rejection_falls_back_and_is_cached(case, caplog):
         (lambda fl: {**fl, "verdict": fl["verdict"] + " A Blunder, really."}, "verdict"),
         (lambda fl: {**fl, "headline": "Checking was a Mistake."}, "headline"),
         (lambda fl: {**fl, "hand": fl["hand"] + " Villain had a flush."}, "result"),
-        (lambda fl: {**fl, "verdict": fl["verdict"] + " You would win more often."}, "result"),
+        (lambda fl: {**fl, "verdict": fl["verdict"] + " You won at showdown."}, "result"),
     ],
 )
 def test_claim_rejection_falls_back_and_is_cached(case, caplog, change, rule):

@@ -202,8 +202,10 @@ LOST_HEADLINE = "Bet 33% was the top play; checking cost you."
         ),
         (_fields("Betting 33% beats checking."), {}),
         # nothing about the result of the hand
-        (_fields(LOST_HEADLINE, hand="Villain had a flush."), {"result": "villain had"}),
-        (_fields(LOST_HEADLINE, hand="Villain held K♠."), {"result": "villain held"}),
+        (_fields(LOST_HEADLINE, hand="Villain had a flush."), {"result": "villain had a"}),
+        (_fields(LOST_HEADLINE, hand="Villain held K♠."), {"result": "villain held k♠"}),
+        # a retelling of the line before the decision is not about Villain's cards
+        (_fields(LOST_HEADLINE, hand="Villain had opened and then checked."), {}),
         (_fields(LOST_HEADLINE, hand="Villain's hand was weak."), {"result": "villain's hand was"}),
         (_fields(LOST_HEADLINE, hand="Villain’s hand was weak."), {"result": "villain’s hand was"}),
         (_fields(LOST_HEADLINE, hand="You won."), {"result": "won"}),
@@ -212,9 +214,11 @@ LOST_HEADLINE = "Bet 33% was the top play; checking cost you."
             {"result": "lost the hand, showdown"},
         ),
         (
-            _fields(LOST_HEADLINE, hand="Winning is not the point; you win some."),
-            {"result": "win, winning"},
+            _fields(LOST_HEADLINE, hand="Villain wins the hand, you win at showdown."),
+            {"result": "villain wins the hand, you win at showdown"},
         ),
+        # winning the pot when Villain folds is a faithful paraphrase, not a result
+        (_fields(LOST_HEADLINE, hand="You win the pot when Villain folds."), {}),
         (_fields(LOST_HEADLINE, hand="A window, a winner, a lost hand: none of them banned."), {}),
     ],
 )

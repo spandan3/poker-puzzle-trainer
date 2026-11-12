@@ -124,7 +124,7 @@ def flop_bet_best(res):
             (
                 f"Bet 33%: Villain folds {_folds(res, 'Bet 33%')} of the time, more than the "
                 f"{n['needs']} a bet this size needs to profit on folds alone "
-                "(1.5 bb / (5 bb + 1.5 bb)), so the folds alone pay for it, even when every "
+                "(1.5 bb / (5 bb + 1.5 bb)), so folds alone pay for it, even when every "
                 "hand that continues beats you. On top of that, you have "
                 f"{_eq_continue(res, 'Bet 33%')} equity against the hands that continue."
             ),
@@ -199,7 +199,7 @@ def river_check_best_bet_chosen(res):
             ),
             (
                 f"Your equity against Villain's whole range is {n['eq']}. Checking does better "
-                f"than the strongest bet, Bet 33% (EV {_ev(res, 'Bet 33%')})."
+                f"than the most profitable bet, Bet 33% (EV {_ev(res, 'Bet 33%')})."
             ),
             (
                 f"Bet 75%: Villain folds {_folds(res, 'Bet 75%')} of the time, less than the "

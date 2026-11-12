@@ -134,15 +134,15 @@ describe('status line and footer', () => {
   it.each([
     [
       'Ollama is running but the model llama3.2:3b isn\'t pulled: run "ollama pull llama3.2:3b".',
-      'The local model isn\'t available: Ollama is running but the model llama3.2:3b isn\'t pulled: run "ollama pull llama3.2:3b". Reload the page after starting it.',
+      "The local model isn't available: Ollama is running but the model llama3.2:3b isn't pulled: run \"ollama pull llama3.2:3b\". Reload the page once it's ready.",
     ],
     [
       "Ollama isn't answering at http://127.0.0.1:11434.",
-      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Reload the page after starting it.",
+      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Reload the page once it's ready.",
     ],
     [
       'Not checked yet.',
-      "The local model isn't available: Not checked yet. Reload the page after starting it.",
+      "The local model isn't available: Not checked yet. Reload the page once it's ready.",
     ],
   ])('unavailable: shows the settings detail once stopped (%s)', (detail, text) => {
     const { container } = render(
@@ -156,7 +156,7 @@ describe('status line and footer', () => {
       <ExplanationPanel explanation={explanation} llmStatus="unavailable" />,
     )
     expect(footer(container)).toBe(
-      "The local model isn't available. Reload the page after starting it.",
+      "The local model isn't available. Reload the page once it's ready.",
     )
   })
 
@@ -181,7 +181,7 @@ describe('status line and footer', () => {
       />,
     )
     expect(footer(container)).toBe(
-      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Reload the page after starting it.",
+      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Reload the page once it's ready.",
     )
   })
 
