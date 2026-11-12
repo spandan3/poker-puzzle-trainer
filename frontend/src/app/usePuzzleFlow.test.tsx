@@ -352,4 +352,23 @@ describe('settings', () => {
     act(() => result.current.dismissNotice())
     expect(result.current.notice).toBeNull()
   })
+
+  it('an older failed save does not revert a newer one', async () => {
+    const first = deferred<SettingsView>()
+    const second = deferred<SettingsView>()
+    const api = fakeApi({
+      patchSettings: vi
+        .fn<FlowApi['patchSettings']>()
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise),
+    })
+    const { result } = setup(api)
+    await waitFor(() => expect(result.current.settings).not.toBeNull())
+    act(() => result.current.setSetting({ show_pot_odds: false }))
+    act(() => result.current.setSetting({ show_pot_odds: true }))
+    await act(async () => second.resolve({ ...settingsFixture(), show_pot_odds: true }))
+    await act(async () => first.reject(new ApiError(0, 'down')))
+    expect(result.current.settings?.show_pot_odds).toBe(true)
+    expect(result.current.notice).toBeNull()
+  })
 })

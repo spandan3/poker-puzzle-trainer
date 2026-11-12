@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 const FACE_UP = { name: / of (spades|hearts|diamonds|clubs)$/ }
@@ -26,8 +28,10 @@ test('a puzzle end to end: answer, submit, verdict, reveal, next', async ({ page
   }
   await page.getByRole('button', { name: /^Submit/ }).click()
 
-  const status = page.getByRole('status').filter({ hasText: /Best|Fine|Mistake|Blunder/ })
-  await expect(status).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Result' })).toContainText(
+    /Best|Fine|Mistake|Blunder/,
+  )
+  await expect(page.getByTestId('announcer')).toHaveText(/^(Best|Fine|Mistake|Blunder)\. You: /)
   await expect(villain.getByRole('img', { name: 'face-down card' })).toHaveCount(0)
   await expect(villain.getByRole('img', FACE_UP)).toHaveCount(2)
   await expect(page.getByText('your answer')).toBeVisible()
@@ -53,4 +57,39 @@ test('reduced motion: cards do not animate', async ({ page }) => {
     return { duration: style.animationDuration, name: style.animationName }
   })
   expect(timing.name === 'none' || timing.duration === '0s').toBe(true)
+})
+
+test('layout: the tallest answer panel fits 1280×800, even with an error showing', async ({
+  page,
+}) => {
+  // the widest size row: five sizes plus the custom box, served from the fixture
+  const view = readFileSync(
+    resolve(import.meta.dirname, '../src/test/fixtures/puzzle_flop_unopened.json'),
+    'utf8',
+  )
+  await page.route('**/api/puzzles/current', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: view }),
+  )
+  await page.route('**/api/puzzles/*/attempts', (route) =>
+    route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        detail:
+          'Villain model changed since this puzzle was generated; custom sizes are disabled for this puzzle',
+      }),
+    }),
+  )
+  await page.goto('/')
+  await page.getByRole('textbox', { name: 'Equity' }).fill('40')
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('b')
+  await page.keyboard.press('1')
+  const height = () => page.locator('html').evaluate((el) => el.scrollHeight)
+  const width = () => page.locator('html').evaluate((el) => el.scrollWidth)
+  expect(await height()).toBe(800)
+  await page.getByRole('button', { name: /^Submit/ }).click()
+  await expect(page.getByRole('alert')).toContainText('Villain model changed')
+  expect(await height()).toBe(800)
+  expect(await width()).toBe(1280)
 })

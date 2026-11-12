@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AttemptResult, PuzzleView } from '../api/types'
 import { cardName } from '../lib/cards'
+import { SHORTCUTS } from '../lib/shortcuts'
 import { attemptFixture, puzzleFixture, settingsFixture } from '../test/fixture'
 import { App } from './App'
 
@@ -111,7 +112,7 @@ describe('App', () => {
     expect(calls.every((c) => allowed.test(c.url))).toBe(true)
 
     await answerCheck(user)
-    expect(await screen.findByRole('status')).toHaveTextContent('Best')
+    expect(await screen.findByRole('region', { name: 'Result' })).toHaveTextContent('Best')
     for (const card of attempt.reveal.villain_cards) {
       expect(within(villainSeat()).getByRole('img', { name: cardName(card) })).toBeVisible()
     }
@@ -125,9 +126,14 @@ describe('App', () => {
   it('announces the verdict, shows the answer in the history, and focuses Next', async () => {
     fakeServer()
     const { user } = setup()
+    await screen.findByRole('textbox', { name: 'Equity' })
+    // the live region exists, empty, before the result: an inserted, pre-filled one is not read
+    const status = screen.getByTestId('announcer')
+    expect(status).toHaveAttribute('role', 'status')
+    expect(status).toBeEmptyDOMElement()
     await answerCheck(user)
-    const status = await screen.findByRole('status')
-    expect(status).toHaveTextContent('Best')
+    await waitFor(() => expect(status).toHaveTextContent('Best.'))
+    expect(screen.getByTestId('announcer')).toBe(status)
     expect(status).toHaveTextContent('You: Bet 33% · the top play')
     expect(screen.queryByText('Hero to act')).toBeNull()
     expect(screen.getByText('your answer')).toBeVisible()
@@ -224,5 +230,20 @@ describe('App', () => {
     await waitFor(() =>
       expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/puzzles')).toHaveLength(2),
     )
+  })
+
+  it('every app shortcut with a control has a <kbd> hint and aria-keyshortcuts', async () => {
+    fakeServer()
+    const { user } = setup()
+    await answerCheck(user)
+    await screen.findByRole('button', { name: /Next puzzle/ })
+    for (const s of SHORTCUTS.filter((x) => x.scope === 'app' && x.id !== 'escape')) {
+      const nodes = document.querySelectorAll(`[data-shortcut="${s.id}"]`)
+      expect(nodes.length, s.id).toBeGreaterThan(0)
+      for (const node of nodes) {
+        expect(node.getAttribute('aria-keyshortcuts'), s.id).toBe(s.aria)
+        expect(s.keys, s.id).toContain(node.querySelector('kbd')?.textContent)
+      }
+    }
   })
 })

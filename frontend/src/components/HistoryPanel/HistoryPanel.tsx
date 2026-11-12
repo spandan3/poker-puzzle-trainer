@@ -61,7 +61,7 @@ export function HistoryPanel({ view, answer, className }: HistoryPanelProps) {
                 ))}
               </ol>
             ) : (
-              <p className={styles.none}>No action yet</p>
+              !section.answer && <p className={styles.none}>No action yet</p>
             )}
             {section.answer && (
               <p className={styles.answer} data-actor="hero">

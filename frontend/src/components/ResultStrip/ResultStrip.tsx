@@ -20,7 +20,7 @@ export interface ResultStripProps {
 
 /**
  * M5's end of a puzzle, in place of the answer panel: the verdict, EV, guesses vs truth, the
- * revealed profile and "Next puzzle". The verdict is in a live region, so it is announced.
+ * revealed profile and "Next puzzle".
  * M6 replaces this with the full results view.
  */
 export const ResultStrip = forwardRef<HTMLButtonElement, ResultStripProps>(function ResultStrip(
@@ -31,7 +31,8 @@ export const ResultStrip = forwardRef<HTMLButtonElement, ResultStripProps>(funct
   const verdict = VERDICT_LABELS[grade.verdict]
   return (
     <section className={styles.strip} aria-label="Result" data-verdict={grade.verdict}>
-      <div className={styles.head} role="status">
+      {/* announced by the app's live region (mounted before the result), not from here */}
+      <div className={styles.head}>
         <span className={styles.verdict} data-verdict={grade.verdict}>
           {verdict}
         </span>

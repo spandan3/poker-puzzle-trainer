@@ -191,6 +191,8 @@ export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
   const loadingRef = useRef(false)
   const submittingRef = useRef(false)
   const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveSeq = useRef(0)
+  const lastSave = useRef(new Map<string, number>())
 
   const clearSkipTimer = () => {
     if (skipTimer.current !== null) clearTimeout(skipTimer.current)
@@ -295,10 +297,21 @@ export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
       const before = settingsRef.current
       if (before) setSettings({ ...before, ...patch })
       setNotice(null)
-      api.patchSettings(patch).then(setSettings, () => {
-        setSettings((now) => (now && before ? { ...now, ...pick(before, patch) } : now))
-        setNotice(SETTINGS_FAILED)
-      })
+      // a newer save of the same field wins: an older one's failure must not revert it
+      const keys = Object.keys(patch)
+      const seq = ++saveSeq.current
+      for (const key of keys) lastSave.current.set(key, seq)
+      const latest = () => keys.some((key) => lastSave.current.get(key) === seq)
+      api.patchSettings(patch).then(
+        (view) => {
+          if (latest()) setSettings(view)
+        },
+        () => {
+          if (!latest()) return
+          setSettings((now) => (now && before ? { ...now, ...pick(before, patch) } : now))
+          setNotice(SETTINGS_FAILED)
+        },
+      )
     },
     [api],
   )

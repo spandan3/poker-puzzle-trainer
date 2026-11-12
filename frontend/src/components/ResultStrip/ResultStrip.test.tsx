@@ -5,10 +5,10 @@ import { attemptFixture } from '../../test/fixture'
 import { ResultStrip } from './ResultStrip'
 
 describe('ResultStrip', () => {
-  it('shows the verdict in a live region, the guesses, the profile and the note', () => {
+  it('shows the verdict, the guesses, the profile and the note', () => {
     const result = attemptFixture('bet')
     render(<ResultStrip result={result} onNext={() => {}} shortcutsOn />)
-    const status = screen.getByRole('status')
+    const status = screen.getByRole('region', { name: 'Result' })
     expect(status).toHaveTextContent('Best')
     expect(status).toHaveTextContent('You: Bet 33% · the top play')
     expect(screen.getByRole('region', { name: 'Result' })).toHaveAttribute('data-verdict', 'best')

@@ -10,7 +10,7 @@ import { TableCentre } from '../components/TableCentre/TableCentre'
 import { TopBar } from '../components/TopBar/TopBar'
 import type { Command } from '../lib/shortcuts'
 import { useShortcuts } from '../lib/shortcuts'
-import { answerEntry } from '../lib/result'
+import { answerEntry, VERDICT_LABELS, verdictLine } from '../lib/result'
 import { seatsFromView } from '../lib/seats'
 import styles from './App.module.css'
 
@@ -22,7 +22,7 @@ const HOLE_STAGGER_MS = 60
 const BOARD_DEAL_BASE_MS = 80
 const BOARD_DEAL_STAGGER_MS = 40
 // On reveal the run-out comes after Villain's cards turn over.
-const RUNOUT_BASE_MS = 200
+const RUNOUT_BASE_MS = 380 // --duration-flip
 const RUNOUT_STAGGER_MS = 120
 
 function readShortcutsOn(): boolean {
@@ -216,7 +216,7 @@ export function App({ api }: AppProps = {}) {
                     ref={nextRef}
                     result={result}
                     onNext={flow.newPuzzle}
-                    loading={pending}
+                    loading={state.kind === 'loading'}
                     shortcutsOn={shortcutsOn}
                   />
                 ) : (
@@ -243,6 +243,13 @@ export function App({ api }: AppProps = {}) {
           </>
         )}
       </main>
+
+      {/* always mounted, so screen readers announce the verdict when its text arrives */}
+      <div className={styles.srOnly} role="status" aria-live="polite" data-testid="announcer">
+        {state.kind === 'result'
+          ? `${VERDICT_LABELS[state.result.grade.verdict]}. ${verdictLine(state.result)}`
+          : ''}
+      </div>
 
       <ShortcutsOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>

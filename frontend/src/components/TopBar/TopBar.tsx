@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import type { ProfileInfo, StreetName } from '../../api/types'
 import { STREET_LABELS, STREET_ORDER } from '../../lib/history'
+import { shortcut } from '../../lib/shortcuts'
 import styles from './TopBar.module.css'
 
 export interface TopBarProps {
@@ -26,6 +27,8 @@ function isStreet(x: string): x is StreetName {
 }
 
 export function TopBar(props: TopBarProps) {
+  const hintAttrs = (id: 'help' | 'next') =>
+    props.shortcutsOn ? { 'data-shortcut': id, 'aria-keyshortcuts': shortcut(id).aria } : {}
   const streetId = useId()
   const profileId = useId()
   return (
@@ -83,11 +86,25 @@ export function TopBar(props: TopBarProps) {
           className={styles.help}
           aria-label="Keyboard shortcuts help"
           onClick={props.onHelp}
+          {...hintAttrs('help')}
         >
-          <span aria-hidden="true">?</span>
+          {/* the glyph is the button's key hint */}
+          <kbd className={styles.helpGlyph} aria-hidden="true">
+            ?
+          </kbd>
         </button>
-        <button type="button" className={styles.primary} onClick={props.onNewPuzzle}>
+        <button
+          type="button"
+          className={styles.primary}
+          onClick={props.onNewPuzzle}
+          {...hintAttrs('next')}
+        >
           New puzzle
+          {props.shortcutsOn && (
+            <kbd className={styles.kbd} aria-hidden="true">
+              N
+            </kbd>
+          )}
         </button>
       </div>
     </header>

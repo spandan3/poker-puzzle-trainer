@@ -378,12 +378,6 @@ function Panel({
         </div>
       )}
 
-      {error !== null && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      )}
-
       <div className={styles.footer}>
         {aggressive ? (
           <div className={styles.intent} role="group" aria-label="Intent">
@@ -416,10 +410,17 @@ function Panel({
 
         <div className={styles.submitArea}>
           <div className={styles.messages}>
+            {/* in the footer, next to Submit, so an error never makes the panel taller */}
+            {error !== null && (
+              <p className={styles.error} role="alert">
+                {error}
+              </p>
+            )}
             <p
               id={reasonId}
               className={styles.reason}
               data-ready={result.ok || undefined}
+              data-behind-error={error !== null || undefined}
               aria-live="polite"
             >
               {busy ? 'Submitting…' : (reason ?? 'Ready to submit')}
@@ -568,7 +569,8 @@ function CustomSize(props: {
         className={styles.customInput}
         value={text}
         disabled={disabled}
-        placeholder="custom"
+        placeholder={disabled ? 'off' : 'custom'}
+        title={disabledReason ?? undefined}
         aria-invalid={error !== null || undefined}
         aria-describedby={describedBy}
         onChange={(e) => onChange(e.currentTarget.value)}
@@ -582,7 +584,8 @@ function CustomSize(props: {
         {error}
       </p>
       {disabled && (
-        <p id={`${id}-disabled`} className={styles.fieldNote}>
+        // read with the box; shown once, as the submit error, rather than twice
+        <p id={`${id}-disabled`} className={styles.srOnly}>
           {disabledReason}
         </p>
       )}
