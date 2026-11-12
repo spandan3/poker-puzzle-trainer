@@ -213,7 +213,7 @@ def render(f: Facts) -> dict[str, Any]:
         "headline": headline(f),
         "sections": [
             {"id": "hand", "title": "The hand", "paragraphs": hand_paragraphs(f)},
-            {"id": "verdict", "title": "Why", "paragraphs": verdict_paragraphs(f)},
+            {"id": "verdict", "title": "The verdict", "paragraphs": verdict_paragraphs(f)},
             {"id": "villain", "title": "Villain", "paragraphs": villain_paragraphs(f)},
         ],
         "model": None,

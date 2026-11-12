@@ -249,7 +249,7 @@ def test_golden_texts(key, answer, golden):
     e = res["explanation"]
     assert e["source"] == "template" and e["model"] is None and e["fallback"] is None
     assert [s["id"] for s in e["sections"]] == ["hand", "verdict", "villain"]
-    assert [s["title"] for s in e["sections"]] == ["The hand", "Why", "Villain"]
+    assert [s["title"] for s in e["sections"]] == ["The hand", "The verdict", "Villain"]
     assert e["headline"] == golden["headline"]
     for s in e["sections"]:
         assert s["paragraphs"] == golden[s["id"]], s["id"]

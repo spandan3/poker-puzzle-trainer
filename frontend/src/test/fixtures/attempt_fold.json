@@ -112,7 +112,7 @@
           "Your equity against Villain's whole range is 37.5%. Calling 3 bb into a pot of 11 bb needs 3 bb / (11 bb + 3 bb) = 21.4% equity; 37.5% is above that, so calling beats folding.",
           "Right now you are ahead of 42.0% of Villain's range. The largest parts of the range are Strong value (42.6% of it; your equity 10%) and Air (24.6% of it; your equity 78%)."
         ],
-        "title": "Why"
+        "title": "The verdict"
       },
       {
         "id": "villain",
