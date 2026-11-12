@@ -208,4 +208,21 @@ describe('App', () => {
       body: { show_profile: false },
     })
   })
+
+  it('Escape leaves a top-bar select, so N works again after a result', async () => {
+    const { calls } = fakeServer()
+    const { user } = setup()
+    await answerCheck(user)
+    await screen.findByRole('button', { name: /Next puzzle/ })
+    const street = screen.getByRole('combobox', { name: 'Street' })
+    street.focus()
+    await user.keyboard('n')
+    expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/puzzles')).toHaveLength(1)
+    await user.keyboard('{Escape}')
+    expect(street).not.toHaveFocus()
+    await user.keyboard('n')
+    await waitFor(() =>
+      expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/puzzles')).toHaveLength(2),
+    )
+  })
 })

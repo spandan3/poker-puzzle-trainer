@@ -71,10 +71,23 @@ export function App({ api }: AppProps = {}) {
       case 'help':
         setHelpOpen((open) => !open)
         return true
-      case 'escape':
-        if (!skipPending) return false
-        flow.cancelSkip()
-        return true
+      case 'escape': {
+        if (skipPending) {
+          flow.cancelSkip()
+          return true
+        }
+        // leave any focused control (the top bar's selects too), so single keys work again
+        const active = document.activeElement
+        if (
+          active instanceof HTMLElement &&
+          active !== document.body &&
+          active !== slotRef.current
+        ) {
+          active.blur()
+          return true
+        }
+        return false
+      }
       default:
         return false
     }
