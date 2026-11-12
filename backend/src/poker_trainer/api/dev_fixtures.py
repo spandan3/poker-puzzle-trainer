@@ -33,7 +33,6 @@ from fastapi.testclient import TestClient
 from poker_trainer.api import service, views
 from poker_trainer.api.app import create_app
 from poker_trainer.api.schemas import StatsView
-from poker_trainer.db.models import DEFAULT_USER_ID
 from poker_trainer.game.state import ActionKind, Street
 from poker_trainer.puzzle.generate import generate_puzzle
 from poker_trainer.puzzle.model import Puzzle
@@ -45,14 +44,24 @@ MAX_SEED = 400  # per street; the search stops (and reports) when a predicate is
 NEVER_CONTINUES_MAX_SEED = 200
 FIXED_TIME = "2026-01-01T00:00:00+00:00"
 
-# stats fixtures: first attempt k (0-based) at STATS_START + k * STATS_STEP, so 105 of them span
-# about 30 days; FIXED_NOW is on the last one's day
+# stats fixtures: first attempt k (0-based) at STATS_START + k * STATS_STEP, plus STATS_GAP from
+# attempt STATS_GAP_AT on (a break, so a recent day misses the goal), so 105 of them span about
+# 31 days; FIXED_NOW is on the last one's day
 STATS_START = datetime(2026, 10, 24, 12, 0, tzinfo=UTC)
 STATS_STEP = timedelta(hours=7)
+STATS_GAP_AT = 95
+STATS_GAP = timedelta(hours=30)
 STATS_FIRST_ATTEMPTS = 105  # over 100, so the headline's "previous 50" is set
 STATS_RETRY_AFTER = (50, 90, 100)  # first attempts followed by a retry of the same puzzle
-FIXED_NOW = STATS_START + (STATS_FIRST_ATTEMPTS - 1) * STATS_STEP + timedelta(hours=2)
-STATS_GOAL = 10
+STATS_GOAL = 3  # 3 or 4 attempts a day: met on most days, so the day streaks aren't trivial
+
+
+def _stats_time(k: int) -> datetime:
+    """When first attempt ``k`` (0-based) of the stats fixtures is made."""
+    return STATS_START + k * STATS_STEP + (STATS_GAP if k >= STATS_GAP_AT else timedelta(0))
+
+
+FIXED_NOW = _stats_time(STATS_FIRST_ATTEMPTS - 1) + timedelta(hours=2)
 
 View = dict[str, Any]
 
@@ -210,7 +219,9 @@ def write_stats_fixtures(
 
     Runs on its own temporary database: ``STATS_FIRST_ATTEMPTS`` new puzzles (``puzzles`` in
     turn, each a new puzzle row) answered by ``_stats_answer`` on a scripted clock, plus a retry
-    after each of ``STATS_RETRY_AFTER``. Deterministic: the same ``puzzles`` give the same bytes.
+    after each of ``STATS_RETRY_AFTER``, with the daily goal set to ``STATS_GOAL``.
+    ``stats.json`` is ``GET /api/stats?tz=UTC`` at ``FIXED_NOW``. Deterministic: the same
+    ``puzzles`` give the same bytes.
     """
     if not puzzles:
         raise ValueError("write_stats_fixtures needs at least one puzzle")
@@ -220,9 +231,9 @@ def write_stats_fixtures(
     def factory(_seed: int, _street: Street | None, _profile: str | None) -> Puzzle:
         return queue.pop(0)
 
-    def stats_of(rows: Sequence[Any]) -> dict[str, Any]:
+    def empty_stats() -> dict[str, Any]:
         view = compute(
-            rows,
+            [],
             tz=ZoneInfo("UTC"),
             now=FIXED_NOW,
             goal=STATS_GOAL,
@@ -239,8 +250,11 @@ def write_stats_fixtures(
         url = f"sqlite:///{(Path(tmp) / 'stats.db').as_posix()}"
         app = create_app(AppSettings(_env_file=None, database_url=url), puzzle_factory=factory)
         with TestClient(app) as client:
+            res = client.patch("/api/settings", json={"daily_goal": STATS_GOAL})
+            if res.status_code != 200:
+                raise RuntimeError(res.text)
             for k in range(STATS_FIRST_ATTEMPTS):
-                now[0] = STATS_START + k * STATS_STEP
+                now[0] = _stats_time(k)
                 p = puzzles[k % len(puzzles)]
                 queue.append(p)
                 res = client.post("/api/puzzles", json={})
@@ -253,11 +267,13 @@ def write_stats_fixtures(
                     submit(
                         pid, {"option": p.solution.best, "equity_guess": _clamp(p.solution.equity)}
                     )
-            with app.state.sessionmaker() as db:
-                rows = service.stats_rows(db, DEFAULT_USER_ID)
-            _dump(out / "stats.json", stats_of(rows))
+            now[0] = FIXED_NOW
+            res = client.get("/api/stats", params={"tz": "UTC"})
+            if res.status_code != 200:
+                raise RuntimeError(res.text)
+            _dump(out / "stats.json", res.json())
             log("wrote stats.json")
-            _dump(out / "stats_empty.json", stats_of([]))
+            _dump(out / "stats_empty.json", empty_stats())
             log("wrote stats_empty.json")
             _dump(out / "history_page.json", client.get("/api/history?limit=25").json())
             log("wrote history_page.json")

@@ -7,16 +7,8 @@
   "days": {
     "best_streak": 0,
     "current_streak": 0,
-    "goal": 10,
+    "goal": 3,
     "recent": [
-      {
-        "count": 0,
-        "date": "2026-11-10"
-      },
-      {
-        "count": 0,
-        "date": "2026-11-11"
-      },
       {
         "count": 0,
         "date": "2026-11-12"
@@ -64,6 +56,14 @@
       {
         "count": 0,
         "date": "2026-11-23"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-24"
+      },
+      {
+        "count": 0,
+        "date": "2026-11-25"
       }
     ],
     "today": 0

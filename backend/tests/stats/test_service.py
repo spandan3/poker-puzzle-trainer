@@ -293,6 +293,22 @@ def test_day_streak_broken_yesterday():
     assert [d["count"] for d in days["recent"][-5:]] == [3, 3, 3, 0, 1]
 
 
+def test_day_streak_gap_resets_the_run():
+    # two days met, a day with none, one met, today unfinished
+    days = run(_on_days([2, 2, 0, 2, 1], NOW), goal=2)["days"]
+    assert days["current_streak"] == 1 and days["best_streak"] == 2
+
+
+def test_days_after_today_are_ignored_by_streaks():
+    future = [row(i, created_at=NOW + timedelta(days=d)) for i, d in ((1, 1), (2, 2), (3, 3))]
+    days = run([*_on_days([1], NOW), *[replace(r, id=r.id + 10) for r in future]], goal=1)["days"]
+    assert days["today"] == 1
+    assert days["current_streak"] == 1 and days["best_streak"] == 1  # not 4
+    assert days["recent"][-1]["date"] == "2026-11-12"
+    future_only = run(future, goal=1)["days"]
+    assert future_only["current_streak"] == 0 and future_only["best_streak"] == 0
+
+
 def test_day_streak_beyond_recent_window():
     days = run(_on_days([1] * 20, NOW), goal=1)["days"]
     assert days["current_streak"] == 20 and days["best_streak"] == 20
