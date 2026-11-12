@@ -1,0 +1,122 @@
+.figure {
+  margin: 0;
+  min-width: 0;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--color-panel-border);
+  stroke-width: 1;
+}
+
+.axis {
+  stroke: var(--color-text-faint);
+  stroke-width: 1;
+}
+
+.tick {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  fill: var(--color-text-faint);
+  font-size: 11px;
+}
+
+.line {
+  fill: none;
+  stroke-width: 2.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.s0 {
+  --series: var(--color-accent);
+}
+
+.s1 {
+  --series: var(--color-info);
+}
+
+.line,
+.dot {
+  stroke: var(--series);
+}
+
+.dot {
+  fill: var(--color-panel);
+  stroke-width: 2;
+}
+
+.last {
+  fill: var(--series);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0 0 var(--space-1);
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  list-style: none;
+}
+
+.legend li::before {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.2rem;
+  margin-right: var(--space-1);
+  vertical-align: middle;
+  background: var(--series);
+  border-radius: var(--radius-pill);
+  content: '';
+}
+
+.bar {
+  fill: var(--color-text-faint);
+}
+
+.bar[data-met] {
+  fill: var(--color-accent-strong);
+}
+
+.goalLine {
+  stroke: var(--color-warning);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.goalLabel {
+  fill: var(--color-warning);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.value {
+  fill: var(--color-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
