@@ -40,6 +40,7 @@ from poker_trainer.puzzle.model import (
     Puzzle,
     RangeView,
     Spot,
+    load_config,
     option_ev_from_dict,
     option_ev_to_dict,
 )
@@ -194,16 +195,19 @@ def custom_bounds(p: Puzzle) -> tuple[int | None, int | None]:
 
 
 def villain_model_current(p: Puzzle) -> bool:
-    """True when the live profile and category thresholds match the puzzle's versions.
+    """True when the live profile, category thresholds and puzzle config match the puzzle's.
 
     The single source of this check: ``custom_allowed`` (the view) and the service's 409 on a
-    custom size both use it, so they can't drift apart.
+    custom size both use it, so they can't drift apart. The config version matters because a
+    custom size is solved with today's grader (e.g. M9's realisation factors), which must
+    match how the puzzle's stored options were graded.
     """
     if p.spot.profile not in PROFILE_NAMES:
         return False
     return (
         load_profile(p.spot.profile).version == p.spot.profile_version
         and load_thresholds().version == p.spot.categories_version
+        and load_config().version == p.spot.config_version
     )
 
 
@@ -290,6 +294,7 @@ def option_view(o: OptionEV, *, best: bool, chosen: bool, dead: Collection[int])
         "ahead_vs_continue": _opt_float(o.ahead_vs_continue),
         "required_fold_equity": _opt_float(o.required_fold_equity),
         "put": int(o.put),
+        "realisation": float(o.realisation),
         "branches": [
             {
                 "label": b.label,
@@ -297,6 +302,7 @@ def option_view(o: OptionEV, *, best: bool, chosen: bool, dead: Collection[int])
                 "equity": _opt_float(b.equity),
                 "value_chips": float(b.value_chips),
                 "value_bb": float(b.value_chips) / 2,
+                "realisation": float(b.realisation),
             }
             for b in o.branches
         ],

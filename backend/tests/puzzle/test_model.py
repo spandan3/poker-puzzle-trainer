@@ -21,6 +21,7 @@ from poker_trainer.puzzle.model import (
     load_config,
     puzzle_from_dict,
     puzzle_to_dict,
+    realisation_text,
     visible_range,
 )
 
@@ -118,9 +119,73 @@ def test_config_and_simplifications():
     c = load_config()
     assert c.samples == 40000 and c.verdict.best_bb == 0.25 and c.max_attempts == 200
     assert c.street_weights["flop"] == 0.30
-    assert c.version == 3 and c.intent.semi_bluff_equity == 0.30
+    assert c.version == 4 and c.intent.semi_bluff_equity == 0.30
     assert c.verdict.min_pot == 10
-    assert set(SIMPLIFICATIONS) == {"realisation", "reraise_reply", "preflop_size", "check_reply"}
+    assert dict(c.realisation) == {
+        Street.PREFLOP: (1.0, 0.80),
+        Street.FLOP: (1.0, 0.88),
+        Street.TURN: (1.0, 0.94),
+    }
+    assert set(SIMPLIFICATIONS) == {
+        "realisation",
+        "realisation_position",
+        "reraise_reply",
+        "preflop_size",
+        "check_reply",
+    }
+    # Pre-M9 puzzles store "realisation": its text stays what they were graded with.
+    assert SIMPLIFICATIONS["realisation"] == (
+        "Before the river, Hero is assumed to realise full equity."
+    )
+    assert SIMPLIFICATIONS["realisation_position"] == (
+        "Before the river, Hero is assumed to realise a share of equity set by position: "
+        "in position 100%; out of position 80% pre-flop, 88% on the flop, 94% on the turn. "
+        "All-in pots realise 100%."
+    )
+
+
+def test_realisation_text_per_street_when_ip_differs():
+    r = {Street.PREFLOP: (0.95, 0.8), Street.FLOP: (1.0, 0.8), Street.TURN: (1.0, 0.8)}
+    assert realisation_text(r) == (
+        "Before the river, Hero is assumed to realise a share of equity set by position: "
+        "in position 95% pre-flop, 100% on the flop, 100% on the turn; out of position 80%. "
+        "All-in pots realise 100%."
+    )
+
+
+def test_solution_roundtrip_defaults_realisation():
+    """A stored pre-M9 puzzle (no "realisation" keys) reads as graded: r = 1.0 everywhere."""
+    p = _puzzle()
+    d = json.loads(json.dumps(puzzle_to_dict(p)))
+    for o in d["solution"]["options"]:
+        assert o["realisation"] == 1.0
+        del o["realisation"]
+        for b in o["branches"]:
+            assert b["realisation"] == 1.0
+            del b["realisation"]
+    q = puzzle_from_dict(d)
+    for o in q.solution.options:
+        assert o.realisation == 1.0 and type(o.realisation) is float
+        assert all(b.realisation == 1.0 for b in o.branches)
+    assert q.solution.options[1].simplifications == ("realisation",)
+    assert q.solution.simplifications == ("realisation",)
+
+
+def test_realisation_round_trips():
+    p = _puzzle()
+    ev = dataclasses.replace(
+        p.solution.options[1],
+        branches=(
+            Branch("Villain folds", 0.4, None, 10.0),
+            Branch("Villain calls", 0.6, 0.5, 3.2, 0.88),
+        ),
+        realisation=0.94,
+    )
+    sol = dataclasses.replace(p.solution, options=(p.solution.options[0], ev))
+    q = puzzle_from_dict(json.loads(json.dumps(puzzle_to_dict(Puzzle(p.spot, sol)))))
+    o = q.solution.options[1]
+    assert o.realisation == 0.94
+    assert [b.realisation for b in o.branches] == [1.0, 0.88]
 
 
 def test_numpy_scalars_serialise():

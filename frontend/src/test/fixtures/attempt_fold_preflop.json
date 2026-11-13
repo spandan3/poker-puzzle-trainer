@@ -93,6 +93,7 @@
       "kind": "fold",
       "label": "fold",
       "put": 0,
+      "realisation": 1.0,
       "required_fold_equity": null,
       "simplifications": [],
       "to": 0
@@ -103,6 +104,7 @@
         {
           "equity": null,
           "label": "Villain folds",
+          "realisation": 1.0,
           "share": 0.1640816327,
           "value_bb": 1.5,
           "value_chips": 3.0
@@ -110,6 +112,7 @@
         {
           "equity": 0.5339798111,
           "label": "Villain calls",
+          "realisation": 1.0,
           "share": 0.6668571429,
           "value_bb": 0.6698990556,
           "value_chips": 1.339798111
@@ -117,6 +120,7 @@
         {
           "equity": 0.3384655608,
           "label": "Villain raises to 15 \u2014 Hero calls",
+          "realisation": 1.0,
           "share": 0.1690612245,
           "value_bb": -1.923016588,
           "value_chips": -3.846033175
@@ -329,10 +333,11 @@
       "kind": "raise",
       "label": "raise 2.5x",
       "put": 4,
+      "realisation": 1.0,
       "required_fold_equity": 0.5714285714,
       "simplifications": [
         "preflop_size",
-        "realisation",
+        "realisation_position",
         "reraise_reply"
       ],
       "to": 5
@@ -343,6 +348,7 @@
         {
           "equity": null,
           "label": "Villain folds",
+          "realisation": 1.0,
           "share": 0.1640816327,
           "value_bb": 1.5,
           "value_chips": 3.0
@@ -350,6 +356,7 @@
         {
           "equity": 0.5339798111,
           "label": "Villain calls",
+          "realisation": 1.0,
           "share": 0.6668571429,
           "value_bb": 0.7038788668,
           "value_chips": 1.407757734
@@ -357,6 +364,7 @@
         {
           "equity": 0.3384655608,
           "label": "Villain raises to 18 \u2014 Hero calls",
+          "realisation": 1.0,
           "share": 0.1690612245,
           "value_bb": -2.407619905,
           "value_chips": -4.815239811
@@ -569,10 +577,11 @@
       "kind": "raise",
       "label": "raise 3x",
       "put": 5,
+      "realisation": 1.0,
       "required_fold_equity": 0.625,
       "simplifications": [
         "preflop_size",
-        "realisation",
+        "realisation_position",
         "reraise_reply"
       ],
       "to": 6
@@ -583,6 +592,7 @@
         {
           "equity": null,
           "label": "Villain folds",
+          "realisation": 1.0,
           "share": 0.9265306122,
           "value_bb": 1.5,
           "value_chips": 3.0
@@ -590,6 +600,7 @@
         {
           "equity": 0.2716600529,
           "label": "Villain calls",
+          "realisation": 1.0,
           "share": 0.07346938776,
           "value_bb": -45.16798942,
           "value_chips": -90.33597884
@@ -802,10 +813,11 @@
       "kind": "raise",
       "label": "all-in",
       "put": 199,
+      "realisation": 1.0,
       "required_fold_equity": 0.9851485149,
       "simplifications": [
         "preflop_size",
-        "realisation"
+        "realisation_position"
       ],
       "to": 200
     }
@@ -5945,8 +5957,8 @@
       "text": "Pre-flop, Villain's responses don't depend on Hero's raise size."
     },
     {
-      "code": "realisation",
-      "text": "Before the river, Hero is assumed to realise full equity."
+      "code": "realisation_position",
+      "text": "Before the river, Hero is assumed to realise a share of equity set by position: in position 100%; out of position 80% pre-flop, 88% on the flop, 94% on the turn. All-in pots realise 100%."
     },
     {
       "code": "reraise_reply",

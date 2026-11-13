@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "street_weights": {"preflop": 0.15, "flop": 0.30, "turn": 0.30, "river": 0.25},
   "stop_prob": 0.6,
   "samples": 40000,
@@ -13,5 +13,10 @@
     "gap_eq_lo": 0.10
   },
   "intent": {"semi_bluff_equity": 0.30},
+  "realisation": {
+    "preflop": {"ip": 1.0, "oop": 0.80},
+    "flop": {"ip": 1.0, "oop": 0.88},
+    "turn": {"ip": 1.0, "oop": 0.94}
+  },
   "max_attempts": 200
 }
