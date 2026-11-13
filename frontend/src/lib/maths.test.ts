@@ -44,7 +44,7 @@ function recompute(b: Branch, o: OptionResult, d: DecisionData): number | null {
   }
   if (b.label === 'Villain calls') {
     const vcall = o.to - d.context.villainStreetBetChips
-    return b.equity * (P + o.put + vcall) - o.put
+    return b.realisation * b.equity * (P + o.put + vcall) - o.put
   }
   return null
 }
@@ -169,6 +169,111 @@ describe('optionMaths', () => {
     const off = { ...call, ev_bb: call.ev_bb + 1, ev_chips: call.ev_chips + 2 }
     const m = optionMaths(off, d)
     expect(m.ev).toEqual([{ text: 'EV (solver value)', result: formatEvBb(off.ev_bb) }])
+  })
+
+  it('a pre-flop BB call out of position: the realisation factor is in the formula', () => {
+    const d = decision('raise_preflop')
+    const call = d.options.find((o) => o.kind === 'call')
+    if (!call) throw new Error('no call')
+    expect(call.realisation).toBe(0.8)
+    const m = optionMaths(call, d)
+    expect(m.ev).toEqual([
+      { text: 'Realisation (out of position, pre-flop)', result: '80%' },
+      { text: 'EV = r × e × (pot + call) − call' },
+      { text: '= 0.80 × 51.2% × (3.5 bb + 1.5 bb) − 1.5 bb', result: formatEvBb(call.ev_bb) },
+    ])
+    // the formula reproduces the API value
+    const P = d.context.potChips
+    const chips = call.realisation * d.grade.equity * (P + call.put) - call.put
+    expect(Math.abs(chips / 2 - call.ev_bb)).toBeLessThan(0.01)
+    expect(formatEvBb(call.ev_bb)).toBe('0.55 bb')
+  })
+
+  it('pot odds compare realised equity, on the call and the fold, when r is not 1', () => {
+    const d = decision('raise_preflop')
+    for (const kind of ['call', 'fold'] as const) {
+      const o = d.options.find((x) => x.kind === kind)
+      if (!o) throw new Error(`no ${kind}`)
+      const m = optionMaths(o, d)
+      expect(m.potOdds).toEqual([
+        {
+          text: 'Pot odds = call / (pot + call) = 1.5 bb / (3.5 bb + 1.5 bb)',
+          result: '30.0%',
+        },
+        { text: 'Your equity', result: '51.2%' },
+        {
+          text: 'Your realised equity (80% of 51.2% = 41.0%) is above the 30.0% pot odds, so calling beats folding',
+        },
+      ])
+    }
+  })
+
+  it('pot odds below realised equity: folding beats calling', () => {
+    const base = decision('raise_preflop')
+    // equity 35%: above the 30% pot odds, but 80% of it (28%) is below them
+    const d: DecisionData = { ...base, grade: { ...base.grade, equity: 0.35 } }
+    const fold = d.options.find((x) => x.kind === 'fold')
+    if (!fold) throw new Error('no fold')
+    expect(optionMaths(fold, d).potOdds.at(-1)?.text).toBe(
+      'Your realised equity (80% of 35.0% = 28.0%) is below the 30.0% pot odds, so folding beats calling',
+    )
+  })
+
+  it('an out-of-position flop check: EV = r × e × pot', () => {
+    const d = decision('bet')
+    const check = d.options.find((o) => o.kind === 'check')
+    if (!check) throw new Error('no check')
+    expect(check.realisation).toBe(0.88)
+    const m = optionMaths(check, d)
+    expect(m.ev).toEqual([
+      { text: 'Realisation (out of position, flop)', result: '88%' },
+      { text: 'EV = r × e × pot' },
+      { text: '= 0.88 × 46.4% × 5 bb', result: '2.04 bb' },
+    ])
+  })
+
+  it("a bet's Villain-calls branch shows r × e; an all-in branch (r = 1) does not", () => {
+    const d = decision('bet')
+    const bet = d.options.find((o) => o.label === 'bet 33%')
+    if (!bet) throw new Error('no bet 33%')
+    const m = optionMaths(bet, d)
+    const calls = m.branches.find((b) => b.label === 'Villain calls')
+    expect(calls?.formula).toBe('0.88 × 36.4% × (5 bb + 1.5 bb + 1.5 bb) − 1.5 bb')
+    expect(m.ev[0]).toEqual({ text: 'Realisation (out of position, flop)', result: '88%' })
+    expect(m.ev.at(-1)?.result).toBe(formatEvBb(bet.ev_bb))
+    const allIn = d.options.find((o) => o.label === 'all-in')
+    if (!allIn) throw new Error('no all-in')
+    const a = optionMaths(allIn, d)
+    expect(a.branches.find((b) => b.label === 'Villain calls')?.formula).toBe(
+      '22.5% × (5 bb + 97.5 bb + 97.5 bb) − 97.5 bb',
+    )
+    expect(a.ev.map((l) => l.text)).not.toContain('Realisation (out of position, flop)')
+  })
+
+  it('r = 1 (a pre-M9 result, or in position): no realisation line, formulas as before', () => {
+    const d = decision('call')
+    for (const o of d.options) {
+      const m = optionMaths(o, d)
+      const text = JSON.stringify(m)
+      expect(text).not.toContain('Realisation')
+      expect(text).not.toContain('realised')
+      expect(text).not.toContain('r × e')
+    }
+    const call = d.options.find((o) => o.kind === 'call')
+    if (!call) throw new Error('no call')
+    expect(optionMaths(call, d).potOdds.at(-1)).toEqual({
+      text: '37.5% is above 21.4%, so calling beats folding',
+    })
+  })
+
+  it('r-scaled call and check values show a formula, never the solver value alone', () => {
+    for (const name of ['bet', 'raise_preflop']) {
+      const d = decision(name)
+      for (const o of d.options) {
+        if (o.kind !== 'call' && o.kind !== 'check') continue
+        expect(optionMaths(o, d).ev.map((l) => l.text)).not.toContain('EV (solver value)')
+      }
+    }
   })
 
   it('the custom choice uses the display label', () => {

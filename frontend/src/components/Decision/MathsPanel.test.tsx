@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { decisionFromAttempt } from '../../lib/decision'
 import { formatEvBb } from '../../lib/format'
 import { attemptFixture, puzzleFixture } from '../../test/fixture'
-import { customBelowListedBestAttempt, neverContinuesAttempt } from '../../test/synthetic'
+import {
+  bbCallAttempt,
+  customBelowListedBestAttempt,
+  neverContinuesAttempt,
+} from '../../test/synthetic'
 import { MathsPanel } from './MathsPanel'
 
 function columns() {
@@ -68,6 +72,29 @@ describe('MathsPanel', () => {
     expect(within(table).getAllByRole('row')).toHaveLength(2)
     expect(within(table).getByRole('rowheader', { name: 'Villain folds' })).toBeInTheDocument()
     expect(container.textContent).not.toContain('NaN')
+  })
+
+  it('a pre-flop BB call: the realisation factor and realised equity are shown', () => {
+    const d = decisionFromAttempt(puzzleFixture('preflop_bb_facing_open'), bbCallAttempt())
+    render(<MathsPanel decision={d} />)
+    const [yours, best] = columns()
+    if (!yours || !best) throw new Error('two columns')
+    expect(within(yours).getByRole('heading', { level: 3 })).toHaveTextContent(/Your play.*Call/)
+    const realisation = within(yours).getByText('Realisation (out of position, pre-flop)')
+    expect(realisation.parentElement).toHaveTextContent('80%')
+    expect(within(yours).getByText('EV = r × e × (pot + call) − call')).toBeInTheDocument()
+    expect(
+      within(yours).getByText('= 0.80 × 51.2% × (3.5 bb + 1.5 bb) − 1.5 bb').parentElement,
+    ).toHaveTextContent('0.55 bb')
+    expect(
+      within(yours).getByText(
+        'Your realised equity (80% of 51.2% = 41.0%) is above the 30.0% pot odds, so calling beats folding',
+      ),
+    ).toBeInTheDocument()
+    // the best play (a raise): its Villain-calls branch is worked with r × e
+    expect(
+      within(best).getByText('0.80 × 45.1% × (3.5 bb + 5 bb + 3.5 bb) − 5 bb'),
+    ).toBeInTheDocument()
   })
 
   it('shows the option notes', () => {

@@ -49,3 +49,37 @@ export function customBelowListedBestAttempt(): AttemptResult {
     options: base.options.map((o) => ({ ...o, is_best: o.label === 'bet 33%' })),
   }
 }
+
+// SYNTHETIC: the big blind calling an open (out of position pre-flop, realisation 80%). Derived by
+// hand from attempt_raise_preflop by choosing its listed call instead; not API output. The
+// options, EVs and equity are the fixture's; only the choice and the loss follow from it.
+/** attempt_raise_preflop (puzzle_preflop_bb_facing_open) with the call chosen. */
+export function bbCallAttempt(): AttemptResult {
+  const base = attemptFixture('raise_preflop')
+  const call = base.options.find((o) => o.kind === 'call')
+  const best = base.options.find((o) => o.is_best)
+  if (!call || !best) throw new Error('attempt_raise_preflop has a call and a best option')
+  const lossChips = best.ev_chips - call.ev_chips
+  return {
+    ...base,
+    answer: {
+      ...base.answer,
+      action: { ...base.answer.action, kind: 'call', to: 5 },
+      chosen_label: call.label,
+      option_index: base.options.indexOf(call),
+      intent: null,
+    },
+    grade: {
+      ...base.grade,
+      chosen_label: call.label,
+      ev_loss_chips: lossChips,
+      ev_loss_bb: lossChips / 2,
+      verdict: 'mistake',
+      intent: null,
+      intent_flag: null,
+      intent_truth: null,
+      bluff_check: null,
+    },
+    options: base.options.map((o) => ({ ...o, is_chosen: o === call })),
+  }
+}

@@ -409,7 +409,8 @@ def test_pot_odds_conclusion_follows_the_choice():
 
 def test_pot_odds_equal_strings_are_never_above():
     p = puzzle(3, "preflop")
-    f = facts(result(p, option=1), p)
+    # a factor of 1 (a result graded before M9): raw equity against the pot odds
+    f = _with(facts(result(p, option=1), p), realisation=None, realised_equity=None)
     even = _with(f, equity=f.pot_odds, equity_beats_pot_odds=True)
     text = _pot_odds_sentence(even)
     assert f"{f.pot_odds} is exactly what it needs, so calling beats folding." in text
@@ -428,3 +429,28 @@ def test_fold_equity_close_to_when_the_shown_numbers_disagree():
     text = render(_with(f, options=options))["sections"][1]["paragraphs"][2]
     assert text.startswith(f"Bet 33%: Villain folds {f.best.fold_freq} of the time, close to the ")
     assert "so folds alone don't pay for it: it relies on your" in text
+
+
+def test_pot_odds_against_realised_equity_out_of_position():
+    p = puzzle(0, "preflop")  # BB facing an open: 34.0% equity, 30% pot odds, 80% realised
+    res = result(p, option=1)  # call
+    f = facts(res, p)
+    assert f.realisation == "80%"
+    text = _pot_odds_sentence(f)
+    assert text.endswith(
+        f"Out of position you realise only 80% of your {f.equity} equity, which makes "
+        f"{f.realised_equity}: that is below what it needs, so folding beats calling."
+    ), text
+    for answer in _answers(p):
+        _assert_sound(p, result(p, **answer))
+
+
+def test_realised_equal_strings_are_never_below():
+    p = puzzle(0, "preflop")
+    f = facts(result(p, option=1), p)
+    even = _with(f, realised_equity=f.pot_odds, equity_beats_pot_odds=True)
+    text = _pot_odds_sentence(even)
+    assert f"which makes {f.pot_odds}: exactly what it needs, so calling beats folding." in text
+    short = _with(f, realised_equity=f.pot_odds, equity_beats_pot_odds=False)
+    text = _pot_odds_sentence(short)
+    assert f"which makes {f.pot_odds}: just short of what it needs, so folding beats" in text
