@@ -56,23 +56,23 @@
     "source": "template"
   },
   "grade": {
-    "ahead_now": 0.7089795918367346,
+    "ahead_now": 0.7089795918,
     "best_label": "raise 2.5x",
     "bluff_check": null,
     "chosen_label": "fold",
-    "equity": 0.5223249999999999,
-    "equity_error": 0.07232499999999992,
+    "equity": 0.522325,
+    "equity_error": 0.072325,
     "equity_exact": false,
     "equity_guess": 0.45,
     "equity_score": "good",
-    "equity_std_error": 0.0024975067285945398,
-    "ev_loss_bb": 0.36774188018302745,
-    "ev_loss_chips": 0.7354837603660549,
+    "equity_std_error": 0.002497506729,
+    "ev_loss_bb": 0.3677418802,
+    "ev_loss_chips": 0.7354837604,
     "intent": null,
     "intent_flag": null,
     "intent_truth": null,
     "pot_odds": null,
-    "range_read_error": 0.20897959183673465,
+    "range_read_error": 0.2089795918,
     "range_read_guess": 0.5,
     "range_read_score": "off",
     "verdict": "fine"
@@ -98,28 +98,28 @@
       "to": 0
     },
     {
-      "ahead_vs_continue": 0.65185546875,
+      "ahead_vs_continue": 0.6518554688,
       "branches": [
         {
           "equity": null,
           "label": "Villain folds",
-          "share": 0.16408163265306122,
+          "share": 0.1640816327,
           "value_bb": 1.5,
           "value_chips": 3.0
         },
         {
-          "equity": 0.5339798111265815,
+          "equity": 0.5339798111,
           "label": "Villain calls",
-          "share": 0.6668571428571428,
-          "value_bb": 0.6698990556329076,
-          "value_chips": 1.3397981112658153
+          "share": 0.6668571429,
+          "value_bb": 0.6698990556,
+          "value_chips": 1.339798111
         },
         {
-          "equity": 0.33846556081689566,
+          "equity": 0.3384655608,
           "label": "Villain raises to 15 \u2014 Hero calls",
-          "share": 0.1690612244897959,
-          "value_bb": -1.9230165877465648,
-          "value_chips": -3.8460331754931296
+          "share": 0.1690612245,
+          "value_bb": -1.923016588,
+          "value_chips": -3.846033175
         }
       ],
       "continue_grid": [
@@ -319,17 +319,17 @@
           1.0
         ]
       ],
-      "equity_vs_continue": 0.4935764670568813,
-      "equity_vs_continue_se": 0.002739140145290198,
-      "ev_bb": 0.36774188018302745,
-      "ev_chips": 0.7354837603660549,
-      "fold_freq": 0.16408163265306122,
+      "equity_vs_continue": 0.4935764671,
+      "equity_vs_continue_se": 0.002739140145,
+      "ev_bb": 0.3677418802,
+      "ev_chips": 0.7354837604,
+      "fold_freq": 0.1640816327,
       "is_best": true,
       "is_chosen": false,
       "kind": "raise",
       "label": "raise 2.5x",
       "put": 4,
-      "required_fold_equity": 0.5714285714285714,
+      "required_fold_equity": 0.5714285714,
       "simplifications": [
         "preflop_size",
         "realisation",
@@ -338,28 +338,28 @@
       "to": 5
     },
     {
-      "ahead_vs_continue": 0.65185546875,
+      "ahead_vs_continue": 0.6518554688,
       "branches": [
         {
           "equity": null,
           "label": "Villain folds",
-          "share": 0.16408163265306122,
+          "share": 0.1640816327,
           "value_bb": 1.5,
           "value_chips": 3.0
         },
         {
-          "equity": 0.5339798111265815,
+          "equity": 0.5339798111,
           "label": "Villain calls",
-          "share": 0.6668571428571428,
-          "value_bb": 0.7038788667594895,
-          "value_chips": 1.407757733518979
+          "share": 0.6668571429,
+          "value_bb": 0.7038788668,
+          "value_chips": 1.407757734
         },
         {
-          "equity": 0.33846556081689566,
+          "equity": 0.3384655608,
           "label": "Villain raises to 18 \u2014 Hero calls",
-          "share": 0.1690612244897959,
-          "value_bb": -2.4076199052958778,
-          "value_chips": -4.8152398105917555
+          "share": 0.1690612245,
+          "value_bb": -2.407619905,
+          "value_chips": -4.815239811
         }
       ],
       "continue_grid": [
@@ -559,11 +559,11 @@
           1.0
         ]
       ],
-      "equity_vs_continue": 0.4935764670568813,
-      "equity_vs_continue_se": 0.002739140145290198,
-      "ev_bb": 0.308473929689021,
-      "ev_chips": 0.616947859378042,
-      "fold_freq": 0.16408163265306122,
+      "equity_vs_continue": 0.4935764671,
+      "equity_vs_continue_se": 0.002739140145,
+      "ev_bb": 0.3084739297,
+      "ev_chips": 0.6169478594,
+      "fold_freq": 0.1640816327,
       "is_best": false,
       "is_chosen": false,
       "kind": "raise",
@@ -583,16 +583,16 @@
         {
           "equity": null,
           "label": "Villain folds",
-          "share": 0.926530612244898,
+          "share": 0.9265306122,
           "value_bb": 1.5,
           "value_chips": 3.0
         },
         {
-          "equity": 0.2716600529100529,
+          "equity": 0.2716600529,
           "label": "Villain calls",
-          "share": 0.07346938775510205,
-          "value_bb": -45.16798941798942,
-          "value_chips": -90.33597883597884
+          "share": 0.07346938776,
+          "value_bb": -45.16798942,
+          "value_chips": -90.33597884
         }
       ],
       "continue_grid": [
@@ -792,17 +792,17 @@
           0.0
         ]
       ],
-      "equity_vs_continue": 0.2716600529100529,
-      "equity_vs_continue_se": 0.008088892470733883,
-      "ev_bb": -1.9286686103012638,
-      "ev_chips": -3.8573372206025276,
-      "fold_freq": 0.926530612244898,
+      "equity_vs_continue": 0.2716600529,
+      "equity_vs_continue_se": 0.008088892471,
+      "ev_bb": -1.92866861,
+      "ev_chips": -3.857337221,
+      "fold_freq": 0.9265306122,
       "is_best": false,
       "is_chosen": false,
       "kind": "raise",
       "label": "all-in",
       "put": 199,
-      "required_fold_equity": 0.9851485148514851,
+      "required_fold_equity": 0.9851485149,
       "simplifications": [
         "preflop_size",
         "realisation"

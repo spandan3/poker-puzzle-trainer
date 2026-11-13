@@ -3,6 +3,7 @@ import json
 import pytest
 
 from poker_trainer.api.dev_fixtures import (
+    _dump,
     find_never_continues,
     search,
     write_fixtures,
@@ -12,6 +13,14 @@ from poker_trainer.explain.guardrail import unknown_numbers
 from poker_trainer.explain.service import Explainer
 
 ATTEMPTS = ("bet", "fold", "call", "raise_preflop", "fold_preflop", "check_river", "custom")
+
+
+def test_dump_rounds_floats(tmp_path):
+    path = tmp_path / "x.json"
+    _dump(path, {"a": 0.1 + 0.2, "b": [1, 2.0000000000004], "c": True, "d": "x", "e": 1e-20})
+    text = path.read_text(encoding="utf-8")
+    assert json.loads(text) == {"a": 0.3, "b": [1, 2.0], "c": True, "d": "x", "e": 1e-20}
+    assert "1e-20" in text and "0.30000000000000004" not in text
 
 
 def test_find_never_continues_raises_when_none_found():
