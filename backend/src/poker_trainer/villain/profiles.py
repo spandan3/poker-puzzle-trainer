@@ -130,6 +130,18 @@ def load_profile(name: str) -> Profile:
     return _load(name)
 
 
+def profile_meta(name: str) -> tuple[str, str]:
+    """``(label, description)`` for a stored profile name; never raises.
+
+    A name that is no longer a profile (or whose file fails to load) gets ``(name.title(), "")``.
+    """
+    try:
+        prof = load_profile(name)
+    except ValueError:
+        return name.title(), ""
+    return prof.label, prof.description
+
+
 @lru_cache(maxsize=len(PROFILE_NAMES))
 def _load(name: str) -> Profile:
     text = (files("poker_trainer.villain") / "profiles" / f"{name}.json").read_text(

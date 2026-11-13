@@ -45,7 +45,7 @@ from poker_trainer.puzzle.model import (
 )
 from poker_trainer.villain.features import load_thresholds
 from poker_trainer.villain.narrowing import describe
-from poker_trainer.villain.profiles import load_profile
+from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile, profile_meta
 
 __all__ = [
     "action_log",
@@ -197,6 +197,8 @@ def villain_model_current(p: Puzzle) -> bool:
     The single source of this check: ``custom_allowed`` (the view) and the service's 409 on a
     custom size both use it, so they can't drift apart.
     """
+    if p.spot.profile not in PROFILE_NAMES:
+        return False
     return (
         load_profile(p.spot.profile).version == p.spot.profile_version
         and load_thresholds().version == p.spot.categories_version
@@ -231,7 +233,7 @@ def puzzle_view(
     sp = p.spot
     s = sp.state
     villain_seat = 1 - sp.hero_seat
-    prof = load_profile(sp.profile)
+    label, description = profile_meta(sp.profile)
     lo, hi = custom_bounds(p)
     allowed = bool(custom_sizes_allowed) and lo is not None
     return {
@@ -249,9 +251,9 @@ def puzzle_view(
         "pot_odds": _pot_odds(p),
         "history": action_log(sp),
         "villain_profile": {
-            "name": prof.name,
-            "label": prof.label,
-            "description": prof.description,
+            "name": sp.profile,
+            "label": label,
+            "description": description,
         },
         "options": [
             {
@@ -352,7 +354,7 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
         if a["bluff_required"] is None or a["bluff_actual"] is None
         else {"required": float(a["bluff_required"]), "actual": float(a["bluff_actual"])}
     )
-    prof = load_profile(sp.profile)
+    label, description = profile_meta(sp.profile)
     ev_loss = float(a["ev_loss_chips"])
     result: dict[str, Any] = {
         "attempt": {
@@ -415,9 +417,9 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
             "villain_cards": _cards(sp.villain_hole),
             "runout": _cards(sp.runout),
             "profile": {
-                "name": prof.name,
-                "label": prof.label,
-                "description": prof.description,
+                "name": sp.profile,
+                "label": label,
+                "description": description,
                 "version": int(sp.profile_version),
             },
             "showdown": showdown(sp),

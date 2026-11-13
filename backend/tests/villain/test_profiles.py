@@ -167,3 +167,15 @@ def test_river_overrides_partial(profile: Profile):
         assert role in ROLES
         for row in rows.values():
             assert sum(row.values()) == pytest.approx(1.0)
+
+
+def test_profile_meta_known():
+    from poker_trainer.villain.profiles import profile_meta
+
+    assert profile_meta("tag") == (load_profile("tag").label, load_profile("tag").description)
+
+
+def test_profile_meta_unknown():
+    from poker_trainer.villain.profiles import profile_meta
+
+    assert profile_meta("maniac") == ("Maniac", "")
