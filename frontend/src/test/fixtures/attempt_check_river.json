@@ -137,6 +137,7 @@
         {
           "equity": 0.05881386155,
           "label": "Villain checks back",
+          "realisation": 1.0,
           "share": 0.7182778694,
           "value_bb": 0.7645802001,
           "value_chips": 1.5291604
@@ -144,6 +145,7 @@
         {
           "equity": 0.01015720627,
           "label": "Villain bets 9 \u2014 Hero folds",
+          "realisation": 1.0,
           "share": 0.1066432327,
           "value_bb": 0.0,
           "value_chips": 0.0
@@ -151,6 +153,7 @@
         {
           "equity": 0.06186909588,
           "label": "Villain bets 20 \u2014 Hero folds",
+          "realisation": 1.0,
           "share": 0.1750788979,
           "value_bb": 0.0,
           "value_chips": 0.0
@@ -167,6 +170,7 @@
       "kind": "check",
       "label": "check",
       "put": 0,
+      "realisation": 1.0,
       "required_fold_equity": null,
       "simplifications": [
         "check_reply"
@@ -179,6 +183,7 @@
         {
           "equity": null,
           "label": "Villain folds",
+          "realisation": 1.0,
           "share": 0.4185593733,
           "value_bb": 13.0,
           "value_chips": 26.0
@@ -186,6 +191,7 @@
         {
           "equity": 0.005699686881,
           "label": "Villain calls",
+          "realisation": 1.0,
           "share": 0.4724213546,
           "value_bb": -4.374606889,
           "value_chips": -8.749213777
@@ -193,6 +199,7 @@
         {
           "equity": 0.04939775777,
           "label": "Villain raises to 27 \u2014 Hero folds",
+          "realisation": 1.0,
           "share": 0.1090192721,
           "value_bb": -4.5,
           "value_chips": -9.0
@@ -405,6 +412,7 @@
       "kind": "bet",
       "label": "bet 33%",
       "put": 9,
+      "realisation": 1.0,
       "required_fold_equity": 0.2571428571,
       "simplifications": [
         "reraise_reply"
@@ -417,6 +425,7 @@
         {
           "equity": null,
           "label": "Villain folds",
+          "realisation": 1.0,
           "share": 0.4397995402,
           "value_bb": 13.0,
           "value_chips": 26.0
@@ -424,6 +433,7 @@
         {
           "equity": 0.004722345029,
           "label": "Villain calls",
+          "realisation": 1.0,
           "share": 0.4587539899,
           "value_bb": -6.377219029,
           "value_chips": -12.75443806
@@ -431,6 +441,7 @@
         {
           "equity": 0.0427101037,
           "label": "Villain raises to 39 \u2014 Hero folds",
+          "realisation": 1.0,
           "share": 0.1014464698,
           "value_bb": -6.5,
           "value_chips": -13.0
@@ -643,6 +654,7 @@
       "kind": "bet",
       "label": "bet 50%",
       "put": 13,
+      "realisation": 1.0,
       "required_fold_equity": 0.3333333333,
       "simplifications": [
         "reraise_reply"
@@ -655,6 +667,7 @@
         {
           "equity": null,
           "label": "Villain folds",
+          "realisation": 1.0,
           "share": 0.471324089,
           "value_bb": 13.0,
           "value_chips": 26.0
@@ -662,6 +675,7 @@
         {
           "equity": 0.00338548105,
           "label": "Villain calls",
+          "realisation": 1.0,
           "share": 0.4373629811,
           "value_bb": -9.888279125,
           "value_chips": -19.77655825
@@ -669,6 +683,7 @@
         {
           "equity": 0.03243098402,
           "label": "Villain raises to 60 \u2014 Hero folds",
+          "realisation": 1.0,
           "share": 0.09131292984,
           "value_bb": -10.0,
           "value_chips": -20.0
@@ -881,6 +896,7 @@
       "kind": "bet",
       "label": "bet 75%",
       "put": 20,
+      "realisation": 1.0,
       "required_fold_equity": 0.4347826087,
       "simplifications": [
         "reraise_reply"
@@ -893,6 +909,7 @@
         {
           "equity": null,
           "label": "Villain folds",
+          "realisation": 1.0,
           "share": 0.4939213929,
           "value_bb": 13.0,
           "value_chips": 26.0
@@ -900,6 +917,7 @@
         {
           "equity": 0.002537468331,
           "label": "Villain calls",
+          "realisation": 1.0,
           "share": 0.4211117447,
           "value_bb": -12.90103874,
           "value_chips": -25.80207747
@@ -907,6 +925,7 @@
         {
           "equity": 0.02515234024,
           "label": "Villain raises to 78 \u2014 Hero folds",
+          "realisation": 1.0,
           "share": 0.08496686238,
           "value_bb": -13.0,
           "value_chips": -26.0
@@ -1119,6 +1138,7 @@
       "kind": "bet",
       "label": "bet 100%",
       "put": 26,
+      "realisation": 1.0,
       "required_fold_equity": 0.5,
       "simplifications": [
         "reraise_reply"
@@ -1131,6 +1151,7 @@
         {
           "equity": null,
           "label": "Villain folds",
+          "realisation": 1.0,
           "share": 0.7163335911,
           "value_bb": 13.0,
           "value_chips": 26.0
@@ -1138,6 +1159,7 @@
         {
           "equity": 1.785593623e-06,
           "label": "Villain calls",
+          "realisation": 1.0,
           "share": 0.2836664089,
           "value_bb": -93.49964288,
           "value_chips": -186.9992858
@@ -1350,6 +1372,7 @@
       "kind": "bet",
       "label": "all-in",
       "put": 187,
+      "realisation": 1.0,
       "required_fold_equity": 0.8779342723,
       "simplifications": [],
       "to": 187

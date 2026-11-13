@@ -23,6 +23,7 @@ export function neverContinuesAttempt(): AttemptResult {
                 equity: null,
                 value_chips: pot,
                 value_bb: pot / 2,
+                realisation: 1,
               },
             ],
             equity_vs_continue: null,

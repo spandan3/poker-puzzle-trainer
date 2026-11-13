@@ -475,6 +475,10 @@
             "title": "Label",
             "type": "string"
           },
+          "realisation": {
+            "title": "Realisation",
+            "type": "number"
+          },
           "share": {
             "title": "Share",
             "type": "number"
@@ -493,7 +497,8 @@
           "share",
           "equity",
           "value_chips",
-          "value_bb"
+          "value_bb",
+          "realisation"
         ],
         "title": "Branch",
         "type": "object"
@@ -1255,6 +1260,10 @@
             "title": "Put",
             "type": "integer"
           },
+          "realisation": {
+            "title": "Realisation",
+            "type": "number"
+          },
           "required_fold_equity": {
             "anyOf": [
               {
@@ -1290,6 +1299,7 @@
           "ahead_vs_continue",
           "required_fold_equity",
           "put",
+          "realisation",
           "branches",
           "simplifications",
           "continue_grid",

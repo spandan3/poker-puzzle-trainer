@@ -24,6 +24,7 @@ from poker_trainer.puzzle.options import hero_options
 from poker_trainer.puzzle.solve import (
     _category_breakdown,
     evaluate_action,
+    realisation,
     solve,
     villain_respond,
 )
@@ -266,7 +267,7 @@ def test_realisation_label_preriver():
     ce = combo_equity(hero, s.board, d, rng=random.Random(0), samples=2000)
     call = option(s, "call")
     o = evaluate_action(s, hero, d, ce, call, villain_respond(load_profile("tag")))
-    assert "realisation" in o.simplifications
+    assert "realisation_position" in o.simplifications
     assert set(o.simplifications) <= set(SIMPLIFICATIONS)
 
     r = river_spot("facing")
@@ -365,10 +366,10 @@ def test_check_reply_only_on_out_of_position_checks():
     f = deal(f, BOARD[:3])
     ce = combo_equity(hero, f.board, d, rng=random.Random(0), samples=2000)
     o = evaluate_action(f, hero, d, ce, option(f, "check"), generic_respond)  # flop OOP
-    assert o.simplifications == ("check_reply", "realisation")
+    assert o.simplifications == ("check_reply", "realisation_position")
     f_ip = _check(f)
     o = evaluate_action(f_ip, hero, d, ce, option(f_ip, "check"), generic_respond)  # flop IP
-    assert o.simplifications == ("realisation",)
+    assert o.simplifications == ("realisation_position",)
 
 
 def test_pot_odds_zero_without_call_option():
@@ -411,3 +412,145 @@ def test_breakdown_rejects_board_blocked_weight():
     d[combo_index(*parse_cards("Ks2h"))] = 1.0  # Ks is on the board
     with pytest.raises(ValueError, match="blocked"):
         _category_breakdown(s, HERO, d, ce_for(s), 2000)
+
+
+# ---------------------------------------------------------------------------
+# Position-aware equity realisation (M9 "Realisation factor")
+# ---------------------------------------------------------------------------
+
+EXACT = 1e-9
+
+
+def _never(s2: HandState):
+    raise AssertionError("respond must not be called for fold/call/check options")
+
+
+def _flop_oop() -> HandState:
+    """BTN (seat 0) opens to 5, BB calls; flop Ks 7h 2c; BB (seat 1, Hero) acts first, P = 10."""
+    s = new_hand(0)
+    s = apply(s, raise_to(s, 2.5))
+    s = apply(s, Action(1, ActionKind.CALL, Street.PREFLOP, 5))
+    return deal(s, BOARD[:3])
+
+
+def _ce(s: HandState, d: np.ndarray):
+    return combo_equity(HERO, tuple(s.board), d, rng=random.Random(0), samples=2000)
+
+
+def test_realisation_values():
+    assert realisation(Street.PREFLOP, False, False) == 0.80
+    assert realisation(Street.FLOP, False, False) == 0.88
+    assert realisation(Street.TURN, False, False) == 0.94
+    assert realisation(Street.RIVER, False, False) == 1.0
+    for st in Street:
+        assert realisation(st, True, False) == 1.0
+
+
+def test_realisation_all_in_is_one():
+    for st in Street:
+        for ip in (True, False):
+            assert realisation(st, ip, True) == 1.0
+    d = D()
+
+    # Pre-flop: BTN jams to 200, Hero (BB, out of position) calls: nothing behind, r = 1.
+    s0 = new_hand(0)
+    s = apply(s0, allin(s0))
+    assert s.to_act == 1 and total_pot(s) == 202
+    ce = _ce(s, d)
+    e = float(ce.vs(d).equity)
+    o = evaluate_action(s, HERO, d, ce, option(s, "call"), _never)
+    assert o.put == 198
+    assert o.realisation == 1.0
+    assert o.ev_chips == pytest.approx(e * (202 + 198) - 198, abs=EXACT)
+
+    # Flop: Hero (BB, out of position) jams 195; AsKd calls all-in, JcTc folds: r = 1.
+    f = _flop_oop()
+    ce = _ce(f, d)
+    o = evaluate_action(f, HERO, d, ce, allin(f), facing_respond(arr(jt=1), arr(ak=1)))
+    called = next(b for b in o.branches if b.label == "Villain calls")
+    e_ak = float(ce.vs(arr(ak=1)).equity)
+    assert called.realisation == 1.0
+    assert called.value_chips == pytest.approx(e_ak * (10 + 195 + 195) - 195, abs=EXACT)
+
+    # Flop: Hero bets 5, JcTc jams to 195 and Hero calls the jam: s3 pot = 10 + 5 + 195,
+    # c = 190, final 400; value = e·400 − (5 + 190), r = 1.
+    respond = facing_respond(arr(ak=1), arr(), {195: arr(jt=1)})
+    o = evaluate_action(f, HERO, d, ce, option(f, "bet 50%"), respond)
+    jam = o.branches[-1]
+    e_jt = float(ce.vs(arr(jt=1)).equity)
+    assert jam.label == "Villain raises to 195 — Hero calls"
+    assert jam.realisation == 1.0
+    assert jam.value_chips == pytest.approx(e_jt * 400 - 195, abs=EXACT)
+
+
+def test_call_ev_uses_realisation():
+    # BTN opens to 5; Hero is BB (out of position) facing it: P = 7, put = 3, r = 0.80.
+    s0 = new_hand(0)
+    s = apply(s0, raise_to(s0, 2.5))
+    assert s.to_act == 1 and total_pot(s) == 7
+    d = D()
+    ce = _ce(s, d)
+    e = float(ce.vs(d).equity)
+    o = evaluate_action(s, HERO, d, ce, option(s, "call"), _never)
+    assert o.put == 3
+    assert o.realisation == 0.8
+    assert o.ev_chips == pytest.approx(0.8 * e * (7 + 3) - 3, abs=EXACT)
+
+    # Hero in position (BTN facing a 3-bet to 15): r = 1.
+    s3 = apply(s, raise_to(s, 3.0))
+    assert s3.to_act == 0 and total_pot(s3) == 20
+    o = evaluate_action(s3, HERO, d, ce, option(s3, "call"), _never)
+    assert o.realisation == 1.0
+    assert o.ev_chips == pytest.approx(e * (20 + 10) - 10, abs=EXACT)
+
+
+def test_check_ev_uses_realisation():
+    f = _flop_oop()
+    d = D()
+    ce = _ce(f, d)
+    e = float(ce.vs(d).equity)
+    o = evaluate_action(f, HERO, d, ce, option(f, "check"), _never)
+    assert o.realisation == 0.88
+    assert o.ev_chips == pytest.approx(0.88 * e * 10, abs=EXACT)
+    ip = _check(f)  # BTN checks behind: in position, r = 1
+    o = evaluate_action(ip, HERO, d, ce, option(ip, "check"), _never)
+    assert o.realisation == 1.0
+    assert o.ev_chips == pytest.approx(e * 10, abs=EXACT)
+
+
+def test_bet_called_branch_uses_realisation():
+    # Flop, Hero (BB) bets 5 into 10 out of position; JcTc folds, AsKd calls (vcall 5).
+    f = _flop_oop()
+    d = D()
+    ce = _ce(f, d)
+    o = evaluate_action(f, HERO, d, ce, option(f, "bet 50%"), facing_respond(arr(jt=1), arr(ak=1)))
+    folds, calls = o.branches
+    e = float(ce.vs(arr(ak=1)).equity)
+    assert folds.label == "Villain folds" and folds.realisation == 1.0
+    assert folds.value_chips == 10.0
+    assert calls.label == "Villain calls" and calls.realisation == 0.88
+    assert calls.value_chips == pytest.approx(0.88 * e * (10 + 5 + 5) - 5, abs=EXACT)
+    assert o.realisation == 1.0  # a bet's factors live on its branches
+    assert o.ev_chips == pytest.approx(0.5 * 10 + 0.5 * calls.value_chips, abs=EXACT)
+
+
+def test_reraise_call_branch_uses_realisation():
+    # Flop, Hero (BB) bets 5; JcTc raises to 15 (not all-in) and Hero calls: s3 pot =
+    # 10 + 5 + 15 = 30, c = 10, final 40; value = 0.88·e·40 − (5 + 10).
+    f = _flop_oop()
+    d = D()
+    ce = _ce(f, d)
+    respond = facing_respond(arr(ak=1), arr(), {15: arr(jt=1)})
+    o = evaluate_action(f, HERO, d, ce, option(f, "bet 50%"), respond)
+    rr = o.branches[-1]
+    e = float(ce.vs(arr(jt=1)).equity)
+    assert rr.label == "Villain raises to 15 — Hero calls"
+    assert rr.realisation == 0.88
+    assert rr.value_chips == pytest.approx(0.88 * e * 40 - 15, abs=EXACT)
+
+    # AsKd raises instead: the realised call is worse than −put, Hero folds, r is unused (1).
+    respond = facing_respond(arr(jt=1), arr(), {15: arr(ak=1)})
+    o = evaluate_action(f, HERO, d, ce, option(f, "bet 50%"), respond)
+    rr = o.branches[-1]
+    assert rr.label == "Villain raises to 15 — Hero folds"
+    assert rr.value_chips == -5.0 and rr.realisation == 1.0
