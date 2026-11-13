@@ -78,6 +78,7 @@ class Grade:
     intent_truth: str | None
     intent_flag: str | None
     bluff_check: tuple[float, float] | None
+    best_is_chosen: bool  # the chosen action is the best play (a listed best or a custom size)
 
     @property
     def ev_loss_bb(self) -> float:
@@ -158,11 +159,17 @@ def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
 
     The profile-version check runs only for custom sizes with the default ``respond``;
     callers that inject ``respond`` own that check.
+
+    A custom size whose EV beats the best listed option by more than ``_EPS`` becomes the best
+    play itself (loss 0); a tie keeps the listed option as best.
     """
     sol = p.solution
     s = p.spot.state
     chosen = _resolve(p, a.action, respond)
     best = sol.options[sol.best]
+    custom = all(o.option.action != a.action for o in sol.options)
+    if custom and chosen.ev_chips > best.ev_chips + _EPS:
+        best = chosen
     loss = max(0.0, best.ev_chips - chosen.ev_chips)
 
     equity_error = abs(a.equity_guess - sol.equity)
@@ -196,4 +203,5 @@ def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
         intent_truth=truth,
         intent_flag=flag,
         bluff_check=bluff,
+        best_is_chosen=best.option.action == chosen.option.action,
     )

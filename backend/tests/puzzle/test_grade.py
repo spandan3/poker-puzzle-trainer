@@ -375,3 +375,54 @@ def test_intent_flag_never_continues():
         "You labelled this a bluff, but Villain always folds here, so this bet wins the pot "
         "uncontested, though your hand would also be ahead if called."
     )
+
+
+def _always_fold(s2):
+    """Villain folds every combo to any bet (and checks behind when not facing one)."""
+    return facing_respond(arr(ak=1, jt=1), arr())(s2)
+
+
+def test_custom_beats_listed_best():
+    """A custom size whose EV beats every listed option is the best play: no loss."""
+    p, me = _puzzle(
+        evs=[
+            _ev("check", Action(0, ActionKind.CHECK, Street.RIVER), 5.0),
+            _ev("bet 50%", Action(0, ActionKind.BET, Street.RIVER, 5), 6.0),
+        ]
+    )
+    assert me == 0
+    custom = Action(me, ActionKind.BET, Street.RIVER, 7)
+    g = grade(p, Answer(custom, 0.5), respond=_always_fold)
+    assert g.chosen.ev_chips == pytest.approx(10.0)  # Villain always folds: Hero wins P = 10
+    assert g.verdict == "best"
+    assert g.ev_loss_chips == 0
+    assert g.best is g.chosen
+    assert g.best_is_chosen
+
+
+def test_custom_tie_keeps_listed_best():
+    """A custom size tied with the best listed option keeps the listed option as best."""
+    p, me = _puzzle(
+        evs=[
+            _ev("check", Action(0, ActionKind.CHECK, Street.RIVER), 5.0),
+            _ev("bet 50%", Action(0, ActionKind.BET, Street.RIVER, 5), 10.0),
+        ]
+    )
+    assert me == 0
+    custom = Action(me, ActionKind.BET, Street.RIVER, 7)
+    g = grade(p, Answer(custom, 0.5), respond=_always_fold)
+    assert g.chosen.ev_chips == pytest.approx(10.0)
+    assert g.best is p.solution.options[1]
+    assert g.best_is_chosen is False
+    assert g.verdict == "best" and g.ev_loss_chips == 0
+
+
+def test_listed_best_chosen_sets_best_is_chosen():
+    p, _ = _puzzle(
+        evs=[
+            _ev("check", Action(0, ActionKind.CHECK, Street.RIVER), 5.0),
+            _ev("bet 50%", Action(0, ActionKind.BET, Street.RIVER, 5), 6.0),
+        ]
+    )
+    assert grade(p, Answer(p.solution.options[1].option.action, 0.5)).best_is_chosen
+    assert not grade(p, Answer(p.solution.options[0].option.action, 0.5)).best_is_chosen

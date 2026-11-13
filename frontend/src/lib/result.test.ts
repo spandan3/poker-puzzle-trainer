@@ -62,6 +62,12 @@ describe('verdictLine', () => {
     expect(verdictLine(bet)).toBe('You: Bet 33% · the top play')
   })
 
+  it('a custom size that beats the listed best is the top play', () => {
+    const custom = attemptFixture('custom')
+    expect(custom.grade.ev_loss_bb).toBe(0)
+    expect(verdictLine(custom)).toBe('You: Bet 1 bb · the top play')
+  })
+
   it('close to the top play: names it, without the verdict word', () => {
     const r = withGrade(bet, { verdict: 'fine', ev_loss_bb: 0.1149, best_label: 'bet 75%' })
     expect(verdictLine(r)).toBe('You: Bet 33% · within 0.11 bb of the top play (Bet 75%)')

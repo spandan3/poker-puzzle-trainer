@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { decisionFromAttempt } from '../../lib/decision'
 import { formatEvBb } from '../../lib/format'
 import { attemptFixture, puzzleFixture } from '../../test/fixture'
-import { neverContinuesAttempt } from '../../test/synthetic'
+import { customBelowListedBestAttempt, neverContinuesAttempt } from '../../test/synthetic'
 import { MathsPanel } from './MathsPanel'
 
 function columns() {
@@ -41,8 +41,18 @@ describe('MathsPanel', () => {
     expect(screen.getByText(/^EV lost/)).toHaveTextContent('EV lost = best − yours = 0 bb')
   })
 
-  it('custom size above the marked best: EV lost is the grade value, never negative', () => {
+  it('custom size that beats the listed best: one column, it is the best play', () => {
     const d = decisionFromAttempt(puzzleFixture('custom_allowed'), attemptFixture('custom'))
+    render(<MathsPanel decision={d} />)
+    const cols = columns()
+    expect(cols).toHaveLength(1)
+    const heading = within(cols[0] as HTMLElement).getByRole('heading', { level: 3 })
+    expect(heading).toHaveTextContent(/Your play.*Best play.*Bet 1 bb/)
+    expect(screen.getByText(/^EV lost/)).toHaveTextContent('EV lost = best − yours = 0 bb')
+  })
+
+  it('custom size above the marked best (a pre-M9 row): EV lost is the grade value, never negative', () => {
+    const d = decisionFromAttempt(puzzleFixture('custom_allowed'), customBelowListedBestAttempt())
     render(<MathsPanel decision={d} />)
     expect(columns()).toHaveLength(2)
     expect(screen.getByText(/^EV lost/)).toHaveTextContent(

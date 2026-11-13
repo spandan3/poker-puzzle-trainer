@@ -108,9 +108,9 @@
       {
         "id": "verdict",
         "paragraphs": [
-          "You chose Bet 1 bb (EV 2.22 bb), which matched or beat the top listed play (Bet 33%) against Villain's range. Verdict: Best.",
+          "You chose Bet 1 bb (EV 2.22 bb), the top play against Villain's range. Verdict: Best.",
           "Your equity against Villain's whole range is 24.9%.",
-          "Bet 33%: Villain folds 41% of the time, more than the 23.1% a bet this size needs to profit on folds alone (1.5 bb / (5 bb + 1.5 bb)), so folds alone pay for it, even when every hand that continues beats you. On top of that, you have 23.2% equity against the hands that continue. Bet 1 bb: Villain folds 39% of the time, more than the 16.7% a bet this size needs to profit on folds alone (1 bb / (5 bb + 1 bb)), so folds alone pay for it, even when every hand that continues beats you. On top of that, you have 23.3% equity against the hands that continue.",
+          "Bet 1 bb: Villain folds 39% of the time, more than the 16.7% a bet this size needs to profit on folds alone (1 bb / (5 bb + 1 bb)), so folds alone pay for it, even when every hand that continues beats you. On top of that, you have 23.3% equity against the hands that continue.",
           "Right now you are ahead of 8.8% of Villain's range. The largest parts of the range are Air (31.9% of it; your equity 28%) and Weak made hand (31.2% of it; your equity 24%)."
         ],
         "title": "The verdict"
@@ -129,7 +129,7 @@
   },
   "grade": {
     "ahead_now": 0.08755778078,
-    "best_label": "bet 33%",
+    "best_label": "bet 2",
     "bluff_check": {
       "actual": 0.3938232042,
       "required": 0.1666666667
@@ -401,7 +401,7 @@
       "ev_bb": 2.076274143,
       "ev_chips": 4.152548286,
       "fold_freq": 0.4106013713,
-      "is_best": true,
+      "is_best": false,
       "is_chosen": false,
       "kind": "bet",
       "label": "bet 33%",
@@ -1588,7 +1588,7 @@
       "ev_bb": 2.222137009,
       "ev_chips": 4.444274018,
       "fold_freq": 0.3938232042,
-      "is_best": false,
+      "is_best": true,
       "is_chosen": true,
       "kind": "bet",
       "label": "bet 2",

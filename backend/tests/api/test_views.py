@@ -159,6 +159,7 @@ def _attempt_dict(p, g, *, option_index=None, custom_to=None, intent=None):
         "bluff_required": None if g.bluff_check is None else g.bluff_check[0],
         "bluff_actual": None if g.bluff_check is None else g.bluff_check[1],
         "best_label": g.best.option.label,
+        "best_ev_chips": g.best.ev_chips,
     }
 
 
@@ -363,10 +364,31 @@ def test_attempt_result_custom_chosen_appended(puzzles):
     res = views.attempt_result(attempt=_attempt_dict(p, g, custom_to=to), puzzle=p, chosen=g.chosen)
     assert len(res["options"]) == len(p.solution.options) + 1
     last = res["options"][-1]
-    assert last["is_chosen"] and not last["is_best"] and last["to"] == to
+    assert last["is_chosen"] and last["to"] == to
+    assert last["is_best"] == (g.best is g.chosen)  # best only when it beat the listed best
+    assert sum(o["is_best"] for o in res["options"]) == 1
     assert sum(o["is_chosen"] for o in res["options"]) == 1
     assert res["answer"]["custom_to"] == to
     json.dumps(res, allow_nan=False)
+
+
+def test_attempt_result_custom_tie_keeps_listed_best(puzzles):
+    """A custom size whose EV ties the best listed option leaves the listed row best."""
+    p = puzzles["river_b"]
+    lo, hi = views.custom_bounds(p)
+    listed = {o.option.action.to for o in p.solution.options}
+    to = next(t for t in range(lo, hi + 1) if t not in listed)
+    g = grade(p, Answer(custom_action(p.spot.state, to), 0.4))
+    sol = p.solution
+    tied = replace(sol.options[sol.best], ev_chips=g.chosen.ev_chips)
+    options = tuple(tied if i == sol.best else o for i, o in enumerate(sol.options))
+    q = Puzzle(p.spot, replace(sol, options=options))
+    att = _attempt_dict(q, g, custom_to=to)
+    att.update(best_label=tied.option.label, best_ev_chips=tied.ev_chips)  # grade keeps listed
+    res = views.attempt_result(attempt=att, puzzle=q, chosen=g.chosen)
+    assert [o["is_best"] for o in res["options"]].index(True) == sol.best
+    assert sum(o["is_best"] for o in res["options"]) == 1
+    assert res["options"][-1]["is_chosen"] and not res["options"][-1]["is_best"]
 
 
 def test_attempt_result_custom_equal_to_listed(puzzles):

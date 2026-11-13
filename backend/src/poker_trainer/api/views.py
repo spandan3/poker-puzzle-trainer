@@ -62,6 +62,8 @@ __all__ = [
     "villain_model_current",
 ]
 
+_BEST_EPS = 1e-9  # grade._EPS: a custom size must beat the best listed EV by more to be best
+
 
 def _street_name(street: Street) -> str:
     return street.name.lower()
@@ -330,8 +332,8 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
     ``action``, ``equity_guess``, ``range_read_guess``, ``intent``, ``verdict``,
     ``ev_loss_chips``, ``equity_error``, ``equity_score``, ``range_read_error``,
     ``range_read_score``, ``intent_truth``, ``intent_flag``, ``bluff_required``,
-    ``bluff_actual`` and ``best_label``. Nothing is regraded here. ``explanation`` is the
-    template explanation, written last from the rest of the result.
+    ``bluff_actual``, ``best_label`` and ``best_ev_chips``. Nothing is regraded here.
+    ``explanation`` is the template explanation, written last from the rest of the result.
     """
     a = attempt
     sp, sol = puzzle.spot, puzzle.solution
@@ -340,12 +342,19 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
     stored = list(sol.options)
     chosen_action = chosen.option.action
     chosen_idx = next((i for i, o in enumerate(stored) if o.option.action == chosen_action), None)
+    # a custom size graded best (its EV beat the best listed option) is the one best row
+    best_ev = float(a["best_ev_chips"])
+    custom_best = (
+        chosen_idx is None
+        and best_ev == float(chosen.ev_chips)
+        and best_ev > stored[sol.best].ev_chips + _BEST_EPS
+    )
     options = [
-        option_view(o, best=i == sol.best, chosen=i == chosen_idx, dead=dead)
+        option_view(o, best=i == sol.best and not custom_best, chosen=i == chosen_idx, dead=dead)
         for i, o in enumerate(stored)
     ]
     if chosen_idx is None:
-        options.append(option_view(chosen, best=False, chosen=True, dead=dead))
+        options.append(option_view(chosen, best=custom_best, chosen=True, dead=dead))
 
     codes = list(dict.fromkeys([*sol.simplifications, *chosen.simplifications]))
     rows = sol.category_breakdown

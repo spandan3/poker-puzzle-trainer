@@ -357,6 +357,7 @@ def attempt_dict(row: AttemptRow) -> dict[str, Any]:
         "bluff_required": row.bluff_required,
         "bluff_actual": row.bluff_actual,
         "best_label": row.best_label,
+        "best_ev_chips": row.best_ev_chips,
     }
 
 
