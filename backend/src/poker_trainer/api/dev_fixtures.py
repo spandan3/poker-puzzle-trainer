@@ -168,8 +168,22 @@ def find_never_continues(
     raise RuntimeError(f"no bet or raise that Villain always folds to within {max_seed} seeds")
 
 
+def _round_floats(data: Any) -> Any:
+    """``data`` with every float rounded to 10 significant digits (dicts, lists and tuples are
+    walked; ``bool`` is checked first as it is an ``int``)."""
+    if isinstance(data, bool):
+        return data
+    if isinstance(data, float):
+        return float(f"{data:.10g}")
+    if isinstance(data, dict):
+        return {k: _round_floats(v) for k, v in data.items()}
+    if isinstance(data, (list, tuple)):
+        return [_round_floats(v) for v in data]
+    return data
+
+
 def _dump(path: Path, data: Any) -> None:
-    text = json.dumps(data, indent=2, sort_keys=True) + "\n"
+    text = json.dumps(_round_floats(data), indent=2, sort_keys=True) + "\n"
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
 
