@@ -111,12 +111,25 @@ def _choice(f: Facts) -> str:
 
 def _pot_odds(f: Facts) -> str:
     """The pot-odds sentence. "would" when neither calling nor folding is the choice or the top
-    play; equal shown percentages are "exactly what it needs" or "just short", never "above"."""
+    play; equal shown percentages are "exactly what it needs" or "just short", never "above".
+    Out of position before the river the comparison is realised equity (``facts.realisation``
+    of the equity) against the pot odds, as the Maths tab shows it."""
     needs = f.pot_odds if f.pot_odds_formula is None else f"{f.pot_odds_formula} = {f.pot_odds}"
     in_play = any(o.kind in ("call", "fold") and (o.is_chosen or o.is_best) for o in f.options)
     verb = "beats" if in_play else "would beat"
     beats = bool(f.equity_beats_pot_odds)
     outcome = f"calling {verb} folding" if beats else f"folding {verb} calling"
+    if f.realisation is not None and f.realised_equity is not None:
+        # out of position before the river: realised equity against the pot odds, as in Maths
+        if f.realised_equity == f.pot_odds:
+            compare = "exactly what it needs" if beats else "just short of what it needs"
+        else:
+            compare = f"that is {'above' if beats else 'below'} what it needs"
+        return (
+            f"Calling {f.call_amount} into a pot of {f.pot} needs {needs} equity. "
+            f"Out of position you realise only {f.realisation} of your {f.equity} equity, "
+            f"which makes {f.realised_equity}: {compare}, so {outcome}."
+        )
     if f.equity == f.pot_odds:
         compare = "is exactly what it needs" if beats else "falls just short of that"
     else:

@@ -37,7 +37,7 @@
         "id": "verdict",
         "paragraphs": [
           "You chose Raise 2.5x (EV 0.9 bb), the top play against Villain's range. Verdict: Best.",
-          "Your equity against Villain's whole range is 51.2%. Calling 1.5 bb into a pot of 3.5 bb needs 1.5 bb / (3.5 bb + 1.5 bb) = 30.0% equity; 51.2% is above that, so calling would beat folding.",
+          "Your equity against Villain's whole range is 51.2%. Calling 1.5 bb into a pot of 3.5 bb needs 1.5 bb / (3.5 bb + 1.5 bb) = 30.0% equity. Out of position you realise only 80% of your 51.2% equity, which makes 41.0%: that is above what it needs, so calling would beat folding.",
           "Raise 2.5x: Villain folds 41% of the time, less than the 58.8% a raise this size needs to profit on folds alone (5 bb / (3.5 bb + 5 bb)), so folds alone don't pay for it: it relies on your 44.0% equity against the hands that continue.",
           "Right now you are ahead of 66.1% of Villain's range."
         ],

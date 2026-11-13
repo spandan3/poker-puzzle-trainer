@@ -160,3 +160,43 @@ def test_every_bet_and_raise_has_its_required_fold_equity():
 )
 def test_fold_relation(folds, required, relation):
     assert _fold_relation(folds, required) == relation
+
+
+def _bb_call_short_of_realised():
+    """Pre-flop, BB facing an open: equity above the 30% pot odds, realised equity (80%) below."""
+    p = puzzle(0, "preflop")
+    res = result(p, option=1)
+    call = next(o for o in res["options"] if o["kind"] == "call")
+    assert res["answer"]["action"]["kind"] == "call"
+    return p, res, call
+
+
+def test_beats_uses_the_call_options_realised_equity():
+    p, res, call = _bb_call_short_of_realised()
+    g = res["grade"]
+    assert call["realisation"] == 0.8
+    assert g["equity"] >= g["pot_odds"] > call["realisation"] * g["equity"]
+    f = facts(res, p)
+    assert f.equity_beats_pot_odds is False
+    assert f.realisation == "80%"
+    assert f.realised_equity == fmt.pct(0.8 * g["equity"], 1)
+    lines = f.as_lines()
+    assert "Equity you realise out of position: 80%" in lines
+    assert f"Your realised equity (80% of {f.equity}): {f.realised_equity}" in lines
+
+
+def test_realisation_of_one_adds_no_fact():
+    """A stored pre-M9 result (every factor 1.0), or an in-position or river spot."""
+    p, res, _ = _bb_call_short_of_realised()
+    old = copy.deepcopy(res)
+    for o in old["options"]:
+        o["realisation"] = 1.0
+        for b in o["branches"]:
+            b["realisation"] = 1.0
+    f = facts(old, p)
+    assert f.realisation is None and f.realised_equity is None
+    assert f.equity_beats_pot_odds is True  # raw equity against pot odds, as before M9
+    assert not any("realis" in line for line in f.as_lines())
+    river = _river_facing_bet()
+    f = facts(result(river, option=1), river)
+    assert f.realisation is None and f.realised_equity is None
