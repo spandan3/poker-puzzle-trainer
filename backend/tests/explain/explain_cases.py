@@ -37,6 +37,7 @@ def result(
     equity_guess: float = 0.45,
     range_read_guess: float | None = 0.5,
     intent: str | None = None,
+    stored: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The result dict of an answer, as ``POST /api/puzzles/{id}/attempts`` returns it."""
     inp = AttemptIn(
@@ -56,6 +57,7 @@ def result(
         "is_first": True,
         "created_at": "2026-01-01T00:00:00+00:00",
         **{k: fields[k] for k in _STORED},
+        **(stored or {}),  # overrides, e.g. a row stored by an older grader
     }
     return views.attempt_result(attempt=attempt, puzzle=p, chosen=g.chosen)
 
@@ -83,4 +85,5 @@ _STORED = (
     "bluff_required",
     "bluff_actual",
     "best_label",
+    "best_ev_chips",
 )

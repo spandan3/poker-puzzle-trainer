@@ -96,18 +96,23 @@ describe('OptionsTable', () => {
     expect(document.body.textContent).not.toMatch(/NaN|undefined|Infinity/)
   })
 
-  it('shows a custom size as the You row with a bb label, and +x when it beats the best', () => {
+  it('shows a custom size that beats the listed best as the one Best and You row', () => {
     const d = renderTable('custom')
     const custom = d.options[d.options.length - 1]!
     expect(custom.is_chosen).toBe(true)
+    expect(custom.is_best).toBe(true)
     const row = rowOf(/^Bet 1 bb/)
     expect(within(row).getByText('You')).toBeVisible()
-    expect(within(row).queryByText('Best')).toBeNull()
+    expect(within(row).getByText('Best')).toBeVisible()
+    expect(screen.getAllByText('Best')).toHaveLength(1)
     expect(screen.queryByText('bet 2')).toBeNull()
-    const best = d.options.find((o) => o.is_best)!
-    expect(custom.ev_bb).toBeGreaterThan(best.ev_bb)
-    expect(cells(row)[2]).toHaveTextContent(`+${formatEvBb(custom.ev_bb - best.ev_bb)}`)
-    // the best row still says so, with nothing in its "vs best" cell
-    expect(cells(rowOf(/^Bet 33%/))[2]).toBeEmptyDOMElement()
+    // the listed option it beat is no longer best: it shows its loss against the custom size
+    const listed = d.options.find((o) => o.label === 'bet 33%')!
+    expect(custom.ev_bb).toBeGreaterThan(listed.ev_bb)
+    expect(within(rowOf(/^Bet 33%/)).queryByText('Best')).toBeNull()
+    expect(cells(rowOf(/^Bet 33%/))[2]).toHaveTextContent(
+      `−${formatEvBb(custom.ev_bb - listed.ev_bb)}`,
+    )
+    expect(cells(row)[2]).toBeEmptyDOMElement()
   })
 })

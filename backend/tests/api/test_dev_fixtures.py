@@ -37,7 +37,11 @@ def test_write_fixtures_writes_all_attempts(tmp_path):
     assert (tmp_path / "explanation_llm.json").is_file()
     custom = json.loads((tmp_path / "attempt_custom.json").read_text(encoding="utf-8"))
     last = custom["options"][-1]
-    assert last["is_chosen"] is True and last["is_best"] is False
+    assert last["is_chosen"] is True
+    # a custom size that beats every listed option is the one best row
+    beats = last["ev_chips"] > max(o["ev_chips"] for o in custom["options"][:-1])
+    assert last["is_best"] is beats
+    assert sum(o["is_best"] for o in custom["options"]) == 1
     raise_pf = json.loads((tmp_path / "attempt_raise_preflop.json").read_text(encoding="utf-8"))
     assert raise_pf["answer"]["action"]["kind"] == "raise"
     assert raise_pf["grade"]["intent"] == "value"

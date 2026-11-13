@@ -2,6 +2,7 @@ import json
 import zlib
 from dataclasses import replace
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select, update
@@ -11,7 +12,9 @@ from poker_trainer.api import service, views
 from poker_trainer.api.app import create_app
 from poker_trainer.db import DEFAULT_USER_ID, AttemptRow, PuzzleRow, User, UserSettings
 from poker_trainer.engine.cards import card_str
-from poker_trainer.game.state import Street
+from poker_trainer.engine.combos import COMBOS
+from poker_trainer.game.state import Action, ActionKind, Street, legal_actions
+from poker_trainer.puzzle import grade as grade_mod
 from poker_trainer.puzzle.grade import Answer, grade
 from poker_trainer.puzzle.model import load_config
 from poker_trainer.puzzle.options import custom_action
@@ -524,3 +527,42 @@ def test_ignored_inputs_stored_as_none(client, sessions, cached_puzzles):
     bet = next(o["index"] for o in flop["options"] if o["kind"] in ("bet", "raise"))
     res = _submit(client, flop["id"], option=bet, range_read_guess=0.3, intent="bluff").json()
     assert res["answer"]["range_read_guess"] == 0.3 and res["answer"]["intent"] == "bluff"
+
+
+def test_custom_size_beating_listed_best_is_best(client, sessions, cached_puzzles, monkeypatch):
+    """A custom size that Villain always folds to beats every listed option: it is stored and
+    shown as the best play, and no listed row is marked best."""
+
+    def always_fold(_profile):
+        def respond(s2):
+            me, st = s2.to_act, s2.street
+            call_to = s2.street_bets[me] + legal_actions(s2).call
+            return {
+                Action(me, ActionKind.FOLD, st): np.ones(len(COMBOS)),
+                Action(me, ActionKind.CALL, st, call_to): np.zeros(len(COMBOS)),
+            }
+
+        return respond
+
+    monkeypatch.setattr(grade_mod, "villain_respond", always_fold)
+    p = cached_puzzles["flop"]
+    pid = _new(client, street="flop")["id"]
+    lo, hi = views.custom_bounds(p)
+    listed = {o.option.action.to for o in p.solution.options}
+    to = next(t for t in range(lo, hi + 1) if t not in listed)
+    r = _submit(client, pid, custom_to=to, equity_guess=0.5)
+    assert r.status_code == 201, r.text
+    res = r.json()
+    custom = res["options"][-1]
+    assert custom["is_chosen"] and custom["to"] == to
+    assert custom["ev_chips"] > p.solution.options[p.solution.best].ev_chips
+    assert res["grade"]["verdict"] == "best" and res["grade"]["ev_loss_chips"] == 0
+    assert res["grade"]["best_label"] == custom["label"]
+    assert [o["is_best"] for o in res["options"]] == [False] * len(p.solution.options) + [True]
+    with sessions() as db:
+        row = db.get(AttemptRow, res["attempt"]["id"])
+        assert row.best_label == custom["label"]
+        assert row.best_kind == custom["kind"]
+        assert row.best_ev_chips == custom["ev_chips"]
+    stored = client.get(f"/api/attempts/{res['attempt']['id']}").json()
+    assert [o["is_best"] for o in stored["options"]] == [o["is_best"] for o in res["options"]]

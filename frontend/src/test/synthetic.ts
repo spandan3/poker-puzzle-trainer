@@ -36,3 +36,15 @@ export function neverContinuesAttempt(): AttemptResult {
     ),
   }
 }
+
+// SYNTHETIC: a custom-size row stored before M9, when the grader kept the listed option as best
+// even if the custom size beat it. Derived by hand from attempt_custom; not API output.
+/** attempt_custom (puzzle_custom_allowed) with Bet 33% marked best, as a pre-M9 row stored it. */
+export function customBelowListedBestAttempt(): AttemptResult {
+  const base = attemptFixture('custom')
+  return {
+    ...base,
+    grade: { ...base.grade, best_label: 'bet 33%' },
+    options: base.options.map((o) => ({ ...o, is_best: o.label === 'bet 33%' })),
+  }
+}

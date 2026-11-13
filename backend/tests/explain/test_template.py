@@ -224,7 +224,7 @@ def river_check_best_bet_chosen(res):
 
 
 def custom_matched(res):
-    """A custom size with zero EV loss that is not the listed top play."""
+    """A custom size with zero EV loss that is not the stored top play (a pre-M9 row)."""
     return {
         "headline": "Bet 1 bb was the top play, and you found it.",
         "verdict_0": (
@@ -327,10 +327,28 @@ def test_generated_puzzles_pass_the_guardrail():
     assert kinds == {"fold", "check", "call", "bet", "raise"}
 
 
-def test_custom_size_that_matches_the_top_play_is_not_called_the_top_play():
+def test_custom_size_that_beats_the_top_play_is_the_top_play():
     p = puzzle(*FIXTURE_SEEDS["custom_allowed"])  # attempt_custom: a 1 bb bet, EV above Bet 33%
     res = result(p, custom_to=2)
+    assert res["grade"]["ev_loss_bb"] == 0 and _chosen(res)["is_best"]
+    assert [o["label"] for o in res["options"] if o["is_best"]] == ["bet 2"]  # chips: 1 bb
+    assert res["grade"]["best_label"] == "bet 2"
+    e = res["explanation"]
+    assert e["headline"] == "Bet 1 bb was the top play, and you found it."
+    assert e["sections"][1]["paragraphs"][0] == (
+        f"You chose Bet 1 bb (EV {fmt.ev_bb(_chosen(res)['ev_bb'])}), the top play against "
+        "Villain's range. Verdict: Best."
+    )
+
+
+def test_custom_size_stored_below_listed_best_is_not_called_the_top_play():
+    """A row stored before M9 kept the listed option as best even when the custom beat it."""
+    p = puzzle(*FIXTURE_SEEDS["custom_allowed"])
+    listed = p.solution.options[p.solution.best]
+    stored = {"best_label": listed.option.label, "best_ev_chips": listed.ev_chips}
+    res = result(p, custom_to=2, stored=stored)
     assert res["grade"]["ev_loss_bb"] < EV_EPSILON and not _chosen(res)["is_best"]
+    assert [o["label"] for o in res["options"] if o["is_best"]] == ["bet 33%"]
     golden = custom_matched(res)
     e = res["explanation"]
     assert e["headline"] == golden["headline"]  # verdictLine's wording
