@@ -360,7 +360,9 @@ def test_attempt_result_custom_chosen_appended(puzzles):
     listed = {o.option.action.to for o in p.solution.options}
     to = next(t for t in range(lo, hi + 1) if t not in listed)
     g = grade(p, Answer(custom_action(p.spot.state, to), 0.4))
-    res = views.attempt_result(attempt=_attempt_dict(p, g, custom_to=to), puzzle=p, chosen=g.chosen)
+    # Force a loss so the custom option is not best (a custom best has its own test).
+    chosen = replace(g.chosen, ev_chips=p.solution.options[p.solution.best].ev_chips - 1.0)
+    res = views.attempt_result(attempt=_attempt_dict(p, g, custom_to=to), puzzle=p, chosen=chosen)
     assert len(res["options"]) == len(p.solution.options) + 1
     last = res["options"][-1]
     assert last["is_chosen"] and not last["is_best"] and last["to"] == to
@@ -458,3 +460,59 @@ def test_known_river_result_reveal():
     assert res["reveal"]["villain_cards"] == ["As", "Kd"]
     assert res["reveal"]["showdown"]["winner"] == "villain"
     assert np.isfinite(res["grade"]["equity"])
+
+
+def _unlisted_custom(p):
+    lo, hi = views.custom_bounds(p)
+    listed = {o.option.action.to for o in p.solution.options}
+    return next(t for t in range(lo, hi + 1) if t not in listed)
+
+
+def _custom_result(p, ev_chips):
+    """Result view for a custom size whose chosen EV is forced to ``ev_chips``."""
+    to = _unlisted_custom(p)
+    g = grade(p, Answer(custom_action(p.spot.state, to), 0.4))
+    chosen = replace(g.chosen, ev_chips=ev_chips)
+    att = _attempt_dict(p, g, custom_to=to)
+    return views.attempt_result(attempt=att, puzzle=p, chosen=chosen), to
+
+
+def test_attempt_result_custom_beating_presets_is_only_best(puzzles):
+    p = puzzles["river_b"]
+    top = p.solution.options[p.solution.best].ev_chips
+    res, to = _custom_result(p, top + 1.0)
+    best = [o for o in res["options"] if o["is_best"]]
+    assert len(best) == 1 and best[0]["is_chosen"] and best[0]["to"] == to
+    assert res["options"][-1] is best[0]
+
+
+@pytest.mark.parametrize("delta", [0.0, 1e-12, -1.0])
+def test_attempt_result_custom_tie_or_loss_keeps_preset_best(puzzles, delta):
+    p = puzzles["river_b"]
+    top = p.solution.options[p.solution.best].ev_chips
+    res, _ = _custom_result(p, top + delta)
+    best = [i for i, o in enumerate(res["options"]) if o["is_best"]]
+    assert best == [p.solution.best]
+    assert not res["options"][-1]["is_best"]
+
+
+def test_custom_best_grade_end_to_end(puzzles, monkeypatch):
+    """grade() and attempt_result() agree: the custom option is best, EV lost 0."""
+    from poker_trainer.puzzle import grade as grade_mod
+
+    p = puzzles["river_b"]
+    to = _unlisted_custom(p)
+    action = custom_action(p.spot.state, to)
+    real = grade_mod.evaluate_action
+    top = p.solution.options[p.solution.best].ev_chips
+    monkeypatch.setattr(
+        grade_mod, "evaluate_action", lambda *a, **k: replace(real(*a, **k), ev_chips=top + 2.0)
+    )
+    g = grade(p, Answer(action, 0.4))
+    assert g.best is g.chosen and g.ev_loss_chips == 0.0 and g.verdict == "best"
+    att = _attempt_dict(p, g, custom_to=to)
+    assert att["best_label"] == g.chosen.option.label
+    res = views.attempt_result(attempt=att, puzzle=p, chosen=g.chosen)
+    assert [o["is_best"] for o in res["options"]].count(True) == 1
+    assert res["options"][-1]["is_best"]
+    assert res["grade"]["best_label"] == g.chosen.option.label

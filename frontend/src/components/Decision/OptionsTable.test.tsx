@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { decisionFromAttempt } from '../../lib/decision'
 import { formatEvBb } from '../../lib/format'
 import { attemptFixture, puzzleFixture } from '../../test/fixture'
-import { neverContinuesAttempt } from '../../test/synthetic'
+import { customBestAttempt, neverContinuesAttempt } from '../../test/synthetic'
 import { OptionsTable } from './OptionsTable'
 
 const flop = puzzleFixture('flop_unopened')
@@ -109,5 +109,17 @@ describe('OptionsTable', () => {
     expect(cells(row)[2]).toHaveTextContent(`+${formatEvBb(custom.ev_bb - best.ev_bb)}`)
     // the best row still says so, with nothing in its "vs best" cell
     expect(cells(rowOf(/^Bet 33%/))[2]).toBeEmptyDOMElement()
+  })
+
+  it('a custom size that is best and chosen: one row with both badges, EV lost 0', () => {
+    const d = decisionFromAttempt(puzzleFixture('custom_allowed'), customBestAttempt())
+    render(<OptionsTable decision={d} />)
+    expect(screen.getAllByText('Best')).toHaveLength(1)
+    expect(screen.getAllByText('You')).toHaveLength(1)
+    const row = rowOf(/^Bet 1 bb/)
+    expect(within(row).getByText('Best')).toBeVisible()
+    expect(within(row).getByText('You')).toBeVisible()
+    expect(within(row).getByRole('rowheader')).toHaveTextContent('Bet 1 bb')
+    expect(cells(row)[2]).toHaveTextContent('')
   })
 })

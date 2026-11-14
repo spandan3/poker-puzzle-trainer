@@ -153,6 +153,13 @@ def _resolve(p: Puzzle, action: Action, respond: Respond | None) -> OptionEV:
     )
 
 
+def custom_beats_presets(p: Puzzle, chosen: OptionEV) -> bool:
+    """True when ``chosen`` is a custom size whose EV is strictly above the best preset's."""
+    if any(o.option.action == chosen.option.action for o in p.solution.options):
+        return False
+    return chosen.ev_chips > p.solution.options[p.solution.best].ev_chips + _EPS
+
+
 def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
     """Grade ``a`` against ``p``.
 
@@ -162,7 +169,7 @@ def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
     sol = p.solution
     s = p.spot.state
     chosen = _resolve(p, a.action, respond)
-    best = sol.options[sol.best]
+    best = chosen if custom_beats_presets(p, chosen) else sol.options[sol.best]
     loss = max(0.0, best.ev_chips - chosen.ev_chips)
 
     equity_error = abs(a.equity_guess - sol.equity)

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { AttemptResult } from '../api/types'
 import { attemptFixture, puzzleFixture } from '../test/fixture'
+import { customBestAttempt } from '../test/synthetic'
 import { entryTexts } from './history'
 import {
   answerEntry,
+  bestLabel,
   chosenLabel,
   guessLines,
   optionLabel,
@@ -125,5 +127,21 @@ describe('answerEntry', () => {
     })
     expect(entry).toMatchObject({ kind: 'fold', amount: 0, all_in: false })
     expect(entryTexts([entry])).toEqual(['folds'])
+  })
+})
+
+describe('bestLabel', () => {
+  it('a preset best keeps its relabelled stored label', () => {
+    expect(bestLabel(attemptFixture('fold'))).toBe('Call')
+  })
+
+  it('a custom best is shown in bb, not in chips', () => {
+    const r = customBestAttempt()
+    expect(r.grade.best_label).toBe('bet 2')
+    expect(bestLabel(r)).toBe('Bet 1 bb')
+  })
+
+  it('a custom size that lost leaves the preset best label', () => {
+    expect(bestLabel(attemptFixture('custom'))).toBe('Bet 33%')
   })
 })

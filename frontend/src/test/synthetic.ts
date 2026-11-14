@@ -36,3 +36,29 @@ export function neverContinuesAttempt(): AttemptResult {
     ),
   }
 }
+
+/**
+ * SYNTHETIC: attempt_custom with the appended custom size (bet 2) as the best option, as the API
+ * now returns when a custom size beats every preset. The stored best label is in chips, like the
+ * API's. Not API output.
+ */
+export function customBestAttempt(): AttemptResult {
+  const base = attemptFixture('custom')
+  const chosen = base.options.find((o) => o.is_chosen)
+  if (!chosen) throw new Error('attempt_custom has a chosen option')
+  const topEv = Math.max(...base.options.map((o) => o.ev_bb))
+  const ev_bb = Math.max(chosen.ev_bb, topEv + 0.5)
+  return {
+    ...base,
+    grade: {
+      ...base.grade,
+      verdict: 'best',
+      ev_loss_bb: 0,
+      ev_loss_chips: 0,
+      best_label: chosen.label,
+    },
+    options: base.options.map((o) =>
+      o.is_chosen ? { ...o, is_best: true, ev_bb, ev_chips: ev_bb * 2 } : { ...o, is_best: false },
+    ),
+  }
+}

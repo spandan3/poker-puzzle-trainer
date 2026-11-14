@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { decisionFromAttempt } from '../../lib/decision'
 import { formatEvBb } from '../../lib/format'
 import { attemptFixture, puzzleFixture } from '../../test/fixture'
-import { neverContinuesAttempt } from '../../test/synthetic'
+import { customBestAttempt, neverContinuesAttempt } from '../../test/synthetic'
 import { MathsPanel } from './MathsPanel'
 
 function columns() {
@@ -68,5 +68,18 @@ describe('MathsPanel', () => {
     render(<MathsPanel decision={d} />)
     const text = d.simplifications.find((s) => s.code === 'preflop_size')?.text ?? ''
     expect(screen.getByText(text)).toBeInTheDocument()
+  })
+
+  it('a custom size that is best and chosen: one column, EV lost 0', () => {
+    const d = decisionFromAttempt(puzzleFixture('custom_allowed'), customBestAttempt())
+    render(<MathsPanel decision={d} />)
+    const cols = columns()
+    expect(cols).toHaveLength(1)
+    expect(within(cols[0] as HTMLElement).getByRole('heading', { level: 3 })).toHaveTextContent(
+      /Your play.*Best play.*Bet 1 bb/,
+    )
+    expect(screen.getByText(/^EV lost = best − yours =/)).toHaveTextContent(
+      `EV lost = best − yours = ${formatEvBb(0)}`,
+    )
   })
 })

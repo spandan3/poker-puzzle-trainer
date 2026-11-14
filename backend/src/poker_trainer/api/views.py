@@ -35,6 +35,7 @@ from poker_trainer.game.state import (
     position_name,
     total_pot,
 )
+from poker_trainer.puzzle.grade import custom_beats_presets
 from poker_trainer.puzzle.model import (
     OptionEV,
     Puzzle,
@@ -338,12 +339,13 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
     stored = list(sol.options)
     chosen_action = chosen.option.action
     chosen_idx = next((i for i, o in enumerate(stored) if o.option.action == chosen_action), None)
+    custom_best = chosen_idx is None and custom_beats_presets(puzzle, chosen)
     options = [
-        option_view(o, best=i == sol.best, chosen=i == chosen_idx, dead=dead)
+        option_view(o, best=i == sol.best and not custom_best, chosen=i == chosen_idx, dead=dead)
         for i, o in enumerate(stored)
     ]
     if chosen_idx is None:
-        options.append(option_view(chosen, best=False, chosen=True, dead=dead))
+        options.append(option_view(chosen, best=custom_best, chosen=True, dead=dead))
 
     codes = list(dict.fromkeys([*sol.simplifications, *chosen.simplifications]))
     rows = sol.category_breakdown

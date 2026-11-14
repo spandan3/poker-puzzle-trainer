@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { attemptFixture } from '../../test/fixture'
+import { customBestAttempt } from '../../test/synthetic'
 import { ResultSummary } from './ResultSummary'
 
 describe('ResultSummary', () => {
@@ -111,5 +112,19 @@ describe('ResultSummary', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Details' }))
     expect(onDetails).toHaveBeenCalledTimes(1)
+  })
+
+  it('a custom size that beat every preset: best verdict, the top play, in bb', () => {
+    render(
+      <ResultSummary
+        result={customBestAttempt()}
+        onNext={() => {}}
+        onDetails={() => {}}
+        shortcutsOn
+      />,
+    )
+    const status = screen.getByRole('region', { name: 'Result' })
+    expect(status).toHaveAttribute('data-verdict', 'best')
+    expect(status).toHaveTextContent('You: Bet 1 bb · the top play')
   })
 })
