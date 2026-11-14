@@ -36,9 +36,9 @@
       {
         "id": "verdict",
         "paragraphs": [
-          "You chose Raise 2.5x (EV 0.9 bb), the top play against Villain's range. Verdict: Best.",
+          "You chose Raise 2.5x (EV 0.73 bb), the top play against Villain's range. Verdict: Best.",
           "Your equity against Villain's whole range is 51.2%. Calling 1.5 bb into a pot of 3.5 bb needs 1.5 bb / (3.5 bb + 1.5 bb) = 30.0% equity. Out of position you realise only 80% of your 51.2% equity, which makes 41.0%: that is above what it needs, so calling would beat folding.",
-          "Raise 2.5x: Villain folds 41% of the time, less than the 58.8% a raise this size needs to profit on folds alone (5 bb / (3.5 bb + 5 bb)), so folds alone don't pay for it: it relies on your 44.0% equity against the hands that continue.",
+          "Raise 2.5x: Villain folds 35% of the time, less than the 58.8% a raise this size needs to profit on folds alone (5 bb / (3.5 bb + 5 bb)), so folds alone don't pay for it: it relies on your 45.2% equity against the hands that continue.",
           "Right now you are ahead of 66.1% of Villain's range."
         ],
         "title": "The verdict"
@@ -59,7 +59,7 @@
     "ahead_now": 0.660591133,
     "best_label": "raise 2.5x",
     "bluff_check": {
-      "actual": 0.4098522167,
+      "actual": 0.3517241379,
       "required": 0.5882352941
     },
     "chosen_label": "raise 2.5x",
@@ -123,23 +123,23 @@
       "to": 5
     },
     {
-      "ahead_vs_continue": 0.4607679466,
+      "ahead_vs_continue": 0.4954407295,
       "branches": [
         {
           "equity": null,
           "label": "Villain folds",
           "realisation": 1.0,
-          "share": 0.4098522167,
+          "share": 0.3517241379,
           "value_bb": 3.5,
           "value_chips": 7.0
         },
         {
-          "equity": 0.4509803038,
+          "equity": 0.462419479,
           "label": "Villain calls",
           "realisation": 0.8,
-          "share": 0.5584236453,
-          "value_bb": -0.6705890831,
-          "value_chips": -1.341178166
+          "share": 0.6165517241,
+          "value_bb": -0.5607730012,
+          "value_chips": -1.121546002
         },
         {
           "equity": 0.2373579311,
@@ -193,6 +193,51 @@
           1.0,
           1.0,
           1.0,
+          1.0,
+          1.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          0.0,
           0.0,
           0.0
         ],
@@ -206,36 +251,6 @@
           1.0,
           1.0,
           1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
           1.0,
           0.0,
           0.0,
@@ -244,21 +259,6 @@
         [
           1.0,
           1.0,
-          0.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          0.0,
           0.0,
           0.0,
           0.0,
@@ -347,11 +347,11 @@
           1.0
         ]
       ],
-      "equity_vs_continue": 0.4399034869,
-      "equity_vs_continue_se": 0.003241078194,
-      "ev_bb": 0.9013892687,
-      "ev_chips": 1.802778537,
-      "fold_freq": 0.4098522167,
+      "equity_vs_continue": 0.4518101524,
+      "equity_vs_continue_se": 0.003098594223,
+      "ev_bb": 0.7266682324,
+      "ev_chips": 1.453336465,
+      "fold_freq": 0.3517241379,
       "is_best": true,
       "is_chosen": true,
       "kind": "raise",
@@ -367,23 +367,23 @@
       "to": 12
     },
     {
-      "ahead_vs_continue": 0.4607679466,
+      "ahead_vs_continue": 0.4954407295,
       "branches": [
         {
           "equity": null,
           "label": "Villain folds",
           "realisation": 1.0,
-          "share": 0.4098522167,
+          "share": 0.3517241379,
           "value_bb": 3.5,
           "value_chips": 7.0
         },
         {
-          "equity": 0.4509803038,
+          "equity": 0.462419479,
           "label": "Villain calls",
           "realisation": 0.8,
-          "share": 0.5584236453,
-          "value_bb": -1.088236354,
-          "value_chips": -2.176472708
+          "share": 0.6165517241,
+          "value_bb": -0.9509662515,
+          "value_chips": -1.901932503
         },
         {
           "equity": 0.2373579311,
@@ -437,6 +437,51 @@
           1.0,
           1.0,
           1.0,
+          1.0,
+          1.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          0.0,
           0.0,
           0.0
         ],
@@ -450,36 +495,6 @@
           1.0,
           1.0,
           1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
           1.0,
           0.0,
           0.0,
@@ -488,21 +503,6 @@
         [
           1.0,
           1.0,
-          0.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          0.0,
           0.0,
           0.0,
           0.0,
@@ -591,11 +591,11 @@
           1.0
         ]
       ],
-      "equity_vs_continue": 0.4399034869,
-      "equity_vs_continue_se": 0.003241078194,
-      "ev_bb": 0.6205789504,
-      "ev_chips": 1.241157901,
-      "fold_freq": 0.4098522167,
+      "equity_vs_continue": 0.4518101524,
+      "equity_vs_continue_se": 0.003098594223,
+      "ev_bb": 0.4385077043,
+      "ev_chips": 0.8770154085,
+      "fold_freq": 0.3517241379,
       "is_best": false,
       "is_chosen": false,
       "kind": "raise",

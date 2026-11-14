@@ -29,7 +29,7 @@ from poker_trainer.puzzle.solve import (
     villain_respond,
 )
 from poker_trainer.villain.narrowing import RangeTracker
-from poker_trainer.villain.profiles import load_profile
+from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile
 from poker_trainer.villain.strategy import allin, bet_to, raise_to
 
 HERO = parse_cards("KhQh")
@@ -557,24 +557,25 @@ def test_reraise_call_branch_uses_realisation():
     assert rr.value_chips == -5.0 and rr.realisation == 1.0
 
 
-# BB facing a TAG BTN open to 5 (M9 Task 7): whole-range equity < 0.40 hands are gated,
-# 0.40-0.45 hands (plausible 3-bet bluffs) are only reported in the sign-off table.
+# BB facing a BTN open to 5 (M9 Task 7), for every profile's BTN: hands with whole-range
+# equity < 0.40 are gated, 0.40-0.45 hands (plausible 3-bet bluffs) are only reported in the
+# sign-off table.
 TRASH_GATED = ("9h5s", "7d5s", "6c4h", "Jc3d")
 TRASH_REPORTED = ("Qs2h", "Qs3c", "Jd6d", "Jc5h")
 TRASH_GAP_MAX_BB = 0.25
 
 
-def bb_vs_open(hand: str, samples: int = 40_000):
-    """``solve()`` for Hero in the BB facing a TAG BTN open to 5 with ``hand``."""
-    tag = load_profile("tag")
+def bb_vs_open(hand: str, profile: str = "tag", samples: int = 40_000):
+    """``solve()`` for Hero in the BB facing ``profile``'s BTN open to 5 with ``hand``."""
+    villain = load_profile(profile)
     s0 = new_hand(0)
     open_ = raise_to(s0, 2.5)
-    tracker = RangeTracker(tag, 0)
+    tracker = RangeTracker(villain, 0)
     tracker.observe(s0, open_)
     s = apply(s0, open_)
     hero = parse_cards(hand)
     d = visible_range(tracker.current, hero, ())
-    return solve(s, hero, d, villain_respond(tag), rng=random.Random(0), samples=samples)
+    return solve(s, hero, d, villain_respond(villain), rng=random.Random(0), samples=samples)
 
 
 def raise_gap_bb(sol) -> float:
@@ -586,9 +587,16 @@ def raise_gap_bb(sol) -> float:
 
 
 @pytest.mark.slow
-def test_bb_trash_3bet_not_best():
+@pytest.mark.parametrize("profile", PROFILE_NAMES)
+def test_bb_trash_3bet_not_best(profile):
+    """A hand under 0.40 equity against the open range gains at most 0.25 bb by 3-betting
+    (Jc3d is 0.41 against LAG's wider open, so it is reported there, not gated)."""
+    gated = 0
     for hand in TRASH_GATED:
-        sol = bb_vs_open(hand)
-        assert sol.equity < 0.40, (hand, sol.equity)
+        sol = bb_vs_open(hand, profile)
+        if sol.equity >= 0.40:
+            continue
+        gated += 1
         gap = raise_gap_bb(sol)
         assert gap <= TRASH_GAP_MAX_BB, (hand, gap)
+    assert gated >= 3

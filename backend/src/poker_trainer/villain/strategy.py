@@ -35,6 +35,7 @@ from poker_trainer.villain.features import (
 )
 from poker_trainer.villain.profiles import (
     FACING_ACTIONS,
+    STRONG_CONTINUE_MIN,
     UNOPENED_ACTIONS,
     Profile,
     Table,
@@ -53,14 +54,23 @@ _DRAW_BET_BOOST = 1.25
 _LOW_SPR = 1.0
 _COMMITTED = (HandCategory.MEDIUM, HandCategory.STRONG_DRAW, HandCategory.STRONG, HandCategory.NUTS)
 _BLOCKED_ROW = len(HandCategory)  # extra all-zero table row used for board-blocked combos
-# Size curve facing a bet or raise of f x the pot before it: continue = base ** g(f), with
-# g(f) = (1 + f) / 1.5 up to a pot-size bet. Past pot size, hands below STRONG (bluff
-# catchers and draws) give up faster: g grows by a further factor 1 + k (f - 1), so the
-# whole range defends near MDF against overbets. STRONG keeps the gentle curve and never
-# continues less than STRONG_FLOOR, so it is not blown off its hand by a huge over-jam.
-_OVERBET_STEEPNESS = 2.9
-_STRONG_FLOOR = 0.75
-_STEEP_ROWS = [int(c) for c in HandCategory if c < HandCategory.STRONG]
+# Size curve facing a bet or raise of f x the pot before it (MDF = 1 / (1 + f)).
+# Up to a pot-size bet: continue = base ** ((1 + f) / 1.5). Past pot size, continue is the
+# pot-size value times (2 / (1 + f)) ** power, i.e. it shrinks with MDF itself (the ratio
+# of MDF here to MDF facing a pot-size bet), so the whole range's continue / MDF stays
+# roughly flat in the size instead of dipping at 1.5-2x pot. Weak hands give up faster than
+# MDF, bluff catchers and draws about as fast. STRONG keeps the gentle pot-size curve up
+# to _STRONG_BEND x pot (all-in clamps of normal bets reach about there), then shrinks
+# with power _STRONG_POWER, and never continues less than _STRONG_FLOOR (a huge over-jam
+# does not blow it off its hand). NUTS (base 1) always continues.
+_OVERBET_POWER = np.zeros(_BLOCKED_ROW + 1)
+_WEAK_ROWS = [int(c) for c in (HandCategory.AIR, HandCategory.WEAK_DRAW, HandCategory.WEAK)]
+_OVERBET_POWER[_WEAK_ROWS] = 2.6
+_OVERBET_POWER[[int(HandCategory.MEDIUM), int(HandCategory.STRONG_DRAW)]] = 1.8
+_STRONG_POWER = 0.42
+_STRONG_BEND = 5.0 / 3.0
+_OVERBET_POWER.flags.writeable = False
+_STRONG_FLOOR = STRONG_CONTINUE_MIN  # the loader keeps every STRONG facing row at or above it
 
 Distribution = dict[Action, np.ndarray]
 
@@ -254,6 +264,20 @@ def _unopened(profile: Profile, s: HandState, r: str, lg: Legal) -> list[tuple[A
     return entries
 
 
+def _continue(base: np.ndarray, f: float) -> np.ndarray:
+    """Continue (call + raise) probability per category row facing a bet of ``f`` x pot."""
+    if f <= 1.0:
+        return base ** ((1.0 + f) / 1.5)
+    mdf_scale = 2.0 / (1.0 + f)  # MDF here / MDF facing a pot-size bet
+    cont = base ** (4.0 / 3.0) * mdf_scale**_OVERBET_POWER
+    # STRONG keeps the gentle curve up to _STRONG_BEND x pot, then shrinks with MDF.
+    strong = int(HandCategory.STRONG)
+    bend = min(f, _STRONG_BEND)
+    gentle = base[strong] ** ((1.0 + bend) / 1.5) * ((1.0 + bend) / (1.0 + f)) ** _STRONG_POWER
+    cont[strong] = max(gentle, _STRONG_FLOOR)
+    return cont
+
+
 def _facing(profile: Profile, s: HandState, r: str, lg: Legal) -> list[tuple[Action, np.ndarray]]:
     m = _matrix(profile.facing[r], FACING_ACTIONS)  # fold, call, raise
     if s.street == Street.RIVER:
@@ -261,11 +285,7 @@ def _facing(profile: Profile, s: HandState, r: str, lg: Legal) -> list[tuple[Act
             m[int(cat)] = [row[k] for k in FACING_ACTIONS]
     f = lg.call / (total_pot(s) - lg.call)
     base = m[:, 1] + m[:, 2]
-    g = np.full(len(base), (1.0 + f) / 1.5)
-    g[_STEEP_ROWS] *= 1.0 + _OVERBET_STEEPNESS * max(0.0, f - 1.0)
-    cont = base**g
-    strong = int(HandCategory.STRONG)
-    cont[strong] = max(cont[strong], min(base[strong], _STRONG_FLOOR))
+    cont = _continue(base, f)
     share = np.divide(cont, base, out=np.zeros_like(base), where=base > 0)
     m[:, 1] *= share
     m[:, 2] *= share

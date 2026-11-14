@@ -16,6 +16,7 @@ from poker_trainer.engine.cards import parse_cards
 from poker_trainer.game.state import (
     Action,
     ActionKind,
+    HandState,
     Street,
     apply,
     deal,
@@ -157,7 +158,7 @@ def _call_everything(real):
     return fake
 
 
-def test_defence_overbet_uses_2_5_pot(monkeypatch):
+def test_defence_overbet_probes_1_5_2_and_2_5_pot(monkeypatch):
     real = strategy.action_distribution
     monkeypatch.setattr(competence, "action_distribution", _call_everything(real))
     s = _flop_hero_unopened()
@@ -166,18 +167,33 @@ def test_defence_overbet_uses_2_5_pot(monkeypatch):
     out: list = []
     competence._probe_records(out, s, tag, tag, live.copy(), live.copy(), cats)
     over = [r for r in out if r[0] == "defence_overbet"]
-    assert len(over) == 1
-    probe = apply(s, strategy.bet_to(s, 2.5))
-    call = legal_actions(probe).call
-    prior = total_pot(probe) - call
-    assert prior == total_pot(s)
-    assert call == round(2.5 * total_pot(s))  # not clamped to all-in on this pot
-    mdf = prior / (prior + call)
-    _, num, den, counted = over[0]
-    assert counted and den == 1.0
-    assert num == pytest.approx(1.0 / mdf)
-    # The overbet probe feeds no other check: the max checks see only the 33/75/100% probes.
+    assert competence._OVERBETS == (1.5, 2.0, 2.5)
+    assert len(over) == 3  # one record per size, each weight 1
+    for frac, (_, num, den, counted) in zip(competence._OVERBETS, over, strict=True):
+        probe = apply(s, strategy.bet_to(s, frac))
+        call = legal_actions(probe).call
+        prior = total_pot(probe) - call
+        assert prior == total_pot(s)
+        assert call == round(frac * total_pot(s))  # not clamped to all-in on this pot
+        mdf = prior / (prior + call)
+        assert counted and den == 1.0
+        assert num == pytest.approx(1.0 / mdf)
+    # The overbet probes feed no other check: the max checks see only the 33/75/100% probes.
     assert sum(1 for r in out if r[0] == "nuts_fold_max") == 3
+
+
+def test_defence_overbet_sizes_clamped_to_the_same_jam_count_once(monkeypatch):
+    real = strategy.action_distribution
+    monkeypatch.setattr(competence, "action_distribution", _call_everything(real))
+    s = _flop_hero_unopened()
+    s = HandState(**{**s.__dict__, "stacks": (12, 12), "total_chips": s.pot + 24})
+    live, cats = competence._board_info(s.board)
+    tag = load_profile("tag")
+    out: list = []
+    competence._probe_records(out, s, tag, tag, live.copy(), live.copy(), cats)
+    jams = {strategy.bet_to(s, f) for f in competence._OVERBETS}
+    assert len(jams) == 1  # every size is the 12-chip jam
+    assert sum(1 for r in out if r[0] == "defence_overbet") == 1
 
 
 def _river_hero_unopened():

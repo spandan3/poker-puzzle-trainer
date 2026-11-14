@@ -24,8 +24,10 @@ Where the data comes from:
     Hero size shortcut in the trainer) gives ``strong_fold_max`` its spots. These are
     max-over-spots checks, so every probe counts as a sample whatever Hero's frequency.
   - ``defence_overbet``: at every Hero unopened decision (any street), Villain's
-    continue / MDF facing a Hero probe of 2.5x pot (``bet_to`` may clamp it to all-in).
-    Each probe has weight 1 and counts as a sample. This probe feeds no other check.
+    continue / MDF facing Hero probes of 1.5x, 2x and 2.5x pot (``bet_to`` may clamp them
+    to all-in; sizes that resolve to the same bet count once). Each probe has weight 1 and
+    counts as a sample; the value is the mean over probes and sizes. These probes feed no
+    other check.
   - ``raise_dominated`` (river, 33% / 75% probes): of Villain's raising weight, the share
     that is value (category >= MEDIUM) with equity below 0.4 against the Hero combos
     that made the probe bet and then continue (call or raise) facing the raise. Bluff
@@ -124,7 +126,7 @@ VILLAIN_SEAT, HERO_SEAT = 0, 1
 
 _BET_SIZES = {"33": 0.33, "75": 0.75}
 _PROBE_SIZES = (0.33, 0.75, 1.0)
-_OVERBET = 2.5
+_OVERBETS = (1.5, 2.0, 2.5)
 _BLUFF_EQUITY = 0.5
 _DOMINATED_EQUITY = 0.4
 _FIXED_BANDS = {
@@ -350,8 +352,9 @@ def _probe_records(
     """Villain's predicted response to each probe bet at a Hero unopened decision.
 
     Defence and raise records are weighted by how often Hero's range makes that bet here
-    (zero for the 100% probe, which is not a Hero policy size). The 2.5x-pot probe feeds
-    ``defence_overbet`` only, with weight 1.
+    (zero for the 100% probe, which is not a Hero policy size). The 1.5x, 2x and 2.5x-pot
+    probes feed ``defence_overbet`` only, each with weight 1 (sizes that clamp to the same
+    all-in count once).
     """
     hero_dist = action_distribution(hero_profile, s)
     hero_total = float(hero.sum())
@@ -368,9 +371,10 @@ def _probe_records(
         if s.street == Street.RIVER and weight > 0.0:
             bettors = hero * hero_dist[bet]
             _raise_records(out, probe, dist, hero_profile, villain, bettors, cats, weight)
-    over = apply(s, bet_to(s, _OVERBET))
-    dist = action_distribution(villain_profile, over)
-    out.append(("defence_overbet", _defence_ratio(over, dist, villain), 1.0, True))
+    for bet in dict.fromkeys(bet_to(s, frac) for frac in _OVERBETS):
+        over = apply(s, bet)
+        dist = action_distribution(villain_profile, over)
+        out.append(("defence_overbet", _defence_ratio(over, dist, villain), 1.0, True))
 
 
 def _raise_records(

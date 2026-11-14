@@ -64,8 +64,8 @@
   "river_facing": {
     "facing_bet": {
       "AIR": {"fold": 0.9, "call": 0.08, "raise": 0.02},
-      "WEAK": {"fold": 0.22, "call": 0.78, "raise": 0.0},
-      "MEDIUM": {"fold": 0.07, "call": 0.93, "raise": 0.0},
+      "WEAK": {"fold": 0.18, "call": 0.82, "raise": 0.0},
+      "MEDIUM": {"fold": 0.04, "call": 0.96, "raise": 0.0},
       "STRONG": {"fold": 0.02, "call": 0.96, "raise": 0.02},
       "NUTS": {"fold": 0.0, "call": 0.4, "raise": 0.6}
     }
@@ -74,8 +74,8 @@
     "facing_bet": {
       "AIR": {"fold": 0.88, "call": 0.08, "raise": 0.04},
       "WEAK_DRAW": {"fold": 0.33, "call": 0.63, "raise": 0.04},
-      "WEAK": {"fold": 0.22, "call": 0.77, "raise": 0.01},
-      "MEDIUM": {"fold": 0.07, "call": 0.9, "raise": 0.03},
+      "WEAK": {"fold": 0.18, "call": 0.81, "raise": 0.01},
+      "MEDIUM": {"fold": 0.04, "call": 0.93, "raise": 0.03},
       "STRONG_DRAW": {"fold": 0.03, "call": 0.82, "raise": 0.15},
       "STRONG": {"fold": 0.02, "call": 0.85, "raise": 0.13},
       "NUTS": {"fold": 0.0, "call": 0.65, "raise": 0.35}

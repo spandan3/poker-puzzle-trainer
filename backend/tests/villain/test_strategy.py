@@ -404,6 +404,61 @@ def test_strong_never_folds_much_to_overjams(name):
     assert cont[strong].min() >= 0.70
 
 
+OVERBET_BOARDS = ("Kh7d2c", "Ah8c5d", "Qs8s3d", "Ts9s4d", "Jh6h2s")  # dry, dry, two-tone x3
+OVERBET_SIZES = (1.25, 1.5, 2.0, 2.5)
+
+
+def _bb_checked_flop(p, board: str) -> tuple[HandState, np.ndarray]:
+    """TAG BTN opens, ``p`` calls in the BB and checks the flop: the state and its range."""
+    from poker_trainer.villain.narrowing import RangeTracker
+
+    tracker = RangeTracker(p, 1)
+    s = opened()
+    call = Action(1, C, Street.PREFLOP, 5)
+    tracker.observe(s, call)
+    s = deal(apply(s, call), parse_cards(board))
+    check = Action(1, X, Street.FLOP)
+    tracker.observe(s, check)
+    live = cats_for(board) >= 0
+    return apply(s, check), np.asarray(tracker.current) * live
+
+
+def _defence_ratio(p, s: HandState, frac: float, w: np.ndarray) -> float:
+    """Whole-range continue / MDF facing a bet of ``frac`` pot."""
+    t = apply(s, bet_to(s, frac))
+    cont = 1.0 - fold_of(action_distribution(p, t))
+    call = legal_actions(t).call
+    prior = t.pot + sum(t.street_bets) - call
+    return float(w @ cont) / float(w.sum()) * (prior + call) / prior
+
+
+# A category policy defends a little more with a STRONG-heavy range (Tight's two-tone
+# checking ranges) and a little less with an air-heavy one (K72): one board may sit up to
+# BOARD_SLACK outside the band; the mean over the boards may not.
+BOARD_SLACK = 0.10
+
+
+@pytest.mark.parametrize("name", PROFILE_NAMES)
+def test_overbet_defence_stays_in_band_at_every_size(name):
+    """The BB's real check range defends near MDF at every overbet size, not only at the
+    sizes the competence report probes (no dip at 1.5-2x pot that a bluff exploits): at each
+    size the mean over five flops is inside the profile's band and no flop is more than
+    BOARD_SLACK outside it. At 4x pot no flop under-defends by more than BOARD_SLACK; over-
+    defence is allowed there: STRONG keeps a floor (test_strong_never_folds_much_to_overjams),
+    so a STRONG-heavy range defends more."""
+    p = load_profile(name)
+    lo, hi = p.bands.defence_ratio
+    spots = [_bb_checked_flop(p, board) for board in OVERBET_BOARDS]
+    for frac in OVERBET_SIZES:
+        ratios = [_defence_ratio(p, s, frac, w) for s, w in spots]
+        assert lo <= float(np.mean(ratios)) <= hi, (frac, ratios)
+        for board, ratio in zip(OVERBET_BOARDS, ratios, strict=True):
+            assert lo - BOARD_SLACK <= ratio <= hi + BOARD_SLACK, (board, frac, ratio)
+    for board, (s, w) in zip(OVERBET_BOARDS, spots, strict=True):
+        ratio = _defence_ratio(p, s, 4.0, w)
+        assert ratio >= lo - BOARD_SLACK, (board, 4.0, ratio)
+
+
 def test_jam_into_small_pot_medium_can_fold():
     tag = load_profile("tag")
     s = act(flop(), X)

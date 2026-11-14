@@ -76,7 +76,7 @@ describe('verdictLine', () => {
   it('a mistake: "Top EV:" and the EV lost', () => {
     const fold = attemptFixture('fold')
     expect(fold.grade.verdict).toBe('mistake')
-    expect(verdictLine(fold)).toBe('You: Fold · Top EV: Call · 2.25 bb lost')
+    expect(verdictLine(fold)).toBe('You: Fold · Top EV: Call · 2.26 bb lost')
     for (const word of ['Best', 'Fine', 'Mistake', 'Blunder']) {
       expect(verdictLine(fold)).not.toContain(word)
     }
