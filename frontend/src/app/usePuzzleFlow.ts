@@ -15,7 +15,13 @@ import { STREET_ORDER } from '../lib/history'
 /** The parts of the API client the flow uses (injectable for tests). */
 export type FlowApi = Pick<
   typeof client,
-  'currentPuzzle' | 'newPuzzle' | 'submitAttempt' | 'getSettings' | 'patchSettings'
+  | 'currentPuzzle'
+  | 'newPuzzle'
+  | 'getPuzzle'
+  | 'getAttempt'
+  | 'submitAttempt'
+  | 'getSettings'
+  | 'patchSettings'
 >
 
 /** What was on screen before a load or an error: kept so the page doesn't collapse. */
@@ -47,11 +53,22 @@ export interface PuzzleFlow {
   setStreet: (street: StreetName | null) => void
   /** Loads a new puzzle now (after a result, or a confirmed skip). Ignored while one loads. */
   newPuzzle: () => void
+  /**
+   * Replays a stored puzzle (from history): answering state, a practice attempt. `false` when
+   * ignored because a load or a submit is in flight (nothing was opened).
+   */
+  openPuzzle: (id: number) => boolean
+  /**
+   * Reopens a stored attempt's result (from history). "Next puzzle" works as after a submit.
+   * `false` when ignored, as for `openPuzzle`.
+   */
+  openAttempt: (attemptId: number) => boolean
   /** `N`: next after a result; while answering, asks first and skips on the second press. */
   requestSkip: () => void
   cancelSkip: () => void
   submit: (body: AttemptIn) => void
-  setSetting: (patch: SettingsPatch) => void
+  /** Saves a setting (optimistic); resolves true when the server saved it. */
+  setSetting: (patch: SettingsPatch) => Promise<boolean>
 }
 
 /** The second `N` must come within this long of the first. */
@@ -77,6 +94,15 @@ function loadMessage(error: unknown): string {
     return `Couldn't load a puzzle: ${error.message}`
   }
   return "Couldn't load a puzzle"
+}
+
+function openMessage(error: unknown, noun: string): string {
+  if (error instanceof ApiError) {
+    if (error.status === 0) return "Can't reach the server. Check it is running, then retry."
+    if (error.status === 404) return `That ${noun} isn't stored any more.`
+    return `Couldn't open the ${noun}: ${error.message}`
+  }
+  return `Couldn't open the ${noun}`
 }
 
 function submitMessage(error: unknown): string {
@@ -124,6 +150,7 @@ function shownOf(state: FlowState): Shown | null {
 type Msg =
   | { type: 'loading' }
   | { type: 'loaded'; view: PuzzleView }
+  | { type: 'opened'; view: PuzzleView; result: AttemptResult }
   | { type: 'loadFailed'; message: string; retry: () => void }
   | { type: 'submitting' }
   | { type: 'submitted'; result: AttemptResult }
@@ -142,6 +169,8 @@ function reducer(state: FlowState, msg: Msg): FlowState {
         customDisabledReason: null,
         skipPending: false,
       }
+    case 'opened':
+      return { kind: 'result', view: msg.view, result: msg.result }
     case 'loadFailed':
       return { kind: 'error', message: msg.message, retry: msg.retry, previous: shownOf(state) }
     case 'submitting':
@@ -171,7 +200,19 @@ function reducer(state: FlowState, msg: Msg): FlowState {
 
 const INITIAL: FlowState = { kind: 'loading', previous: null }
 
-export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
+export interface FlowOptions {
+  /**
+   * Whether the first puzzle may load (default true). The page switch sets it false while the
+   * Progress page is the landing page, so opening Progress never generates a puzzle; once true it
+   * stays loaded.
+   */
+  enabled?: boolean
+}
+
+export function usePuzzleFlow(
+  api: FlowApi = client,
+  { enabled = true }: FlowOptions = {},
+): PuzzleFlow {
   const [state, dispatch] = useReducer(reducer, INITIAL)
   const [settings, setSettings] = useState<SettingsView | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -189,6 +230,7 @@ export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
 
   // one load at a time; a second `N` or click while one is in flight does nothing
   const loadingRef = useRef(false)
+  const startedRef = useRef(false)
   const submittingRef = useRef(false)
   const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveSeq = useRef(0)
@@ -224,17 +266,77 @@ export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
     [api],
   )
 
-  // Initial load, once: the flag is never reset in cleanup and the request is never aborted, so
-  // StrictMode's double effect sends one GET (and at most one POST).
-  const started = useRef(false)
+  // One load of a stored puzzle or attempt (history). Like `load`: one at a time, errors go to the
+  // error state with a Retry. Opening one also counts as the first load, so a landing page that
+  // later shows Puzzles doesn't load (and replace) another puzzle on top of it.
+  const open = useCallback(
+    (
+      fetchView: () => Promise<{ view: PuzzleView; result: AttemptResult | null }>,
+      noun: string,
+    ): boolean => {
+      const attempt = (): boolean => {
+        if (loadingRef.current) return false
+        loadingRef.current = true
+        startedRef.current = true
+        clearSkipTimer()
+        dispatch({ type: 'loading' })
+        fetchView()
+          .then(({ view, result }) =>
+            dispatch(result ? { type: 'opened', view, result } : { type: 'loaded', view }),
+          )
+          .catch((error: unknown) =>
+            dispatch({
+              type: 'loadFailed',
+              message: openMessage(error, noun),
+              retry: () => void attempt(),
+            }),
+          )
+          .finally(() => {
+            loadingRef.current = false
+          })
+        return true
+      }
+      return attempt()
+    },
+    [],
+  )
+
+  const openPuzzle = useCallback(
+    (id: number) => {
+      if (stateRef.current.kind === 'submitting') return false
+      return open(async () => ({ view: await api.getPuzzle(id), result: null }), 'puzzle')
+    },
+    [api, open],
+  )
+
+  const openAttempt = useCallback(
+    (attemptId: number) => {
+      if (stateRef.current.kind === 'submitting') return false
+      return open(async () => {
+        const result = await api.getAttempt(attemptId)
+        return { view: await api.getPuzzle(result.attempt.puzzle_id), result }
+      }, 'result')
+    },
+    [api, open],
+  )
+
+  // Initial load, once: the flags are never reset in cleanup and the request is never aborted, so
+  // StrictMode's double effect sends one GET (and at most one POST). Settings load at once; the
+  // puzzle waits for `enabled`.
+  const settingsStarted = useRef(false)
   useEffect(() => {
-    if (started.current) return
-    started.current = true
-    load(true)
+    if (settingsStarted.current) return
+    settingsStarted.current = true
     api.getSettings().then(setSettings, () => {
       // settings are optional for play: the controls keep their defaults
     })
-  }, [api, load])
+  }, [api])
+
+  useEffect(() => {
+    if (!enabled || startedRef.current) return
+    startedRef.current = true
+    load(true)
+  }, [enabled, load])
 
   useEffect(() => clearSkipTimer, [])
 
@@ -293,7 +395,7 @@ export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
 
   // Optimistic: the control changes at once; a failed save puts it back and says so.
   const setSetting = useCallback(
-    (patch: SettingsPatch) => {
+    (patch: SettingsPatch): Promise<boolean> => {
       const before = settingsRef.current
       if (before) setSettings({ ...before, ...patch })
       setNotice(null)
@@ -302,14 +404,16 @@ export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
       const seq = ++saveSeq.current
       for (const key of keys) lastSave.current.set(key, seq)
       const latest = () => keys.some((key) => lastSave.current.get(key) === seq)
-      api.patchSettings(patch).then(
+      return api.patchSettings(patch).then(
         (view) => {
           if (latest()) setSettings(view)
+          return true
         },
         () => {
-          if (!latest()) return
+          if (!latest()) return false
           setSettings((now) => (now && before ? { ...now, ...pick(before, patch) } : now))
           setNotice(SETTINGS_FAILED)
+          return false
         },
       )
     },
@@ -331,6 +435,8 @@ export function usePuzzleFlow(api: FlowApi = client): PuzzleFlow {
     street,
     setStreet,
     newPuzzle,
+    openPuzzle,
+    openAttempt,
     requestSkip,
     cancelSkip,
     submit,

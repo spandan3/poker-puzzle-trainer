@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from poker_trainer.api.schemas import RANDOM_PROFILE, AttemptIn
 from poker_trainer.api.views import (
+    action_log,
     attempt_result,
     option_ev_from_dict,
     option_ev_to_dict,
@@ -25,12 +26,16 @@ from poker_trainer.api.views import (
 )
 from poker_trainer.db.blob import decode_puzzle, encode_puzzle
 from poker_trainer.db.models import AttemptRow, PuzzleRow, UserSettings, utcnow
+from poker_trainer.explain.facts import Facts, build_facts
 from poker_trainer.game.state import Action, ActionKind, Street
 from poker_trainer.puzzle.generate import generate_puzzle, parse_street
 from poker_trainer.puzzle.grade import Answer, Grade, grade
 from poker_trainer.puzzle.model import FORMAT, Puzzle, load_config
 from poker_trainer.puzzle.options import custom_action
 from poker_trainer.settings import AppSettings
+from poker_trainer.stats import service as stats_service
+from poker_trainer.stats.hero import hero_category
+from poker_trainer.stats.service import StatRow
 from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile
 
 PuzzleFactory = Callable[[int, Street | None, str | None], Puzzle]
@@ -57,6 +62,10 @@ class NotFound(ServiceError):
 
 
 class InvalidAnswer(ServiceError):
+    status_code = 422
+
+
+class BadRequestParam(ServiceError):
     status_code = 422
 
 
@@ -258,6 +267,9 @@ def _grade_fields(p: Puzzle, inp: AttemptIn, action: Action, g: Grade) -> dict[s
         "best_label": g.best.option.label,
         "best_ev_chips": float(g.best.ev_chips),
         "config_version": load_config().version,
+        "true_equity": float(p.solution.equity),
+        "ahead_now": _opt(p.solution.ahead_now),
+        "hero_category": hero_category(p),
     }
     _check_finite(fields, "attempt")
     return fields
@@ -356,6 +368,14 @@ def attempt_result_for(
     return attempt_result(
         attempt=attempt_dict(row), puzzle=p, chosen=option_ev_from_dict(row.chosen)
     )
+
+
+def explanation_inputs(db: Session, user_id: int, row: AttemptRow) -> tuple[dict[str, Any], Facts]:
+    """The stored result's template explanation and the facts it was written from."""
+    p = load_puzzle(db, user_id, row.puzzle_id)[1]
+    result = attempt_result_for(db, user_id, row, p)
+    template = result.pop("explanation")
+    return template, build_facts(result, p, action_log(p.spot))
 
 
 # ---------------------------------------------------------------------------
@@ -469,6 +489,66 @@ def history(
 
 
 # ---------------------------------------------------------------------------
+# Stats
+# ---------------------------------------------------------------------------
+
+
+def stats_rows(db: Session, user_id: int) -> list[StatRow]:
+    """Every attempt of the user (first and retries) as ``StatRow``s, by attempt id. One query
+    over columns only: never the puzzle blob, nor the ``chosen`` JSON."""
+    q = (
+        select(
+            AttemptRow.id,
+            AttemptRow.created_at,
+            AttemptRow.is_first,
+            PuzzleRow.street,
+            PuzzleRow.profile,
+            AttemptRow.action_kind,
+            AttemptRow.best_kind,
+            AttemptRow.verdict,
+            AttemptRow.ev_loss_chips,
+            AttemptRow.equity_guess,
+            AttemptRow.equity_error,
+            AttemptRow.true_equity,
+            AttemptRow.range_read_guess,
+            AttemptRow.range_read_error,
+            AttemptRow.ahead_now,
+            AttemptRow.hero_category,
+            AttemptRow.intent,
+            AttemptRow.intent_truth,
+            AttemptRow.intent_flag,
+            AttemptRow.bluff_required,
+            AttemptRow.bluff_actual,
+        )
+        .join(PuzzleRow, PuzzleRow.id == AttemptRow.puzzle_id)
+        .where(AttemptRow.user_id == user_id, PuzzleRow.user_id == user_id)
+        .order_by(AttemptRow.id)
+    )
+    return [StatRow(**m._asdict()) for m in db.execute(q).all()]
+
+
+def profile_labels() -> dict[str, str]:
+    """Current profile names to labels, in ``PROFILE_NAMES`` order."""
+    return {name: load_profile(name).label for name in PROFILE_NAMES}
+
+
+def stats(db: Session, user_id: int, tz: str) -> dict[str, Any]:
+    """The user's ``StatsView`` with days counted in the IANA zone ``tz`` (422 if unknown)."""
+    try:
+        zone = stats_service.parse_tz(tz)
+    except ValueError:
+        raise BadRequestParam("unknown time zone") from None
+    goal = int(_settings_row(db, user_id).daily_goal)
+    return stats_service.compute(
+        stats_rows(db, user_id),
+        tz=zone,
+        now=utcnow(),
+        goal=goal,
+        profile_labels=profile_labels(),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Settings
 # ---------------------------------------------------------------------------
 
@@ -482,7 +562,13 @@ def _settings_row(db: Session, user_id: int) -> UserSettings:
     return row
 
 
-def settings_view(db: Session, user_id: int, app_settings: AppSettings) -> dict[str, Any]:
+def settings_view(
+    db: Session,
+    user_id: int,
+    app_settings: AppSettings,
+    llm: tuple[str, str | None] = ("off", None),
+) -> dict[str, Any]:
+    """The user's settings plus the app's; ``llm`` is ``Explainer.status()``."""
     row = _settings_row(db, user_id)
     profiles = []
     for name in PROFILE_NAMES:
@@ -494,7 +580,9 @@ def settings_view(db: Session, user_id: int, app_settings: AppSettings) -> dict[
         "profile": _known_profile(row.profile),
         "daily_goal": int(row.daily_goal),
         "llm_provider": app_settings.llm_provider,
-        "llm_status": "off" if app_settings.llm_provider == "none" else "on",
+        "llm_status": llm[0],
+        "llm_model": None if app_settings.llm_provider == "none" else app_settings.ollama_model,
+        "llm_detail": llm[1],
         "profiles": profiles,
     }
 

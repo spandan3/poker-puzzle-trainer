@@ -5,13 +5,18 @@ from poker_trainer.api.app import _frontend_route, create_app
 from poker_trainer.settings import AppSettings
 
 
-def _client(tmp_path, dist):
-    settings = AppSettings(
-        _env_file=None,
-        database_url=f"sqlite:///{(tmp_path / 's.db').as_posix()}",
-        frontend_dist=dist,
-    )
-    return TestClient(create_app(settings))
+@pytest.fixture
+def make_client(llm_off):
+    def _client(tmp_path, dist):
+        settings = AppSettings(
+            _env_file=None,
+            database_url=f"sqlite:///{(tmp_path / 's.db').as_posix()}",
+            frontend_dist=dist,
+            **llm_off,
+        )
+        return TestClient(create_app(settings))
+
+    return _client
 
 
 @pytest.fixture
@@ -25,9 +30,9 @@ def built(tmp_path):
     return tmp_path, dist
 
 
-def test_static_serves_index_and_assets(built):
+def test_static_serves_index_and_assets(built, make_client):
     tmp_path, dist = built
-    with _client(tmp_path, dist) as c:
+    with make_client(tmp_path, dist) as c:
         for path in ("/", "/progress", "/puzzle/3"):
             r = c.get(path)
             assert r.status_code == 200 and "INDEX" in r.text, path
@@ -39,10 +44,10 @@ def test_static_serves_index_and_assets(built):
         assert c.get("/api/puzzles/current").status_code == 404  # not index.html
 
 
-def test_static_no_traversal(built):
+def test_static_no_traversal(built, make_client):
     tmp_path, dist = built
     (tmp_path / "pyproject.toml").write_text("TOP-SECRET", encoding="utf-8")
-    with _client(tmp_path, dist) as c:
+    with make_client(tmp_path, dist) as c:
         for path in (
             "/..%2f..%2fpyproject.toml",
             "/..%2fsecret.txt",
@@ -57,23 +62,23 @@ def test_static_no_traversal(built):
             assert "TOP-SECRET" not in r.text, path
 
 
-def test_static_absent(tmp_path):
-    with _client(tmp_path, tmp_path / "missing") as c:
+def test_static_absent(tmp_path, make_client):
+    with make_client(tmp_path, tmp_path / "missing") as c:
         r = c.get("/")
         assert r.status_code == 404 and r.json() == {"detail": "frontend not built"}
         assert c.get("/progress").status_code == 404
         assert c.get("/api/health").status_code == 200
 
 
-def test_static_dir_without_index(tmp_path):
+def test_static_dir_without_index(tmp_path, make_client):
     (tmp_path / "dist").mkdir()
-    with _client(tmp_path, tmp_path / "dist") as c:
+    with make_client(tmp_path, tmp_path / "dist") as c:
         assert c.get("/").json() == {"detail": "frontend not built"}
 
 
-def test_static_head_and_odd_paths(built):
+def test_static_head_and_odd_paths(built, make_client):
     tmp_path, dist = built
-    with _client(tmp_path, dist) as c:
+    with make_client(tmp_path, dist) as c:
         r = c.head("/assets/app.js")
         assert r.status_code == 200 and r.content == b""
         assert r.headers["content-type"].startswith("text/javascript")

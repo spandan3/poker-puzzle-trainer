@@ -6,12 +6,18 @@ import type { DecisionDetailsHandle } from '../components/Decision/DecisionDetai
 import { DecisionDetails } from '../components/Decision/DecisionDetails'
 import { HandReveal } from '../components/HandReveal/HandReveal'
 import { HistoryPanel } from '../components/HistoryPanel/HistoryPanel'
+import { ExplanationPanel } from '../components/Explanation/ExplanationPanel'
 import { ResultSummary } from '../components/ResultSummary/ResultSummary'
 import { ShortcutsOverlay } from '../components/ShortcutsOverlay/ShortcutsOverlay'
 import { Table } from '../components/Table/Table'
 import { TableCentre } from '../components/TableCentre/TableCentre'
 import { TopBar } from '../components/TopBar/TopBar'
+import * as client from '../api/client'
+import { ProgressPage } from '../components/Progress/ProgressPage'
+import type { ProgressApi } from '../components/Progress/ProgressPage'
 import { decisionFromAttempt } from '../lib/decision'
+import { useExplanation } from './useExplanation'
+import { usePage } from '../lib/page'
 import type { Command } from '../lib/shortcuts'
 import { useShortcuts } from '../lib/shortcuts'
 import { answerEntry, heroFolded, VERDICT_LABELS, verdictLine } from '../lib/result'
@@ -48,14 +54,22 @@ function writeShortcutsOn(on: boolean): void {
 export interface AppProps {
   /** the API (a fake in tests) */
   api?: FlowApi
+  /** the stats API (the real client by default; a fake in tests) */
+  progressApi?: ProgressApi
 }
 
-export function App({ api }: AppProps = {}) {
-  const flow = usePuzzleFlow(api)
+export function App({ api, progressApi = client }: AppProps = {}) {
+  const [page, navigate] = usePage()
+  // Landing on /progress doesn't generate a puzzle: the flow loads when Puzzles is first shown.
+  const [puzzlesSeen, setPuzzlesSeen] = useState(page === 'puzzles')
+  if (page === 'puzzles' && !puzzlesSeen) setPuzzlesSeen(true)
+  const onPuzzles = page === 'puzzles'
+  const flow = usePuzzleFlow(api, { enabled: puzzlesSeen })
   const { state, settings } = flow
   const [helpOpen, setHelpOpen] = useState(false)
   const [shortcutsOn, setShortcutsOnState] = useState(readShortcutsOn)
-  const keysOn = shortcutsOn && !helpOpen
+  // shortcuts belong to the Puzzles page; the play area stays mounted (hidden) on Progress
+  const keysOn = shortcutsOn && !helpOpen && onPuzzles
 
   const slotRef = useRef<HTMLDivElement>(null)
   const nextRef = useRef<HTMLButtonElement>(null)
@@ -124,17 +138,33 @@ export function App({ api }: AppProps = {}) {
     }
   }, [state.kind, view?.id])
 
+  // A page switch: back to the top, the tab's title follows, and Progress's heading takes focus
+  // (the link that was clicked has just left the page's flow). Not on the first render.
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  const switchedFrom = useRef(page) // also makes StrictMode's second effect run a no-op
+  useEffect(() => {
+    document.title =
+      page === 'progress' ? 'Progress · Poker Puzzle Trainer' : 'Poker Puzzle Trainer'
+    if (switchedFrom.current === page) return
+    switchedFrom.current = page
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+    if (page === 'progress') titleRef.current?.focus({ preventScroll: true })
+  }, [page])
+
   const onNewPuzzle = () => {
     if (state.kind === 'answering') flow.requestSkip()
     else flow.newPuzzle()
   }
 
+  const explained = useExplanation(result, settings)
   const showPotOdds = settings?.show_pot_odds ?? true
   const showProfile = settings?.show_profile ?? true
 
   return (
     <div className={styles.app}>
       <TopBar
+        page={page}
+        onNavigate={navigate}
         street={flow.street}
         onStreet={flow.setStreet}
         profile={settings?.profile ?? null}
@@ -151,7 +181,7 @@ export function App({ api }: AppProps = {}) {
       />
 
       <div className={styles.toasts}>
-        {state.kind === 'error' && (
+        {onPuzzles && state.kind === 'error' && (
           <div className={styles.banner} role="alert" data-tone="danger">
             <span>{state.message}</span>
             <button type="button" className={styles.bannerButton} onClick={state.retry}>
@@ -167,7 +197,7 @@ export function App({ api }: AppProps = {}) {
             </button>
           </div>
         )}
-        {skipPending && (
+        {onPuzzles && skipPending && (
           <div className={styles.banner} role="status" data-tone="info">
             <span>
               Skip this puzzle? Press <kbd className={styles.kbd}>N</kbd> again
@@ -182,7 +212,28 @@ export function App({ api }: AppProps = {}) {
         )}
       </div>
 
-      <main className={styles.main} aria-busy={pending || undefined}>
+      {page === 'progress' && (
+        <main className={styles.progress}>
+          <ProgressPage
+            api={progressApi}
+            profiles={settings?.profiles ?? null}
+            titleRef={titleRef}
+            goal={settings?.daily_goal ?? null}
+            onGoal={(goal) => flow.setSetting({ daily_goal: goal })}
+            onNavigate={navigate}
+            onReplay={(id) => {
+              // ignored while a load or a submit is in flight: then stay on Progress
+              if (flow.openPuzzle(id)) navigate('puzzles')
+            }}
+            onResult={(attemptId) => {
+              if (flow.openAttempt(attemptId)) navigate('puzzles')
+            }}
+          />
+        </main>
+      )}
+
+      {/* hidden, not unmounted, on Progress: a half-entered answer survives the visit */}
+      <main className={styles.main} aria-busy={pending || undefined} hidden={!onPuzzles}>
         {view === null ? (
           <div className={styles.empty} role="status">
             {state.kind === 'error' ? 'No puzzle loaded' : 'Dealing…'}
@@ -251,6 +302,15 @@ export function App({ api }: AppProps = {}) {
                 <DecisionDetails
                   ref={detailsRef}
                   decision={decisionFromAttempt(view, result)}
+                  whyTab={
+                    <ExplanationPanel
+                      explanation={explained?.explanation ?? result.explanation}
+                      pendingModel={explained?.pendingModel}
+                      requestFailed={explained?.requestFailed}
+                      llmStatus={settings?.llm_status}
+                      llmDetail={settings?.llm_detail}
+                    />
+                  }
                   handTab={<HandReveal view={view} result={result} />}
                 />
               </div>

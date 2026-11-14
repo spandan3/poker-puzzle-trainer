@@ -52,6 +52,8 @@ function InteractiveTopBar() {
   const [shortcuts, setShortcuts] = useState(true)
   return (
     <TopBar
+      page="puzzles"
+      onNavigate={() => undefined}
       street={street}
       onStreet={setStreet}
       profile={profile}

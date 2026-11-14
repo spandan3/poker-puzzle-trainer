@@ -20,3 +20,6 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   }),
 })
+
+// jsdom doesn't implement scrolling; the app scrolls to the top on a page switch
+window.scrollTo = vi.fn() as unknown as typeof window.scrollTo
