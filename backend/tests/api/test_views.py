@@ -298,11 +298,10 @@ def test_custom_view_and_allowed(puzzles, monkeypatch):
 
 
 def test_old_puzzle_custom_size_refused(puzzles):
-    """A pre-M9 puzzle (config 3, full realisation) can't grade a custom size with today's r."""
+    """A pre-M9 puzzle (older config, full realisation) can't grade a custom size with today's r."""
     p = puzzles["flop"]
     assert views.villain_model_current(p)
-    old = replace(p, spot=replace(p.spot, config_version=3))
-    assert load_config().version == 4
+    old = replace(p, spot=replace(p.spot, config_version=load_config().version - 1))
     assert not views.villain_model_current(old)
     assert not views.custom_allowed(old)
 

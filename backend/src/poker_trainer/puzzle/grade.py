@@ -15,7 +15,7 @@ Verdict = Literal["best", "fine", "mistake", "blunder"]
 Score = Literal["great", "good", "off"]
 Intent = Literal["value", "bluff", "semi_bluff"]
 
-_EPS = 1e-9
+BEST_EPS = 1e-9
 _AGGRESSIVE = (ActionKind.BET, ActionKind.RAISE)
 _INTENT_TEXT = {
     ActionKind.BET: {"value": "a value bet", "bluff": "a bluff", "semi_bluff": "a semi-bluff"},
@@ -88,21 +88,21 @@ class Grade:
 def _verdict(loss: float, pot: int) -> Verdict:
     """Bands are relative to ``max(pot, min_pot)``, so tiny pots don't make every loss big."""
     v = load_config().verdict
-    if loss <= best_margin(pot, v) + _EPS:
+    if loss <= best_margin(pot, v) + BEST_EPS:
         return "best"
     floor_pot = verdict_pot(pot, v)
-    if loss <= v.fine_pot * floor_pot + _EPS:
+    if loss <= v.fine_pot * floor_pot + BEST_EPS:
         return "fine"
-    if loss <= v.mistake_pot * floor_pot + _EPS:
+    if loss <= v.mistake_pot * floor_pot + BEST_EPS:
         return "mistake"
     return "blunder"
 
 
 def _score(error: float) -> Score:
     sc = load_config().score
-    if error <= sc.great + _EPS:
+    if error <= sc.great + BEST_EPS:
         return "great"
-    if error <= sc.good + _EPS:
+    if error <= sc.good + BEST_EPS:
         return "good"
     return "off"
 
@@ -114,13 +114,13 @@ def _intent_truth(chosen: OptionEV, street: Street, overall_equity: float) -> In
     if street == Street.PREFLOP:  # all-in equity decides; no semi-bluffs pre-flop
         if eq is None:
             return "bluff" if overall_equity < 0.5 else "value"
-        return "value" if eq >= 0.5 - _EPS else "bluff"
-    if (ahead if ahead is not None else eq) >= 0.5 - _EPS:  # type: ignore[operator]
+        return "value" if eq >= 0.5 - BEST_EPS else "bluff"
+    if (ahead if ahead is not None else eq) >= 0.5 - BEST_EPS:  # type: ignore[operator]
         return "value"
     if (
         street < Street.RIVER
         and eq is not None
-        and eq >= load_config().intent.semi_bluff_equity - _EPS
+        and eq >= load_config().intent.semi_bluff_equity - BEST_EPS
     ):
         return "semi_bluff"
     return "bluff"
@@ -160,7 +160,7 @@ def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
     The profile-version check runs only for custom sizes with the default ``respond``;
     callers that inject ``respond`` own that check.
 
-    A custom size whose EV beats the best listed option by more than ``_EPS`` becomes the best
+    A custom size whose EV beats the best listed option by more than ``BEST_EPS`` becomes the best
     play itself (loss 0); a tie keeps the listed option as best.
     """
     sol = p.solution
@@ -168,7 +168,7 @@ def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
     chosen = _resolve(p, a.action, respond)
     best = sol.options[sol.best]
     custom = all(o.option.action != a.action for o in sol.options)
-    if custom and chosen.ev_chips > best.ev_chips + _EPS:
+    if custom and chosen.ev_chips > best.ev_chips + BEST_EPS:
         best = chosen
     loss = max(0.0, best.ev_chips - chosen.ev_chips)
 

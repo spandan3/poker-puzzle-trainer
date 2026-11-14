@@ -144,9 +144,10 @@ def load_profile(name: str) -> Profile:
 
 
 def profile_meta(name: str) -> tuple[str, str]:
-    """``(label, description)`` for a stored profile name; never raises.
+    """``(label, description)`` for a stored profile name.
 
-    A name that is no longer a profile (or whose file fails to load) gets ``(name.title(), "")``.
+    Falls back to ``(name.title(), "")`` for a name that is not a stored profile (the loader's
+    ``ValueError``) instead of raising.
     """
     try:
         prof = load_profile(name)

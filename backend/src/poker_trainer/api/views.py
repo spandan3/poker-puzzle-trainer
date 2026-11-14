@@ -35,6 +35,7 @@ from poker_trainer.game.state import (
     position_name,
     total_pot,
 )
+from poker_trainer.puzzle.grade import BEST_EPS
 from poker_trainer.puzzle.model import (
     OptionEV,
     Puzzle,
@@ -62,8 +63,6 @@ __all__ = [
     "showdown",
     "villain_model_current",
 ]
-
-_BEST_EPS = 1e-9  # grade._EPS: a custom size must beat the best listed EV by more to be best
 
 
 def _street_name(street: Street) -> str:
@@ -353,7 +352,7 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
     custom_best = (
         chosen_idx is None
         and best_ev == float(chosen.ev_chips)
-        and best_ev > stored[sol.best].ev_chips + _BEST_EPS
+        and best_ev > stored[sol.best].ev_chips + BEST_EPS
     )
     options = [
         option_view(o, best=i == sol.best and not custom_best, chosen=i == chosen_idx, dead=dead)
