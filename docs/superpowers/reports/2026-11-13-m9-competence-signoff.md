@@ -18,7 +18,7 @@ All numbers come from scripts run on this branch (`uv run competence --seeds 0-5
 
 **Villain profiles** (each profile file went from version 4 to 5; `categories.json` untouched; no competence band was widened):
 
-1. **Defence against big bets.** The baseline had Villain defending a 2.5-times-pot bet at 1.4 to 2.2 times the MDF it needs, because it folded its medium hands and weak draws too rarely when the bet was huge. A medium hand (a bluff catcher) now gives up against overbets as the price gets worse, so the whole range defends close to MDF at 1.5, 2 and 2.5 times the pot, in every profile. Strong hands keep a floor: they continue at least 75% of the time even against a 20-times-pot jam, and the nuts never fold.
+1. **Defence against overbets (1.5 to 2.5 times the pot).** The baseline had Villain defending a 2.5-times-pot bet at 1.4 to 2.2 times the MDF it needs, because it folded its medium hands and weak draws too rarely when the bet was huge. A medium hand (a bluff catcher) now gives up against overbets as the price gets worse, so the whole range defends close to MDF at 1.5, 2 and 2.5 times the pot, in every profile. Strong hands keep a floor: they continue at least 75% of the time even against a 20-times-pot jam, and the nuts never fold.
 2. **River raises.** Villain used to raise river bets with medium hands, where a raise only folds out worse hands and is called by better ones (the `raise_dominated` check, 0.26 to 0.34 against a limit of 0.10). All four profiles now carry a river-only table (`river_facing`) that raises with the nuts, a few air bluffs and very little else. The side effect is that river raises are now rare (see section 9).
 3. **Fewer thin river bets with medium hands** (TAG and Sticky), because by the check's definition about 45% of those bets were "bluffs", which pushed the bluff share over its limit on one seed.
 4. **Tight's shared defence rows were tightened** (WEAK, MEDIUM and the draws fold more), first because its turn defence had touched 1.013 against an upper limit of 1.00, then again so its averaged overbet defence stayed under 1.00. Some of its river bluff frequencies were raised to bring its river bluff share back into band.
@@ -29,14 +29,14 @@ All numbers come from scripts run on this branch (`uv run competence --seeds 0-5
 
 `uv run competence --profile all --hands 400 --seeds 0-5`: 400 hands for each of seeds 0 to 5, all four profiles, 13 pass/fail checks (the original 10 plus `defence_overbet`, `raise_dominated`, `preflop_defence_3bet`) and 3 information-only values.
 
-- **Before** (profiles before tuning, new checks included): 261 of 312 check-seeds pass (51 failures). The failures are `defence_overbet` and `raise_dominated` for every profile on every seed (48 of the 51), plus three older ones: TAG `bluff_share_33` on seed 2 (0.283 against a 0.28 limit), Sticky `bluff_share_33` on seed 2 (0.260 against 0.26) and Tight `defence_turn` on seed 5 (1.013 against 1.00). The original baseline, before any M9 change, had only those three failures on the ten original checks.
+- **Before** (profiles before tuning, new checks included): 261 of 312 check-seeds pass (51 failures). The failures are `defence_overbet` and `raise_dominated` for every profile on every seed (48 of the 51), plus three older ones: TAG `bluff_share_33` on seed 2 (0.283 against a 0.28 limit), Sticky `bluff_share_33` on seed 2 (just over its 0.26 limit; the plan recorded 0.260 > 0.26, and the tables below round to three places) and Tight `defence_turn` on seed 5 (1.013 against 1.00). The original baseline, before any M9 change, had only those three failures on the ten original checks.
 - **After:** 312 of 312 pass. No band was changed.
 
 What each new check measures:
 
-- `defence_overbet`: how much of its range Villain continues with (call plus raise) against a Hero bet of 1.5, 2 and 2.5 times the pot, divided by the MDF for that bet. Averaged over every decision point on every street.
+- `defence_overbet`: how much of its range Villain continues with (call plus raise) against Hero overbets of 1.5 to 2.5 times the pot (the check probes 1.5, 2 and 2.5 times), divided by the MDF for that bet. Averaged over every decision point on every street.
 - `raise_dominated`: on the river, the share of Villain's raises that are made with a medium-or-better hand that has under 40% equity against the hands that would continue against the raise. A raise like that loses to everything that calls it. Limit 10%.
-- `preflop_defence_3bet`: the share of the button's opening range that continues (calls or jams) against a 3-bet to 3 times the open, divided by MDF 0.50. Band 0.90 to 1.40 for every profile. It sits above 1.0 on purpose: the button is in position against a 3-bet and realises more than its equity share, so defending above MDF is correct.
+- `preflop_defence_3bet`: the share of the button's opening range that continues (calls or jams) against a 3-bet to 3 times the open (to 15 chips, 7.5 bb), divided by MDF 0.50. Band 0.90 to 1.40 for every profile. The argument for going above 1.0: the button has 5 chips in and must put in 10 more to win a final pot of 30, so a call needs 10/30 = 33.3% raw equity, well under the 50% that MDF suggests, and the grader credits the button, who is in position, with 100% of its equity while the 3-bettor (the big blind, out of position) is credited 80% pre-flop. Hands with 33% or more equity are profitable calls, so continuing above MDF is correct. The lower bound, 0.90, keeps the big blind's 3-bet bluffs from printing money; the trash 3-bet gate in section 6 is the direct test of that. The upper bound, 1.40, was set by controller ruling during M9 as a sanity ceiling, not derived from theory (see section 9 for Sticky, which sits at 1.375).
 
 Values are the minimum and maximum over the six seeds. "Seeds passing" counts seeds out of 6. `river_stab` and `air_continue_max` are information only.
 
@@ -157,7 +157,7 @@ How defence varies with bet size, as a ratio to MDF, on the five test flops (K-7
 | Tight (0.70 to 1.00) | 0.81 | 0.81 | 0.82 | 0.84 | 0.86 | 1.00 |
 | Sticky (1.00 to 1.35) | 1.26 | 1.19 | 1.12 | 1.05 | 1.01 | 0.99 |
 
-Before the fix there was a dip: TAG defended 0.66 of MDF at 2 times the pot on K-7-2 (now 0.85), so a pure bluff of twice the pot was worth about +0.34 of the pot against TAG and is now worth about +0.11.
+After the first tuning pass, before the final curve, there was a dip: TAG defended only 0.66 of MDF at 2 times the pot on K-7-2 (it is 0.85 now). A pure-air bluff wins the pot whenever Villain folds, so its value is (1 minus the defence ratio) times the pot: about +0.34 of the pot then, and +0.15 now. (Before any M9 change the problem was the opposite: defence against overbets was about 1.6 times MDF, with no dip.)
 
 ## 5. Pre-flop defence, before and after
 
@@ -172,7 +172,7 @@ Before the fix there was a dip: TAG defended 0.66 of MDF at 2 times the pot on K
 
 ## 6. The big blind's small 3-bets: best option before and after
 
-The spots: Hero in the big blind facing the button's open to 2.5 bb, holding one of eight weak hands. Villain's range is the profile's real opening range minus the cards Hero holds; 40,000 equity samples per spot. "Gap" is the best raise (2.5x, 3x or all-in) minus the better of calling and folding, in bb. The test gates the hands with under 40% equity: for them the gap must be at most 0.25 bb.
+The spots: Hero in the big blind facing the button's open to 2.5 bb, holding one of eight weak hands. Villain's range is the profile's real opening range minus the cards Hero holds; 40,000 equity samples per spot. "Gap" is the best raise (2.5x, 3x or all-in) minus the better of calling and folding, in bb. The test gates, for each profile, the hands with under 40% equity against that profile's opening range: for them the gap must be at most 0.25 bb, and at least three hands per profile must be gated. The equity column below is against TAG's range. Jc3d is the only hand whose gating differs: 0.396 against TAG, 0.362 against Tight and 0.395 against Sticky (gated), but 0.413 against LAG's wider range (reported only).
 
 **TAG, step by step** (each cell in bb):
 
@@ -181,7 +181,7 @@ The spots: Hero in the big blind facing the button's open to 2.5 bb, holding one
 | 9h5s (gated) | 0.379 | +0.39 | +0.90 | +0.51 | +0.44 | +0.01 | +0.13 | **+0.11** |
 | 7d5s (gated) | 0.370 | +0.35 | +0.84 | +0.49 | +0.39 | -0.02 | +0.05 | **+0.05** |
 | 6c4h (gated) | 0.355 | +0.27 | +0.82 | +0.55 | +0.37 | -0.08 | +0.02 | **+0.02** |
-| Jc3d (gated) | 0.396 | +0.48 | +1.02 | +0.54 | +0.46 | +0.09 | +0.23 | **+0.14** |
+| Jc3d (0.396 against TAG: gated) | 0.396 | +0.48 | +1.02 | +0.54 | +0.46 | +0.09 | +0.23 | **+0.14** |
 | Qs2h | 0.412 | +0.56 | +1.10 | +0.54 | +0.46 | +0.15 | +0.30 | +0.16 |
 | Qs3c | 0.422 | +0.61 | +1.18 | +0.57 | +0.49 | +0.19 | +0.39 | +0.20 |
 | Jd6d | 0.444 | +0.72 | +1.29 | +0.57 | +0.49 | +0.28 | +0.48 | +0.20 |
@@ -196,7 +196,7 @@ The spots: Hero in the big blind facing the button's open to 2.5 bb, holding one
 | 9h5s (gated) | +0.11 | +0.37 to +0.06 | +0.88 to -0.04 | -0.15 |
 | 7d5s (gated) | +0.05 | +0.37 to +0.08 | +0.90 to -0.01 | -0.20 |
 | 6c4h (gated) | +0.02 | +0.29 to +0.19 | +0.86 to -0.07 | -0.27 |
-| Jc3d (gated against LAG; reported for the others) | +0.14 | +0.37 to +0.13 | +0.95 to +0.08 | -0.07 |
+| Jc3d (gated for TAG 0.396, Tight 0.362, Sticky 0.395; reported only for LAG, 0.413) | +0.14 | +0.37 to +0.13 | +0.95 to +0.08 | -0.07 |
 | Qs2h | +0.16 | +0.34 to +0.14 | +0.97 to +0.13 | -0.09 |
 | Qs3c | +0.20 | +0.36 to +0.16 | +0.95 to +0.13 | -0.07 |
 | Jd6d | +0.20 | +0.35 to +0.19 | +1.00 to +0.22 | +0.02 |
@@ -206,37 +206,61 @@ A negative gap means calling or folding beats every raise. Sticky never needed c
 
 ## 7. Twelve sample puzzles
 
-Generated with `uv run puzzle-sample` (three per street, all four profiles). In each, "equity" is Hero's chance to win against Villain's range at that moment, "range" is the weighted number of hands that range contains, and EV is in bb with folding counted as zero. Bets shown "(30% pot)" are fractions of the pot; a raise "2.5x" is 2.5 times Villain's bet. Hero is always dealt the cards below; Villain's cards are not used in grading.
+Generated with `uv run puzzle-sample` (three per street, all four profiles). In each, "equity" is Hero's chance to win against Villain's range at that moment, "range" is the weighted number of hands that range contains, and EV is in bb with folding counted as zero. Bets shown "(30% pot)" are fractions of the pot. When Hero faces a bet, a raise "2.5x" is a raise to 2.5 times that bet; when Hero opens pre-flop (samples 1 and 2), "raise 2.5x" is an open to 2.5 bb. Each sample can be reproduced from `backend/` with the command on its heading line (the samples without `--profile` use the profile the seed picks). Hero is always dealt the cards below; Villain's cards are not used in grading.
 
 ### Pre-flop
 
+Command: `uv run puzzle-sample --n 1 --street preflop --seed 10`
+
 **1. TAG, seed 10. Hero on the button, Ad Kh, first to act.** Equity 65.2% against a random hand (Villain's range is every hand). The grader's options: fold 0.00, raise 2.5x +1.38, raise 3x +1.51 (best), all-in +1.50. Ace-king is a premium hand, so raising is obviously right. The model has the 3x raise a hair ahead of the all-in. That looks sensible: the three raises are close, and a jam isn't needed because the hand plays well after the flop.
 
+Command: `uv run puzzle-sample --n 1 --street preflop --seed 11`
+
 **2. Sticky, seed 11. Hero on the button, 7d 2s, first to act.** Equity 34.4%. Fold 0.00 (best), raise 2.5x -0.22, raise 3x -0.38, all-in -1.77. Seven-deuce offsuit is the worst starting hand. Against a profile that calls too much, a steal doesn't work, so folding is best. Sensible.
+
+Command: `uv run puzzle-sample --n 1 --street preflop --seed 21 --profile lag`
 
 **3. LAG, seed 21. Hero in the big blind with Ah Th, facing the button's open to 2.5 bb.** The LAG opens wide (1,015 combos left), and the hand has 63.7% equity against that range. The price to call is 30%. Fold 0.00, call +1.05, raise 2.5x +1.82 (best), raise 3x +1.79, all-in +1.44. A suited ace with a ten that is a big favourite against a wide range: 3-betting for value beats calling by 0.77 bb. Sensible, and it's the sort of spot where Villain's looseness is exactly what Hero should punish.
 
 ### Flop
 
-**4. TAG, seed 10. Hero on the button with Ad Kh; Villain (big blind) called the open, then bet 1.5 bb (30% pot) on Qh Jh 3h.** Hero has four hearts (Kh with Qh Jh 3h on the board), so any heart makes a flush, a ten makes broadway, and the ace is an overcard: 68.3% equity against a range of 63 hands. Pot odds are 18.8%. Fold 0.00, call +3.96, raise 2.5x +5.01, raise 3x +5.13, all-in +5.72 (best). A flush draw to the nuts plus a straight draw and an overcard is a strong hand against a range that is betting into Hero, so raising is natural. A jam at 100 bb deep looks big, but the grader's numbers have it ahead of the smaller raises, and the grading is against Villain's range, not one result. It is a high-variance play, so it is the spot I would most like you to sanity-check.
+Command: `uv run puzzle-sample --n 1 --street flop --seed 10`
+
+**4. TAG, seed 10. Hero on the button with Ad Kh; Villain (big blind) called the open, then bet 1.5 bb (30% pot) on Qh Jh 3h.** Hero has a king-high flush draw (Kh with Qh Jh 3h on the board), a gutshot to broadway (any ten), and two overcards (A and K): 68.3% equity against a range of 63 hands. Pot odds are 18.8%. Fold 0.00, call +3.96, raise 2.5x +5.01, raise 3x +5.13, all-in +5.72 (best). Hero has a king-high flush draw (the ace of hearts is still live, so it is not the nut draw), a gutshot to broadway, and two overcards (A and K). That is a strong draw against a range that is betting into Hero, so raising is natural. A jam at 100 bb deep looks big, but the grader's numbers have it ahead of the smaller raises, and the grading is against Villain's range, not one result. It is a high-variance play, so it is the spot I would most like you to sanity-check.
+
+Command: `uv run puzzle-sample --n 1 --street flop --seed 11`
 
 **5. Sticky, seed 11. Hero in the big blind with Js Th on Td Ah 9c; Villain (button) opened and Hero called; Hero acts first.** Hero has a pair of tens (with a jack kicker) and some straight possibilities that need two more cards: 68.2% equity against 737 hands. Check +3.00, bet 33% +3.33, bet 50% +3.39, bet 75% +3.46, bet 100% +3.49 (best), all-in -5.20. A strong hand against a profile that calls too much: bet for value, and the bigger bets are a touch better because the caller doesn't fold. The difference between 33% and 100% is only 0.16 bb. Sensible.
+
+Command: `uv run puzzle-sample --n 1 --street flop --seed 21 --profile tight`
 
 **6. Tight, seed 21. Hero in the big blind with Kc Jh on 6s Th 9d; Villain (button) opened, Hero called; Hero acts first.** Hero has a gutshot (a queen), two overcards, 43.8% equity against 542 hands. Check +1.93, bet 33% +2.72 (best), bet 50% +2.59, bet 75% +2.38, bet 100% +2.24, all-in -5.01. A small bet with draws and overcards against a Tight opponent that folds a lot: it takes the pot often, and when called Hero still has outs. (Against the LAG profile in the same spot, the best play is also a 33% bet, +2.54, with 51% equity.) Sensible.
 
 ### Turn
 
-**7. Sticky, seed 11. Hero in the big blind with Js Th on Td Ah 9c 4d. Villain (button) opened; Hero called; Hero checked the flop, Villain bet 4 bb (80% pot), Hero called; Hero acts first on the turn.** Equity is 42.5% against 139 hands: Villain has been betting and Sticky calls a lot, so its range is strong. Check +5.19 (best), bet 33% +3.84, bet 50% +3.12, bet 75% +1.93, bet 100% +0.97, all-in -23.56. Hero has a pair of tens but is behind the range that bet the flop. Betting into a Sticky opponent gets calls from better hands, so checking is better and the loss grows quickly with the size. Sensible.
+Command: `uv run puzzle-sample --n 1 --street turn --seed 11`
+
+**7. Sticky, seed 11. Hero in the big blind with Js Th on Td Ah 9c 4d. Villain (button) opened; Hero called; Hero checked the flop, Villain bet 4 bb (80% pot), Hero called; Hero acts first on the turn.** Equity is 42.5% against 139 hands. Villain opened, then bet the flop for 80% of the pot after Hero checked, so it is a narrowed range that has shown strength. Check +5.19 (best), bet 33% +3.84, bet 50% +3.12, bet 75% +1.93, bet 100% +0.97, all-in -23.56. Hero has a pair of tens but is behind the range that bet the flop. A bet into a range that has been betting gets called by hands that are better, and the model has Sticky calling often, so checking is better and the loss grows quickly with the size. Sensible.
+
+Command: `uv run puzzle-sample --n 1 --street turn --seed 21 --profile lag`
 
 **8. LAG, seed 21. Hero in the big blind with Kc Jh on 6s Th 9d 5d; flop checked through, Hero checked the turn, Villain bet 1.5 bb (30% pot).** Equity 41.3% against 111 hands, pot odds 18.8%. Fold 0.00, call +1.60, raise 2.5x +3.24 (best), raise 3x +3.21, all-in +1.13. Same gutshot-and-overcards hand as sample 6. A raise beats a call by 1.64 bb in the grader's numbers: Hero has outs when called and the model has the LAG fold often enough. A call is also clearly profitable (+1.60), so a player who just calls still makes money. Plausible, but the size of the gap depends on how often the model folds to a raise, so I would not argue if you thought it was too high.
+
+Command: `uv run puzzle-sample --n 1 --street turn --seed 20 --profile tight`
 
 **9. Tight, seed 20. Hero on the button with Qh Kh on 8d Ts Ah 9h; Villain (big blind) called the open, then the flop was checked through, and Villain checked the turn.** Hero has four hearts (Qh Kh with Ah 9h on the board), and any heart would be the nut flush because the ace of hearts is on the board. A jack makes a straight: 49.1% equity against 402 hands. Check +2.46, bet 33% +2.85 (best), bet 50% +2.76, bet 75% +2.60, bet 100% +2.49, all-in -7.27. A cheap semi-bluff with a big draw into a checking range. Sensible; larger bets lose a little because a Tight Villain's calls are strong.
 
 ### River
 
-**10. Tight, seed 20. Hero in the big blind with 5h 6d on 6s Ah 2c 8s 8c; the hand was checked down to the river, Hero checked, Villain (button) bets 4 bb (80% pot).** Hero has two pair, eights and sixes. Equity 33.9% against only 16 hands (Tight bets the river with very few hands) and pot odds of 30.8%. Fold 0.00, call +0.41 (best), raise 2.5x -1.18, raise 3x -2.02, all-in -43.03. A thin, close call: Hero's equity beats the price by about 3 points. Sensible, and a good example of a spot where the numbers are fine but the margin is small.
+Command: `uv run puzzle-sample --n 1 --street river --seed 20 --profile tight`
+
+**10. Tight, seed 20. Hero in the big blind with 5h 6d on 6s Ah 2c 8s 8c; the hand was checked down to the river, Hero checked, Villain (button) bets 4 bb (80% pot).** Hero technically has two pair, eights and sixes, but the eights are on the board and Villain shares them, so in practice Hero has one pair of sixes, and any Villain hand with its own pair (an ace, for example) beats it. Equity 33.9% against only 16 hands (Tight bets the river with very few hands) and pot odds of 30.8%. Fold 0.00, call +0.41 (best), raise 2.5x -1.18, raise 3x -2.02, all-in -43.03. That is why it is a thin, close call: Hero's equity beats the price by about 3 points. Sensible, and a good example of a spot where the numbers are fine but the margin is small.
+
+Command: `uv run puzzle-sample --n 1 --street river --seed 20 --profile lag`
 
 **11. LAG, seed 20. Hero in the big blind with 7c 5c on Ks Ah 7h 4d 9c; Hero called a flop bet of 4 bb and a turn bet of 4.5 bb, then acts first on the river.** A pair of sevens with 34.6% equity against 83 hands. Check +6.42 (best), bet 33% +4.46, bet 50% +2.56, bet 75% -0.28, bet 100% -3.03, all-in -14.97. Villain bet twice; a pair of sevens is a showdown-value hand and betting it only gets called by better hands. Sensible.
+
+Command: `uv run puzzle-sample --n 1 --street river --seed 21 --profile lag`
 
 **12. LAG, seed 21. Hero in the big blind with 9h 8s on Kc 5d 6c 5s Ad; Hero bet the flop (1.5 bb) and the turn (2.5 bb) and was called both times; Hero acts first on the river.** Hero missed a straight draw: nine-high, 5.2% equity against 323 hands. Check +0.53 (best), bet 33% -0.32, bet 50% -1.52, bet 75% -3.50, bet 100% -5.10, all-in -13.99. Giving up is right: Villain called two bets and an ace fell. Sensible.
 
@@ -285,7 +309,8 @@ Please decide: **are the four profiles acceptable as the Phase 1 opponents?** If
 6. **Q-x and J-x 3-bets from the big blind (40 to 45% equity) still come out +0.09 to +0.22 bb ahead of calling** against TAG, LAG and Tight. These hands have real equity and some fold equity, so I think this is plausible; the test only gates hands under 40%.
 7. **Tight is nitty against overbets.** Against a 2.5-times-pot bet on a dry flop it continues with 3.7% of its WEAK hands and 22.7% of its MEDIUM hands (section 4). Its whole range still defends at 0.86 of MDF on average at 2.5x, because that range is mostly strong.
 8. **Pre-flop responses ignore the 3-bet size**, so widening Tight's defence to pass the 3-bet gate also widened its calls against bigger 3-bets, and Tight now defends a 3-bet at the same 1.28 as TAG. The profile is less "tight" against 3-bets than its name suggests.
-9. **Deferred, not part of M9:** per-profile behaviour notes in explanations, a settings page, leak rules that flag "fine" plays, board-texture and blocker work, pre-flop raise-size awareness, and modelling the Hero. They are listed in the M9 plan.
+9. **Sticky's button defends a 3-bet at 1.375 times MDF, close to the 1.40 ceiling.** That ceiling is a ruling, not a derived number (section 3). Sticky was not changed, and its pre-flop answers ignore the 3-bet size, so it would not fold more to a huge 3-bet.
+10. **Deferred, not part of M9:** per-profile behaviour notes in explanations, a settings page, leak rules that flag "fine" plays, board-texture and blocker work, pre-flop raise-size awareness, and modelling the Hero. They are listed in the M9 plan.
 
 ## 10. Reproducing this report
 

@@ -10,15 +10,17 @@ The backend is FastAPI (Python, managed with uv). The frontend is Vite, React an
 - Node.js 22.12 or newer. The version CI uses is in `frontend/.nvmrc`.
 - Optional: [Ollama](https://ollama.com) 0.5 or newer, for local explanations.
 
-Windows and macOS are both supported (CI runs on both). The commands below work unchanged in PowerShell and in zsh.
+Windows and macOS are both supported (CI runs on both). The commands below work unchanged in PowerShell and in zsh. Every command block starts in the repository root, and a block that changes directory returns to the root at the end.
 
 ## Setup
 
 ```
 cd backend
 uv sync
-cd ../frontend
+cd ..
+cd frontend
 npm ci
+cd ..
 ```
 
 ## Run
@@ -28,13 +30,16 @@ Build the frontend once, then start the backend, which serves it:
 ```
 cd frontend
 npm run build
-cd ../backend
+cd ..
+cd backend
 uv run serve
 ```
 
+`uv run serve` keeps running; stop it with Ctrl+C, then `cd ..` to get back to the root.
+
 Open http://127.0.0.1:8000. The database (`backend/poker_trainer.db`) is created and migrated on first start.
 
-For live reload while changing the frontend, keep `uv run serve` running in `backend/` and start the dev server in a second terminal:
+For live reload while changing the frontend, keep `uv run serve` running and, in a second terminal at the repository root, start the dev server:
 
 ```
 cd frontend
@@ -74,13 +79,14 @@ Set these in `backend/.env` (read from the folder you run `uv run serve` in, whi
 
 ## Checks
 
-Run these before a pull request. Each block starts from the repository root.
+Run these before a pull request.
 
 ```
 cd backend
 uv run pytest -m "not slow"
 uv run ruff check
 uv run ruff format --check
+cd ..
 ```
 
 ```
@@ -91,17 +97,18 @@ npm run typecheck
 npm run format:check
 npm run build
 npm run e2e
+cd ..
 ```
 
 `npm run e2e` starts its own backend on port 8765 with a scratch database. If the browser is missing, run `npx playwright install chromium` first. The slower ground-truth tests are run with `uv run pytest -m slow`.
 
 ## Tools
 
-Run these from `backend/`.
+Run these from `backend/` (`cd backend` from the repository root, and `cd ..` when done).
 
 - `uv run competence --profile all --hands 400 --seeds 0-5` plays each Villain profile against a reference player and checks its behaviour (bluff share, defence against bets, pre-flop defence and more) against bands. It prints a table per seed and a summary, and exits non-zero if any check fails. `--profile` takes `tag`, `lag`, `tight`, `sticky` or `all`.
 - `uv run puzzle-sample --n 3 --street flop --seed 10` prints sample puzzles with the grader's EV for every option. `--street` is `preflop`, `flop`, `turn` or `river`, and `--profile` fixes the Villain.
-- `uv run explain-check --url http://127.0.0.1:8000 --n 12` measures the explanations against a running app: it answers 12 puzzles and reports, for each, whether the model's text was kept or replaced by the template, and how long it took. Start the app with `PPT_LLM_PROVIDER=ollama` and a long `PPT_LLM_TIMEOUT` first, ideally on a scratch database (for example `PPT_DATABASE_URL=sqlite:///./scratch.db`), because it adds attempts to the database it talks to.
+- `uv run explain-check --url http://127.0.0.1:8000 --n 12` measures the explanations against a running app: it answers 12 puzzles and reports, for each, whether the model's text was kept or replaced by the template, and how long it took. Start the app first with the Ollama provider on and a long timeout, ideally on a scratch database, because the check adds attempts to the database it talks to. The simplest way is a `backend/.env` containing `PPT_LLM_PROVIDER=ollama`, `PPT_LLM_TIMEOUT=180` and `PPT_DATABASE_URL=sqlite:///./scratch.db`. Or set the variables in the shell before `uv run serve`: in PowerShell `$env:PPT_LLM_PROVIDER="ollama"; $env:PPT_LLM_TIMEOUT="180"; $env:PPT_DATABASE_URL="sqlite:///./scratch.db"`, in zsh `export PPT_LLM_PROVIDER=ollama PPT_LLM_TIMEOUT=180 PPT_DATABASE_URL=sqlite:///./scratch.db`.
 
 ## Layout
 
