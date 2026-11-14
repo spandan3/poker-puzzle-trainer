@@ -368,6 +368,42 @@ def test_nuts_never_fold_any_size(name, frac):
     assert np.all(fold_of(action_distribution(p, s))[nuts] == 0.0)
 
 
+# Continue (call + raise) limits per category facing a 2.5x-pot bet (MDF 0.29): bluff
+# catchers mostly fold, value keeps going.
+BIG_BET_LIMITS = {
+    HandCategory.WEAK: (0.0, 0.20),
+    HandCategory.MEDIUM: (0.0, 0.55),
+    HandCategory.STRONG: (0.80, 1.0),
+    HandCategory.NUTS: (1.0, 1.0),
+}
+
+
+@pytest.mark.parametrize("name", PROFILE_NAMES)
+def test_big_bet_continue_by_category(name):
+    p = load_profile(name)
+    s = facing_bet(2.5)  # BTN bets 25 into 10
+    assert legal_actions(s).call == 25 and s.pot == 10
+    cont = 1.0 - fold_of(action_distribution(p, s))
+    cats = cats_for(DRY)
+    for cat, (lo, hi) in BIG_BET_LIMITS.items():
+        mask = cats == cat
+        assert mask.any(), cat
+        assert lo - 1e-12 <= cont[mask].min(), (cat, cont[mask].min())
+        assert cont[mask].max() <= hi + 1e-12, (cat, cont[mask].max())
+
+
+@pytest.mark.parametrize("name", PROFILE_NAMES)
+def test_strong_never_folds_much_to_overjams(name):
+    p = load_profile(name)
+    s = act(flop(stacks=(205, 205)), X)  # pot 10, 200 behind each
+    s = apply(s, allin(s))  # a 20x-pot jam
+    assert legal_actions(s).call == 200 and s.pot == 10
+    cats = cats_for(DRY)
+    strong = cats == HandCategory.STRONG
+    cont = 1.0 - fold_of(action_distribution(p, s))
+    assert cont[strong].min() >= 0.70
+
+
 def test_jam_into_small_pot_medium_can_fold():
     tag = load_profile("tag")
     s = act(flop(), X)
@@ -523,3 +559,57 @@ def test_shipped_river_overrides_are_used(name):
         i = int(np.flatnonzero(cats == cat)[0])
         want = [row["check"], row["bet_33"], row["bet_75"]]
         assert _cbet_row(dist, s, i) == pytest.approx(want)
+
+
+def river_facing_bet(board: str = DRY + "4s9c") -> HandState:
+    """River after ``river_cbet``: BTN bets 75% pot, BB (seat 1) faces it."""
+    s = river_cbet(board)
+    return apply(s, bet_to(s, 0.75))
+
+
+def _facing_row(dist: dict[Action, np.ndarray], i: int) -> list[float]:
+    """[fold, call, raise] probabilities of combo i facing a bet."""
+    by_kind = {k: 0.0 for k in (F, C, R)}
+    for a, arr in dist.items():
+        by_kind[a.kind] += float(arr[i])
+    return [by_kind[F], by_kind[C], by_kind[R]]
+
+
+def test_river_facing_override_applies_on_river_only():
+    from dataclasses import replace
+
+    tag = replace(load_profile("tag"), river_facing={})  # the shared tables only
+    row = {"fold": 0.0, "call": 0.0, "raise": 1.0}
+    p = replace(tag, river_facing={"facing_bet": {HandCategory.MEDIUM: row}})
+
+    flop_s = facing_bet(1.0)
+    flop_medium = int(np.flatnonzero(cats_for(DRY) == HandCategory.MEDIUM)[0])
+    assert _facing_row(action_distribution(p, flop_s), flop_medium) == pytest.approx(
+        _facing_row(action_distribution(tag, flop_s), flop_medium)
+    )
+
+    river_s = river_facing_bet()
+    assert role(river_s) == "facing_bet" and river_s.street == Street.RIVER
+    river_cats = cats_for(DRY + "4s9c")
+    dist = action_distribution(p, river_s)
+    medium = int(np.flatnonzero(river_cats == HandCategory.MEDIUM)[0])
+    assert _facing_row(dist, medium) == pytest.approx([0.0, 0.0, 1.0])
+    # Categories without an override use the shared table on the river.
+    strong = int(np.flatnonzero(river_cats == HandCategory.STRONG)[0])
+    assert _facing_row(dist, strong) == pytest.approx(
+        _facing_row(action_distribution(tag, river_s), strong)
+    )
+
+
+@pytest.mark.parametrize("name", PROFILE_NAMES)
+def test_river_bluff_catchers_never_raise(name):
+    """On the river WEAK and MEDIUM hands call or fold a bet: a raise only folds out worse
+    and gets called by better (the ``raise_dominated`` check)."""
+    p = load_profile(name)
+    s = river_facing_bet()
+    cats = cats_for(DRY + "4s9c")
+    raises = sum(arr for a, arr in action_distribution(p, s).items() if a.kind == R)
+    for cat in (HandCategory.WEAK, HandCategory.MEDIUM):
+        mask = cats == cat
+        assert mask.any(), cat
+        assert raises[mask].max() == 0.0, cat

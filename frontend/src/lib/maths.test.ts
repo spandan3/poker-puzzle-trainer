@@ -245,7 +245,7 @@ describe('optionMaths', () => {
     if (!allIn) throw new Error('no all-in')
     const a = optionMaths(allIn, d)
     expect(a.branches.find((b) => b.label === 'Villain calls')?.formula).toBe(
-      '22.5% × (5 bb + 97.5 bb + 97.5 bb) − 97.5 bb',
+      '19.4% × (5 bb + 97.5 bb + 97.5 bb) − 97.5 bb',
     )
     expect(a.ev.map((l) => l.text)).not.toContain('Realisation (out of position, flop)')
   })

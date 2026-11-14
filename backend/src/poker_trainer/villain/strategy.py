@@ -53,6 +53,14 @@ _DRAW_BET_BOOST = 1.25
 _LOW_SPR = 1.0
 _COMMITTED = (HandCategory.MEDIUM, HandCategory.STRONG_DRAW, HandCategory.STRONG, HandCategory.NUTS)
 _BLOCKED_ROW = len(HandCategory)  # extra all-zero table row used for board-blocked combos
+# Size curve facing a bet or raise of f x the pot before it: continue = base ** g(f), with
+# g(f) = (1 + f) / 1.5 up to a pot-size bet. Past pot size, hands below STRONG (bluff
+# catchers and draws) give up faster: g grows by a further factor 1 + k (f - 1), so the
+# whole range defends near MDF against overbets. STRONG keeps the gentle curve and never
+# continues less than STRONG_FLOOR, so it is not blown off its hand by a huge over-jam.
+_OVERBET_STEEPNESS = 2.9
+_STRONG_FLOOR = 0.75
+_STEEP_ROWS = [int(c) for c in HandCategory if c < HandCategory.STRONG]
 
 Distribution = dict[Action, np.ndarray]
 
@@ -248,9 +256,16 @@ def _unopened(profile: Profile, s: HandState, r: str, lg: Legal) -> list[tuple[A
 
 def _facing(profile: Profile, s: HandState, r: str, lg: Legal) -> list[tuple[Action, np.ndarray]]:
     m = _matrix(profile.facing[r], FACING_ACTIONS)  # fold, call, raise
+    if s.street == Street.RIVER:
+        for cat, row in profile.river_facing.get(r, {}).items():
+            m[int(cat)] = [row[k] for k in FACING_ACTIONS]
     f = lg.call / (total_pot(s) - lg.call)
     base = m[:, 1] + m[:, 2]
-    cont = base ** ((1.0 + f) / 1.5)
+    g = np.full(len(base), (1.0 + f) / 1.5)
+    g[_STEEP_ROWS] *= 1.0 + _OVERBET_STEEPNESS * max(0.0, f - 1.0)
+    cont = base**g
+    strong = int(HandCategory.STRONG)
+    cont[strong] = max(cont[strong], min(base[strong], _STRONG_FLOOR))
     share = np.divide(cont, base, out=np.zeros_like(base), where=base > 0)
     m[:, 1] *= share
     m[:, 2] *= share

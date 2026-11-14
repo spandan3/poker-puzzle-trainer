@@ -76,21 +76,34 @@ def test_break_even_from_bet_size():
     assert break_even_bluff_share(1.0) == pytest.approx(1 / 3)
 
 
+# Every check must pass on every seed of the report (`competence --seeds 0-5`); the slow
+# suite runs two of them.
+SLOW_SEEDS = (0, 3)
+
+
 @pytest.fixture(scope="module")
-def full_reports() -> dict[str, list[CheckResult]]:
-    return {p: competence_report(p, n_hands=400) for p in PROFILE_NAMES}
+def full_reports() -> dict[int, dict[str, list[CheckResult]]]:
+    return {
+        seed: {p: competence_report(p, n_hands=400, seed=seed) for p in PROFILE_NAMES}
+        for seed in SLOW_SEEDS
+    }
 
 
 @pytest.mark.slow
+@pytest.mark.parametrize("seed", SLOW_SEEDS)
 @pytest.mark.parametrize("profile", PROFILE_NAMES)
-def test_all_profiles_competent(full_reports, profile):
-    failed = [r for r in full_reports[profile] if not r.passed and not r.info]
+def test_all_profiles_competent(full_reports, profile, seed):
+    failed = [r for r in full_reports[seed][profile] if not r.passed and not r.info]
     assert not failed, failed
 
 
 @pytest.mark.slow
-def test_cbet_flop_ordering(full_reports):
-    cbet = {p: next(r.value for r in rs if r.name == "cbet_flop") for p, rs in full_reports.items()}
+@pytest.mark.parametrize("seed", SLOW_SEEDS)
+def test_cbet_flop_ordering(full_reports, seed):
+    cbet = {
+        p: next(r.value for r in rs if r.name == "cbet_flop")
+        for p, rs in full_reports[seed].items()
+    }
     assert cbet["lag"] > cbet["tag"] > cbet["tight"], cbet
 
 

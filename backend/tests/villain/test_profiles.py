@@ -106,7 +106,7 @@ def _raw(name: str = "tag") -> dict:
 
 
 def test_loader_accepts_raw_profile():
-    assert _profile_from_dict("tag", _raw()).version == 4
+    assert _profile_from_dict("tag", _raw()).version == 5
 
 
 def test_bad_row_sum_raises():
@@ -136,6 +136,10 @@ def test_missing_category_raises():
         lambda r: r["river_unopened"]["cbet"].update(BOGUS={}),
         lambda r: r["river_unopened"]["cbet"]["AIR"].update(check=0.5),
         lambda r: r["river_unopened"]["cbet"]["AIR"].pop("bet_75"),
+        lambda r: r["river_facing"].update(cbet={}),
+        lambda r: r["river_facing"]["facing_bet"].update(BOGUS={}),
+        lambda r: r["river_facing"]["facing_bet"]["MEDIUM"].update(fold=0.5),
+        lambda r: r["river_facing"]["facing_bet"]["MEDIUM"].pop("raise"),
     ],
 )
 def test_structural_errors_raise_value_error(mutate):
@@ -160,6 +164,22 @@ def test_river_overrides_optional():
     raw = copy.deepcopy(_raw())
     del raw["river_unopened"]
     assert dict(_profile_from_dict("tag", raw).river_unopened) == {}
+
+
+def test_river_facing_optional():
+    raw = copy.deepcopy(_raw())
+    del raw["river_facing"]
+    assert dict(_profile_from_dict("tag", raw).river_facing) == {}
+
+
+def test_river_facing_partial(profile: Profile):
+    for spot, rows in profile.river_facing.items():
+        assert spot in FACING
+        for row in rows.values():
+            assert set(row) == {"fold", "call", "raise"}
+            assert sum(row.values()) == pytest.approx(1.0)
+    with pytest.raises(TypeError):
+        profile.river_facing["facing_bet"][HandCategory.AIR]["fold"] = 0.0  # type: ignore[index]
 
 
 def test_river_overrides_partial(profile: Profile):

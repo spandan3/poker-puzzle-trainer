@@ -56,6 +56,10 @@ class Profile:
     # categories fall back to ``unopened``. A river bet has no protection or draw value,
     # so WEAK/MEDIUM/AIR rows that are sensible on the flop over-bluff there.
     river_unopened: Mapping[str, Table] = MappingProxyType({})
+    # River-only overrides of facing rows: spot -> category -> row, applied before the size
+    # curve. On the river a raise has no protection value: a bluff catcher that raises only
+    # folds out worse hands and gets called by better ones.
+    river_facing: Mapping[str, Table] = MappingProxyType({})
 
 
 def _table(raw: Any, actions: tuple[str, ...], where: str) -> Table:
@@ -80,12 +84,17 @@ def _row(raw: Any, actions: tuple[str, ...], where: str) -> Mapping[str, float]:
     return MappingProxyType(probs)
 
 
-def _river_overrides(raw: Any, where: str) -> Mapping[str, Table]:
-    """Optional partial unopened tables: any subset of roles and categories."""
+def _river_overrides(
+    raw: Any,
+    where: str,
+    roles: tuple[str, ...] = UNOPENED_ROLES,
+    actions: tuple[str, ...] = UNOPENED_ACTIONS,
+) -> Mapping[str, Table]:
+    """Optional partial tables: any subset of ``roles`` and categories."""
     if raw is None:
         return MappingProxyType({})
-    if not isinstance(raw, dict) or not set(raw) <= set(UNOPENED_ROLES):
-        raise ValueError(f"{where}: roles must be a subset of {UNOPENED_ROLES}")
+    if not isinstance(raw, dict) or not set(raw) <= set(roles):
+        raise ValueError(f"{where}: roles must be a subset of {roles}")
     names = {c.name for c in HandCategory}
     out = {}
     for role, rows in raw.items():
@@ -93,7 +102,7 @@ def _river_overrides(raw: Any, where: str) -> Mapping[str, Table]:
             raise ValueError(f"{where}.{role}: categories must be a subset of {sorted(names)}")
         out[role] = MappingProxyType(
             {
-                HandCategory[cat]: _row(row, UNOPENED_ACTIONS, f"{where}.{role}.{cat}")
+                HandCategory[cat]: _row(row, actions, f"{where}.{role}.{cat}")
                 for cat, row in rows.items()
             }
         )
@@ -179,6 +188,9 @@ def _profile_from_dict(name: str, raw: Any) -> Profile:
             unopened=unopened,
             facing=facing,
             river_unopened=_river_overrides(raw.get("river_unopened"), f"{name}.river_unopened"),
+            river_facing=_river_overrides(
+                raw.get("river_facing"), f"{name}.river_facing", FACING_SPOTS, FACING_ACTIONS
+            ),
             bands=Bands(
                 bluff_offset=_band(raw["bands"]["bluff_offset"], f"{name}.bands.bluff_offset"),
                 defence_ratio=_band(raw["bands"]["defence_ratio"], f"{name}.bands.defence_ratio"),
