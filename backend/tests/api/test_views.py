@@ -42,7 +42,7 @@ from poker_trainer.villain.strategy import raise_to
 
 SEEDS = {
     "pre_first_in": (1, "preflop"),
-    "pre_facing": (3, "preflop"),
+    "pre_facing": (209, "preflop"),  # BTN facing a 3-bet (BB-vs-open is paused)
     "flop": (1, "flop"),
     "flop_b": (3, "flop"),
     "turn": (1, "turn"),

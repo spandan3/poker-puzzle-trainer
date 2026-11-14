@@ -38,6 +38,12 @@ SIMPLIFICATIONS: Mapping[str, str] = MappingProxyType(
 # Config
 # ---------------------------------------------------------------------------
 
+# Spot kinds the config's ``paused_spots`` may name; the generator skips a paused kind.
+# "preflop_bb_vs_open": Hero in the BB facing a non-all-in open (paused until the M9
+# lookahead fixes out-of-position pre-flop realisation).
+PREFLOP_BB_VS_OPEN = "preflop_bb_vs_open"
+PAUSABLE_SPOTS = (PREFLOP_BB_VS_OPEN,)
+
 
 @dataclass(frozen=True)
 class VerdictConfig:
@@ -79,6 +85,7 @@ class PuzzleConfig:
     trivial: TrivialConfig
     max_attempts: int
     intent: IntentConfig
+    paused_spots: tuple[str, ...]
 
 
 def verdict_pot(pot: float, v: VerdictConfig) -> float:
@@ -91,11 +98,25 @@ def best_margin(pot: float, v: VerdictConfig) -> float:
     return max(v.best_bb * 2, v.best_pot * verdict_pot(pot, v))
 
 
+def _paused_spots(raw: Any) -> tuple[str, ...]:
+    if not isinstance(raw, list) or not all(isinstance(x, str) for x in raw):
+        raise ValueError(f"paused_spots must be a list of spot names, got {raw!r}")
+    unknown = [x for x in raw if x not in PAUSABLE_SPOTS]
+    if unknown:
+        raise ValueError(f"paused_spots: unknown spot {unknown}; expected one of {PAUSABLE_SPOTS}")
+    return tuple(raw)
+
+
 @lru_cache(maxsize=1)
 def load_config() -> PuzzleConfig:
     raw = json.loads(
         files("poker_trainer.puzzle").joinpath("config.json").read_text(encoding="utf-8")
     )
+    return config_from_dict(raw)
+
+
+def config_from_dict(raw: Mapping[str, Any]) -> PuzzleConfig:
+    """Build (and validate) a ``PuzzleConfig`` from the parsed ``config.json``."""
     return PuzzleConfig(
         version=raw["version"],
         street_weights=MappingProxyType(dict(raw["street_weights"])),
@@ -106,6 +127,7 @@ def load_config() -> PuzzleConfig:
         trivial=TrivialConfig(**raw["trivial"]),
         max_attempts=raw["max_attempts"],
         intent=IntentConfig(**raw["intent"]),
+        paused_spots=_paused_spots(raw["paused_spots"]),
     )
 
 

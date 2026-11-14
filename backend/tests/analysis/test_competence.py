@@ -1,3 +1,4 @@
+import dataclasses
 import math
 
 import numpy as np
@@ -24,6 +25,7 @@ EXPECTED = (
     "defence_river",
     "defence_overbet",
     "defence_overbet_p10",
+    "defence_preflop_3bet",
     "nuts_fold_max",
     "strong_fold_max",
     "air_call_max",
@@ -41,8 +43,10 @@ def test_report_shape():
         assert r.profile == "tag"
         assert r.band[0] <= r.band[1]
         assert r.samples >= 0
-        if r.samples < 30:
+        if r.samples < 30 and r.name != "defence_preflop_3bet":
             assert not r.passed
+    (pf,) = [r for r in report if r.name == "defence_preflop_3bet"]
+    assert pf.samples == 1 and pf.passed  # exempt from MIN_SAMPLES by name
 
 
 def test_report_deterministic():
@@ -184,3 +188,73 @@ def test_overbet_p10_is_tenth_percentile_with_fixed_band():
 def test_format_table_prints_open_band():
     r = CheckResult("tag", "defence_overbet_p10", 0.8, (0.70, math.inf), True, 40)
     assert "[0.70, inf]" in competence.format_table([r])
+
+
+# ---------------------------------------------------------------------------
+# Pre-flop 3-bet defence
+# ---------------------------------------------------------------------------
+
+
+def _btn_continues(profile, share: float):
+    """``profile`` with BTN continuing ``share`` of every combo facing a 3-bet (calls only)."""
+    pf = dataclasses.replace(
+        profile.preflop,
+        btn_call_threebet=np.full(1326, share),
+        btn_jam=np.zeros(1326),
+    )
+    return dataclasses.replace(profile, preflop=pf)
+
+
+def test_preflop_3bet_sizes_come_from_raise_to():
+    s = new_hand(0)
+    s = apply(s, raise_to(s, OPEN_MULT))
+    expected = tuple(raise_to(s, m).to for m in (2.5, 3.0))
+    assert competence.preflop_3bet_sizes() == expected == (12, 15)
+
+
+def test_preflop_3bet_ratios_are_continue_over_mdf():
+    tag = load_profile("tag")
+    ratios = competence.preflop_3bet_ratios(_btn_continues(tag, 0.55))
+    assert ratios == {12: pytest.approx(0.55 / (10 / 17)), 15: pytest.approx(0.55 / 0.5)}
+
+
+def test_preflop_3bet_check_fails_when_btn_never_continues():
+    tag = load_profile("tag")
+    r = competence.preflop_3bet_check(_btn_continues(tag, 0.0))
+    assert r.name == "defence_preflop_3bet" and r.samples == 1
+    assert not r.passed and r.value == pytest.approx(0.0)
+    assert "FAIL" in competence.format_table([r])
+    assert "insufficient" not in competence.format_table([r])
+
+
+@pytest.mark.parametrize(
+    ("profile", "share"), [("tag", 0.54), ("lag", 0.55), ("tight", 0.455), ("sticky", 0.63)]
+)
+def test_preflop_3bet_check_passes_inside_window(profile, share):
+    p = load_profile(profile)
+    r = competence.preflop_3bet_check(_btn_continues(p, share))
+    assert r.passed and r.band == p.bands.defence_ratio
+
+
+def test_preflop_3bet_check_fails_when_one_size_is_out_of_band():
+    tag = load_profile("tag")  # band [0.85, 1.15]: 0.60 is 1.02 at 12 but 1.20 at 15
+    r = competence.preflop_3bet_check(_btn_continues(tag, 0.60))
+    assert not r.passed and r.value == pytest.approx(1.2)
+    r = competence.preflop_3bet_check(_btn_continues(tag, 0.48))  # 0.816 at 12, 0.96 at 15
+    assert not r.passed and r.value == pytest.approx(0.48 / (10 / 17))
+
+
+def test_real_profiles_pass_preflop_3bet_check():
+    for name in PROFILE_NAMES:
+        r = competence.preflop_3bet_check(load_profile(name))
+        assert r.passed, r
+
+
+def test_preflop_open_defence_info():
+    tag = load_profile("tag")
+    pf = dataclasses.replace(
+        tag.preflop, bb_call=np.full(1326, 0.3), bb_threebet=np.full(1326, 0.1)
+    )
+    ratio = competence.preflop_open_ratio(dataclasses.replace(tag, preflop=pf))
+    assert ratio == pytest.approx(0.4 / (4 / 7))  # call 3 into 4: MDF 4/7
+    assert "defence_preflop_open" in competence.INFO_NAMES

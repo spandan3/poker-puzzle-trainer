@@ -11,7 +11,7 @@ from poker_trainer.settings import AppSettings
 # Fixed seeds, generated once per session; the factory hands them out by street.
 API_SEEDS = {
     "preflop": (1, "preflop"),  # BTN first in: no call option
-    "pre_facing": (3, "preflop"),  # facing a raise: has a call option
+    "pre_facing": (209, "preflop"),  # BTN facing a 3-bet: has a call option
     "flop": (1, "flop"),  # custom sizes in [2, 195]
     "turn": (1, "turn"),
     "river": (1, "river"),

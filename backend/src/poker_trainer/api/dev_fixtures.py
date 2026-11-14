@@ -9,6 +9,10 @@ each street in turn) and keeps the first puzzle that satisfies it. The puzzles a
 the real app (a temporary SQLite database and a ``puzzle_factory`` that hands out the chosen
 puzzles), so every file holds exactly what the API returns. Output is deterministic: sorted keys,
 LF line endings, fixed timestamps.
+
+Fixtures are generated with no paused spots (``paused=()``): puzzles of a paused kind (BB facing
+the open, paused until M9) are still stored in users' databases, so the frontend must keep
+rendering them, and its tests use ``puzzle_preflop_bb_facing_open.json``.
 """
 
 from __future__ import annotations
@@ -36,6 +40,10 @@ NEVER_CONTINUES_MAX_SEED = 200
 FIXED_TIME = "2026-01-01T00:00:00+00:00"
 
 View = dict[str, Any]
+
+
+def _generate(seed: int, street: str) -> Puzzle:
+    return generate_puzzle(seed, street=street, paused=())
 
 
 def _entries(v: View, street: str) -> list[dict[str, Any]]:
@@ -105,7 +113,7 @@ def search(
             if not todo:
                 return found
             try:
-                p = generate_puzzle(seed, street=street)
+                p = _generate(seed, street)
             except RuntimeError:
                 continue
             v = _view(p)
@@ -127,7 +135,7 @@ def find_never_continues(
     for seed in range(1, max_seed + 1):
         for street in STREETS:
             try:
-                p = generate_puzzle(seed, street=street)
+                p = _generate(seed, street)
             except RuntimeError:
                 continue
             for i, o in enumerate(p.solution.options):
@@ -174,7 +182,7 @@ def write_fixtures(
             ids: dict[str, int] = {}
             for name, key in found.items():
                 seed, street = key
-                chosen[key] = generate_puzzle(seed, street=street)
+                chosen[key] = _generate(seed, street)
                 queue.append(key)
                 res = client.post("/api/puzzles", json={})
                 if res.status_code != 201:
@@ -254,7 +262,7 @@ def write_fixtures(
             else:
                 seed, street, index = never_continues
                 key = (seed, street)
-                chosen[key] = generate_puzzle(seed, street=street)
+                chosen[key] = _generate(seed, street)
                 queue.append(key)
                 res = client.post("/api/puzzles", json={})
                 if res.status_code != 201:

@@ -1,5 +1,6 @@
 import dataclasses
 import json
+from importlib.resources import files
 
 import numpy as np
 import pytest
@@ -9,6 +10,7 @@ from poker_trainer.engine.equity import ComboEquity
 from poker_trainer.engine.ranges import full_range
 from poker_trainer.game.state import Action, ActionKind, Street, apply, deal, new_hand
 from poker_trainer.puzzle.model import (
+    PAUSABLE_SPOTS,
     SIMPLIFICATIONS,
     Branch,
     CategoryRow,
@@ -18,6 +20,7 @@ from poker_trainer.puzzle.model import (
     RangeView,
     Solution,
     Spot,
+    config_from_dict,
     load_config,
     puzzle_from_dict,
     puzzle_to_dict,
@@ -118,9 +121,25 @@ def test_config_and_simplifications():
     c = load_config()
     assert c.samples == 40000 and c.verdict.best_bb == 0.25 and c.max_attempts == 200
     assert c.street_weights["flop"] == 0.30
-    assert c.version == 3 and c.intent.semi_bluff_equity == 0.30
+    assert c.version == 4 and c.intent.semi_bluff_equity == 0.30
     assert c.verdict.min_pot == 10
     assert set(SIMPLIFICATIONS) == {"realisation", "reraise_reply", "preflop_size", "check_reply"}
+    assert c.paused_spots == ("preflop_bb_vs_open",)
+    assert set(c.paused_spots) <= set(PAUSABLE_SPOTS)
+
+
+def _raw_config():
+    return json.loads(
+        files("poker_trainer.puzzle").joinpath("config.json").read_text(encoding="utf-8")
+    )
+
+
+def test_config_paused_spots_validated():
+    assert config_from_dict(_raw_config()) == load_config()
+    assert config_from_dict({**_raw_config(), "paused_spots": []}).paused_spots == ()
+    for bad in (["preflop_bb_vs_jam"], "preflop_bb_vs_open", [1], None):
+        with pytest.raises(ValueError, match="paused_spots"):
+            config_from_dict({**_raw_config(), "paused_spots": bad})
 
 
 def test_numpy_scalars_serialise():

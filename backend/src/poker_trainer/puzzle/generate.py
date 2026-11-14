@@ -2,24 +2,37 @@
 
 One ``random.Random(seed)`` drives the street and profile draw, every attempt and the
 equity MC, so a seed reproduces its puzzle on the same machine. Rules: "Street and
-profile", "Decision point" and "Trivial filter" in the M3 plan.
+profile", "Decision point" and "Trivial filter" in the M3 plan. Spots named in the config's
+``paused_spots`` are skipped (the attempt fails and the generator retries); see
+``_paused_spot``.
 """
 
 from __future__ import annotations
 
 import random
+from collections.abc import Collection
 
 from poker_trainer.engine.ranges import total_weight
 from poker_trainer.game.state import (
+    ActionKind,
+    HandState,
     Street,
     apply,
     deal,
     is_terminal,
+    legal_actions,
     needs_board,
     new_hand,
     total_pot,
 )
-from poker_trainer.puzzle.model import Puzzle, RangeView, Spot, load_config, visible_range
+from poker_trainer.puzzle.model import (
+    PREFLOP_BB_VS_OPEN,
+    Puzzle,
+    RangeView,
+    Spot,
+    load_config,
+    visible_range,
+)
 from poker_trainer.puzzle.options import hero_options
 from poker_trainer.puzzle.solve import solve, villain_respond
 from poker_trainer.puzzle.trivial import is_trivial
@@ -38,11 +51,42 @@ def parse_street(street: Street | str) -> Street:
         raise ValueError(f"unknown street {street!r}") from None
 
 
+def _paused_spot(s: HandState, hero_seat: int, paused: Collection[str]) -> bool:
+    """True if Hero's decision in ``s`` is a paused spot kind.
+
+    The only kind is PREFLOP_BB_VS_OPEN: Hero is the BB facing the button's open (exactly
+    one pre-flop action, a raise by the button) and can still raise, i.e. not an open-jam.
+    The grader values a called or 3-bet pot there as if the out-of-position BB realised its
+    full equity, so trash 3-bets grade +EV. M9's lookahead fixes that; delete this then.
+    """
+    if PREFLOP_BB_VS_OPEN not in paused or s.street != Street.PREFLOP:
+        return False
+    acts = [a for a in s.history if a.street == Street.PREFLOP]
+    return (
+        hero_seat != s.button
+        and len(acts) == 1
+        and acts[0].kind == ActionKind.RAISE
+        and acts[0].seat == s.button
+        and legal_actions(s).aggressive == ActionKind.RAISE
+    )
+
+
 def generate_spot(
-    rng: random.Random, street: Street, profile: str, *, seed: int, attempt: int
+    rng: random.Random,
+    street: Street,
+    profile: str,
+    *,
+    seed: int,
+    attempt: int,
+    paused: Collection[str] | None = None,
 ) -> Spot | None:
-    """One attempt at a Hero decision on ``street`` against ``profile``; None on failure."""
+    """One attempt at a Hero decision on ``street`` against ``profile``; None on failure.
+
+    ``paused`` defaults to the config's ``paused_spots``; a paused decision fails the attempt.
+    """
     cfg = load_config()
+    if paused is None:
+        paused = cfg.paused_spots
     villain_profile = load_profile(profile)
     hero_profile = load_profile(HERO_PROFILE)
 
@@ -70,6 +114,8 @@ def generate_spot(
                 return None
             if s.to_act == hero_seat:
                 if s.street == street and rng.random() < cfg.stop_prob:
+                    if _paused_spot(s, hero_seat, paused):
+                        return None
                     hero_options(s)  # UnsupportedSpot for lines the grader can't handle
                     break
                 s = apply(s, sample_action(hero_profile, s, hero, rng))
@@ -103,9 +149,17 @@ def generate_spot(
 
 
 def generate_puzzle(
-    seed: int, *, street: Street | str | None = None, profile: str | None = None
+    seed: int,
+    *,
+    street: Street | str | None = None,
+    profile: str | None = None,
+    paused: Collection[str] | None = None,
 ) -> Puzzle:
-    """A non-trivial puzzle for ``seed``; raises ``RuntimeError`` after ``max_attempts``."""
+    """A non-trivial puzzle for ``seed``; raises ``RuntimeError`` after ``max_attempts``.
+
+    ``paused`` overrides the config's ``paused_spots`` (dev fixtures pass ``()``: stored
+    puzzles of a paused kind still exist and the frontend must render them).
+    """
     cfg = load_config()
     rng = random.Random(seed)
     if street is None:
@@ -119,7 +173,7 @@ def generate_puzzle(
     respond = villain_respond(load_profile(profile))
 
     for attempt in range(cfg.max_attempts):
-        spot = generate_spot(rng, target, profile, seed=seed, attempt=attempt)
+        spot = generate_spot(rng, target, profile, seed=seed, attempt=attempt, paused=paused)
         if spot is None:
             continue
         sol = solve(spot.state, spot.hero, spot.range, respond, rng=rng, samples=cfg.samples)
