@@ -4,8 +4,9 @@
 ``urllib``, no proxy, like the Ollama client). For each of ``n`` puzzles it picks a street (the
 four streets in turn), answers (the first, the last and the middle option in turn; equity guess
 50%; intent ``value`` for a bet or raise), fetches the explanation and tallies its ``source`` and
-``fallback``. It prints a table and totals and always exits 0: it measures, it doesn't gate. A request that fails is a row with source
-``error`` (the error in ``fallback``). ``seconds`` is the explanation request only.
+``fallback``. It prints a table and totals and always exits 0: it measures, it doesn't gate.
+A request that fails is a row with source ``error`` (the error in ``fallback``).
+``seconds`` is the explanation request only.
 
 Start the app with the LLM provider on (see the settings) and ``PPT_LLM_TIMEOUT=120`` or more:
 the server's own timeout (60 s) would turn a slow answer into a ``timeout`` fallback.
@@ -81,7 +82,7 @@ def run(url: str, n: int, fetch: Fetch = _fetch) -> list[Row]:
                 explanation.get("fallback"),
                 time.monotonic() - started,
             )
-        except Exception as e:  # noqa: BLE001  one failed request must not lose the rest of a long run
+        except Exception as e:  # noqa: BLE001  a failed request must not lose the rest of the run
             row = Row(street, verdict, "error", f"{type(e).__name__}: {e}"[:40], 0.0)
         rows.append(row)
     return rows

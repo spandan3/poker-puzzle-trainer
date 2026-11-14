@@ -61,8 +61,8 @@ _BLOCKED_ROW = len(HandCategory)  # extra all-zero table row used for board-bloc
 # roughly flat in the size instead of dipping at 1.5-2x pot. Weak hands give up faster than
 # MDF, bluff catchers and draws about as fast. STRONG keeps the gentle pot-size curve up
 # to _STRONG_BEND x pot (all-in clamps of normal bets reach about there), then shrinks
-# with power _STRONG_POWER, and never continues less than _STRONG_FLOOR (a huge over-jam
-# does not blow it off its hand). NUTS (base 1) always continues.
+# with power _STRONG_POWER, and past pot size never continues less than _STRONG_FLOOR (a huge
+# over-jam does not blow it off its hand; below pot size a row with a low base can continue less). NUTS (base 1) always continues.
 _OVERBET_POWER = np.zeros(_BLOCKED_ROW + 1)
 _WEAK_ROWS = [int(c) for c in (HandCategory.AIR, HandCategory.WEAK_DRAW, HandCategory.WEAK)]
 _OVERBET_POWER[_WEAK_ROWS] = 2.6
