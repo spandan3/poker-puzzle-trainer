@@ -252,3 +252,25 @@ def test_the_template_passes_its_own_claim_checks(lost):
     p = puzzle(1, "river")
     template = result(p, option=0)["explanation"]
     assert check_claims(fields_of(template), lost) == {}
+
+
+def test_headline_order(lost):
+    """After a loss the top play is named first (the template's order)."""
+    assert lost.loss_case == "lost"
+    wrong = _fields("Check was the top play; Bet 33% loses 1.2 bb.")
+    assert check_claims(wrong, lost) == {"headline": "top play not named first"}
+    gerund_first = _fields("Checking loses 1.2 bb; Bet 33% was the top play.")
+    assert check_claims(gerund_first, lost) == {"headline": "top play not named first"}
+    # a missing play is reported before the order
+    assert check_claims(_fields("Checking cost you."), lost) == {"headline": "missing Bet 33%"}
+    # the template's own headline passes
+    p = puzzle(1, "river")
+    assert check_claims(fields_of(result(p, option=0)["explanation"]), lost) == {}
+
+
+def test_headline_order_is_not_checked_when_close(lost):
+    """The template's close headline names the choice first, so it is not an order failure."""
+    close = replace(
+        lost, verdict="Fine", loss_case="close", chosen_label="Fold", best_label="Raise 2.5x"
+    )
+    assert check_claims(_fields("Fold was close to Raise 2.5x.", "Fine."), close) == {}
