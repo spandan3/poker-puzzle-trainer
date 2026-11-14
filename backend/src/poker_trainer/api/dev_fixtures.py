@@ -10,10 +10,6 @@ the real app (a temporary SQLite database and a ``puzzle_factory`` that hands ou
 puzzles), so every file holds exactly what the API returns. Output is deterministic: sorted keys,
 LF line endings, fixed timestamps.
 
-Fixtures are generated with no paused spots (``paused=()``): puzzles of a paused kind (BB facing
-the open, paused until M9) are still stored in users' databases, so the frontend must keep
-rendering them, and its tests use ``puzzle_preflop_bb_facing_open.json``.
-
 ``write_stats_fixtures`` answers a scripted series of puzzles on its own database, with the
 service clock replaced, for the Progress page's ``stats.json``, ``stats_empty.json`` and
 ``history_page.json``.
@@ -70,10 +66,6 @@ def _stats_time(k: int) -> datetime:
 FIXED_NOW = _stats_time(STATS_FIRST_ATTEMPTS - 1) + timedelta(hours=2)
 
 View = dict[str, Any]
-
-
-def _generate(seed: int, street: str) -> Puzzle:
-    return generate_puzzle(seed, street=street, paused=())
 
 
 def _entries(v: View, street: str) -> list[dict[str, Any]]:
@@ -143,7 +135,7 @@ def search(
             if not todo:
                 return found
             try:
-                p = _generate(seed, street)
+                p = generate_puzzle(seed, street=street)
             except RuntimeError:
                 continue
             v = _view(p)
@@ -165,7 +157,7 @@ def find_never_continues(
     for seed in range(1, max_seed + 1):
         for street in STREETS:
             try:
-                p = _generate(seed, street)
+                p = generate_puzzle(seed, street=street)
             except RuntimeError:
                 continue
             for i, o in enumerate(p.solution.options):
@@ -176,8 +168,22 @@ def find_never_continues(
     raise RuntimeError(f"no bet or raise that Villain always folds to within {max_seed} seeds")
 
 
+def _round_floats(data: Any) -> Any:
+    """``data`` with every float rounded to 10 significant digits (dicts, lists and tuples are
+    walked; ``bool`` is checked first as it is an ``int``)."""
+    if isinstance(data, bool):
+        return data
+    if isinstance(data, float):
+        return float(f"{data:.10g}")
+    if isinstance(data, dict):
+        return {k: _round_floats(v) for k, v in data.items()}
+    if isinstance(data, (list, tuple)):
+        return [_round_floats(v) for v in data]
+    return data
+
+
 def _dump(path: Path, data: Any) -> None:
-    text = json.dumps(data, indent=2, sort_keys=True) + "\n"
+    text = json.dumps(_round_floats(data), indent=2, sort_keys=True) + "\n"
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
 
@@ -366,7 +372,7 @@ def write_fixtures(
             ids: dict[str, int] = {}
             for name, key in found.items():
                 seed, street = key
-                chosen[key] = _generate(seed, street)
+                chosen[key] = generate_puzzle(seed, street=street)
                 queue.append(key)
                 res = client.post("/api/puzzles", json={})
                 if res.status_code != 201:
@@ -449,7 +455,7 @@ def write_fixtures(
             else:
                 seed, street, index = never_continues
                 key = (seed, street)
-                chosen[key] = _generate(seed, street)
+                chosen[key] = generate_puzzle(seed, street=street)
                 queue.append(key)
                 res = client.post("/api/puzzles", json={})
                 if res.status_code != 201:

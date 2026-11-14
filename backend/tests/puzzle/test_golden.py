@@ -16,6 +16,11 @@ eq(X) = Hero's equity vs sub-range X. Option EV formulas: "Option EVs" in the M3
   (``exact_preflop`` below, cross-checked against pokerkit); 4·SE tolerance. These are
   ``slow`` because each matchup enumerates ~1.7M boards.
 
+Realisation (M9): before the river Hero realises r·e of equity in a call, a check and a
+called bet/raise; r = 1 in position (Hero is the button), on the river and when the call
+leaves a player all-in; out of position r = 0.80 pre-flop, 0.88 flop, 0.94 turn. Spots with
+Hero in position or on the river are unchanged from M3.
+
 EV tolerance for MC spots: EV = const + Σ k_i·eq_i, so tol = 4·Σ|k_i|·SE_i (a
 conservative linear sum, since the branch estimates share samples).
 """
@@ -322,7 +327,7 @@ def test_r3_river_bluff():
 #   bet 3:  F 1/4, C = AsKd, 7c7d, KcJd, eq(C) 1/3: 2.5 + 3/4·(16/3 − 3) = 2.5 + 1.75 = 4.25.
 #   bet 5:  2.5 + 3/4·(20/3 − 5) = 2.5 + 1.25 = 3.75.
 #   bet 8:  F 1/2, eq(C) 0: 5 − 4 = 1.   bet 10: 5 − 5 = 0.   all-in: 5 − 97.5 = −92.5.
-def test_r4_river_oop_check_lookahead_two_sizes():
+def r4_solution() -> Solution:
     s = river(RB)
     assert s.to_act == 1 and total_pot(s) == 10
     D = vrange("AsKd, 7c7d, JcTc, KcJd", KQ, RB)
@@ -340,19 +345,23 @@ def test_r4_river_oop_check_lookahead_two_sizes():
             return facing(s2, fold={"JcTc": 1}, call={"AsKd": 1, "7c7d": 1, "KcJd": 1})
         return facing(s2, fold={"JcTc": 1, "KcJd": 1}, call={"AsKd": 1, "7c7d": 1})
 
-    sol = solve_exact(s, KQ, D, responder(D, table))
+    return solve_exact(s, KQ, D, responder(D, table))
+
+
+R4_EVS = {
+    "check": 3.75,
+    "bet 33%": 4.25,
+    "bet 50%": 3.75,
+    "bet 75%": 1.0,
+    "bet 100%": 0.0,
+    "all-in": -92.5,
+}
+
+
+def test_r4_river_oop_check_lookahead_two_sizes():
+    sol = r4_solution()
     assert sol.equity == pytest.approx(0.5, abs=EXACT)
-    assert_evs(
-        sol,
-        {
-            "check": 3.75,
-            "bet 33%": 4.25,
-            "bet 50%": 3.75,
-            "bet 75%": 1.0,
-            "bet 100%": 0.0,
-            "all-in": -92.5,
-        },
-    )
+    assert_evs(sol, R4_EVS)
     br = by_label(sol)["check"].branches
     assert [b.label for b in br] == [
         "Villain checks back",
@@ -363,6 +372,18 @@ def test_r4_river_oop_check_lookahead_two_sizes():
     assert [b.equity for b in br] == pytest.approx([1.0, 0.0, 0.4], abs=EXACT)
     assert [b.value_chips for b in br] == pytest.approx([10.0, 0.0, 2.0], abs=EXACT)
     assert sol.options[sol.best].option.label == "bet 33%"
+
+
+def test_river_unchanged():
+    """M9 realisation leaves the river alone, even out of position (Hero is BB in R4)."""
+    sol = r4_solution()
+    s = river(RB)
+    assert s.to_act != s.button  # Hero is out of position
+    assert_evs(sol, R4_EVS)  # the M3 values, worked by hand above R4
+    for o in sol.options:
+        assert o.realisation == 1.0
+        assert all(b.realisation == 1.0 for b in o.branches)
+        assert "realisation_position" not in o.simplifications
 
 
 # R5 (Review Focus 3) river OOP check where Villain ALWAYS bets and Hero's reply is
@@ -586,7 +607,7 @@ def test_t1_turn_call():
     assert o["raise 2.5x"].fold_freq == pytest.approx(4 / 7, abs=EXACT)
     assert o["raise 2.5x"].equity_vs_continue == pytest.approx(1 / 22, abs=EXACT)
     assert o["raise 2.5x"].ahead_vs_continue == pytest.approx(0.0, abs=EXACT)
-    assert o["call"].simplifications == ("realisation",)
+    assert o["call"].simplifications == ("realisation_position",)
     assert sol.options[sol.best].option.label == "call"
 
 
@@ -629,14 +650,14 @@ def test_t2_turn_value_bet():
     o = by_label(sol)
     assert o["bet 50%"].equity_vs_continue == pytest.approx(85 / 132, abs=EXACT)
     assert o["bet 50%"].fold_freq == pytest.approx(0.4, abs=EXACT)
-    assert o["check"].simplifications == ("realisation",)
+    assert o["check"].simplifications == ("realisation_position",)
     assert sol.options[sol.best].option.label == "bet 50%"
 
 
 # T3 (Review Focus 2) turn, Villain NEVER continues (C = 0); Hero out of position.
 # Hero is BB (seat 1) with 6h5h and acts first; P = 10.
 #   D = AsKd, 7c7d (both 1); Hero eq 8/44 vs each -> eq(D) = 2/11.
-#   check OOP before the river = eq·P = 20/11 (labelled realisation, no look-ahead).
+#   check OOP before the river = r·eq·P = 0.94·2/11·10 = 18.8/11 = 94/55 (no look-ahead).
 #   Villain folds to every bet: F = 1, every bet and the all-in earn P = 10,
 #   equity vs the continuing range is None (no NaN). Ties go to the first: bet 33%.
 def test_t3_turn_villain_never_continues():
@@ -654,7 +675,7 @@ def test_t3_turn_villain_never_continues():
     assert_evs(
         sol,
         {
-            "check": 20 / 11,
+            "check": 94 / 55,  # 0.94·(2/11)·10, out of position on the turn
             "bet 33%": 10.0,
             "bet 50%": 10.0,
             "bet 75%": 10.0,
@@ -670,7 +691,8 @@ def test_t3_turn_villain_never_continues():
         assert [b.label for b in o.branches] == ["Villain folds"]
         assert not np.any(o.continue_range)
         assert all(math.isfinite(x) for x in (o.ev_chips, o.required_fold_equity))
-    assert by_label(sol)["check"].simplifications == ("check_reply", "realisation")  # OOP
+    assert by_label(sol)["check"].simplifications == ("check_reply", "realisation_position")  # OOP
+    assert by_label(sol)["check"].realisation == 0.94
     assert sol.options[sol.best].option.label == "bet 33%"
 
 
@@ -824,7 +846,7 @@ def test_f1_flop_raise_villain_reraises_hero_folds():
     assert o["raise 2.5x"].fold_freq == pytest.approx(0.25, abs=EXACT)
     o25 = o["raise 2.5x"]
     mc.check_eq(o25.equity_vs_continue, o25.equity_vs_continue_se, "AsKd", "7c7d", "KcJd")
-    assert set(o25.simplifications) == {"realisation", "reraise_reply"}
+    assert set(o25.simplifications) == {"realisation_position", "reraise_reply"}
 
 
 # F2 (Review Focus 1) flop, short stacks: options merge into one "all-in".
@@ -832,13 +854,16 @@ def test_f1_flop_raise_villain_reraises_hero_folds():
 # Hero is BB (seat 1) KhQh, first to act.  Sizes: 33% -> 3, 50% -> 5, 75% -> 8 (< 0.6·15),
 # 100% -> 10 >= 0.6·15 = 9 -> clamps to all-in 15, merged with "all-in" (label wins).
 #   D = AsKd 1, QcJc 1, 7c7d .5, 9h8h 1; |D| = 3.5.
-#   check OOP before the river = 10·eq(D).
+#   Hero is out of position on the flop: r = 0.88 unless the call leaves a player all-in.
+#   check OOP before the river = 0.88·10·eq(D) = 8.8·eq(D).
 #   Villain vs bet to t: AsKd, 7c7d call; 9h8h calls t <= 5 else folds; QcJc folds.
-#   bet 3: F = 1/3.5 = 2/7, C = AsKd, 7c7d, 9h8h (5/7):
-#          20/7 + 5/7·(16·eq(C) − 3) = 5/7 + 80/7·eq(C).
-#   bet 5: 20/7 + 5/7·(20·eq(C) − 5) = −5/7 + 100/7·eq(C).
-#   bet 8: F = 4/7, C2 = AsKd, 7c7d (3/7): 40/7 + 3/7·(26·eq(C2) − 8) = 16/7 + 78/7·eq(C2).
-#   all-in 15 (vcall 15): 40/7 + 3/7·(40·eq(C2) − 15) = −5/7 + 120/7·eq(C2).
+#   bet 3: F = 1/3.5 = 2/7, C = AsKd, 7c7d, 9h8h (5/7); 12 behind after the call:
+#          20/7 + 5/7·(0.88·16·eq(C) − 3) = 5/7 + 70.4/7·eq(C).
+#   bet 5: 20/7 + 5/7·(0.88·20·eq(C) − 5) = −5/7 + 88/7·eq(C).
+#   bet 8: F = 4/7, C2 = AsKd, 7c7d (3/7); 7 behind:
+#          40/7 + 3/7·(0.88·26·eq(C2) − 8) = 16/7 + 68.64/7·eq(C2).
+#   all-in 15 (vcall 15): both all-in after the call, r = 1:
+#          40/7 + 3/7·(40·eq(C2) − 15) = −5/7 + 120/7·eq(C2).
 def test_f2_flop_short_stack_allin_merge():
     s = flop(FB, stacks=(20, 20))
     assert s.stacks == (15, 15) and s.to_act == 1 and total_pot(s) == 10
@@ -854,15 +879,19 @@ def test_f2_flop_short_stack_allin_merge():
     assert list(o) == ["check", "bet 33%", "bet 50%", "bet 75%", "all-in"]
     assert [x.option.action.to for x in o.values()][1:] == [3, 5, 8, 15]
     C, C2 = ("AsKd", "7c7d", "9h8h"), ("AsKd", "7c7d")
-    mc.check("check", 0.0, [(10.0, all_names(D))])
-    mc.check("bet 33%", 5 / 7, [(80 / 7, C)])
-    mc.check("bet 50%", -5 / 7, [(100 / 7, C)])
-    mc.check("bet 75%", 16 / 7, [(78 / 7, C2)])
-    mc.check("all-in", -5 / 7, [(120 / 7, C2)])
+    mc.check("check", 0.0, [(8.8, all_names(D))])  # 0.88·10
+    mc.check("bet 33%", 5 / 7, [(70.4 / 7, C)])  # 5/7·0.88·16
+    mc.check("bet 50%", -5 / 7, [(88 / 7, C)])  # 5/7·0.88·20
+    mc.check("bet 75%", 16 / 7, [(68.64 / 7, C2)])  # 3/7·0.88·26
+    mc.check("all-in", -5 / 7, [(120 / 7, C2)])  # all-in after the call: r = 1
+    assert o["check"].realisation == 0.88
+    for label in ("bet 33%", "bet 50%", "bet 75%"):
+        assert [b.realisation for b in o[label].branches] == [1.0, 0.88]
+    assert [b.realisation for b in o["all-in"].branches] == [1.0, 1.0]
     assert o["bet 33%"].fold_freq == pytest.approx(2 / 7, abs=EXACT)
     assert o["all-in"].fold_freq == pytest.approx(4 / 7, abs=EXACT)
     assert o["all-in"].required_fold_equity == pytest.approx(15 / 25, abs=EXACT)
-    assert o["check"].simplifications == ("check_reply", "realisation")  # OOP
+    assert o["check"].simplifications == ("check_reply", "realisation_position")  # OOP
 
 
 # F3 (Review Focus 2) flop, Villain ALWAYS continues vs Hero's raises (F = 0).
@@ -1057,20 +1086,25 @@ def test_p1_preflop_btn_open():
     assert o["raise 2.5x"].put == 4
     assert o["raise 2.5x"].branches[-1].label == "Villain raises to 15 — Hero folds"
     assert o["raise 3x"].branches[-1].label == "Villain raises to 18 — Hero folds"
-    assert set(o["raise 2.5x"].simplifications) == {"preflop_size", "realisation", "reraise_reply"}
-    assert set(o["all-in"].simplifications) == {"preflop_size", "realisation"}
+    assert set(o["raise 2.5x"].simplifications) == {
+        "preflop_size",
+        "realisation_position",
+        "reraise_reply",
+    }
+    assert set(o["all-in"].simplifications) == {"preflop_size", "realisation_position"}
     assert mc.sol.category_breakdown is None
 
 
 # P2 pre-flop BB vs open (call). BTN opens to 5; Hero BB (seat 1) KdQd; P = 7; call put 3,
 # pot odds 3/10.  D = AcAd .5, 5c5d 1, Js9s 1; |D| = 2.5.
-#   call = 10·eq(D) − 3.
+#   Hero is out of position pre-flop: r = 0.8 unless the call leaves a player all-in.
+#   call = 0.8·10·eq(D) − 3 = 8·eq(D) − 3.
 #   Villain vs a 3-bet: Js9s folds; 5c5d calls; AcAd jams 200.  vs all-in: AcAd, 5c5d call.
-#   3-bet to 12 (put 10, vcall 7): F .4; call .4: 24·eq(55) − 10;
-#     jam .2: s3 pot = 200 + 12 = 212, c = 188, final 400; fold (−10) when
+#   3-bet to 12 (put 10, vcall 7): F .4; call .4: 0.8·24·eq(55) − 10;
+#     jam .2: s3 pot = 200 + 12 = 212, c = 188, final 400 (all-in, r = 1); fold (−10) when
 #     400·eq(AA) − 198 < −10, i.e. eq(AA) < 188/400 (asserted).
-#     EV = 2.8 + .4·(24·eq(55) − 10) − 2 = −3.2 + 9.6·eq(55).
-#   3-bet to 15 (put 13, vcall 10): 2.8 + .4·(30·eq(55) − 13) − .2·13 = −5 + 12·eq(55).
+#     EV = 2.8 + .4·(19.2·eq(55) − 10) − 2 = −3.2 + 7.68·eq(55).
+#   3-bet to 15 (put 13, vcall 10): 2.8 + .4·(0.8·30·eq(55) − 13) − .2·13 = −5 + 9.6·eq(55).
 #   all-in (put 198, vcall 195): F .4; C = AcAd .5, 5c5d (.6):
 #     2.8 + .6·(400·eq(C) − 198) = −116 + 240·eq(C).
 @pytest.mark.slow
@@ -1095,12 +1129,14 @@ def test_p2_preflop_bb_vs_open():
     assert sol.pot_odds == pytest.approx(3 / 10, abs=EXACT)
     assert mc.eq("AcAd") < 188 / 400
     mc.check_eq(sol.equity, sol.equity_std_error, *all_names(D))
-    mc.check("call", -3.0, [(10.0, all_names(D))])
-    mc.check("raise 2.5x", -3.2, [(9.6, ("5c5d",))])
-    mc.check("raise 3x", -5.0, [(12.0, ("5c5d",))])
-    mc.check("all-in", -116.0, [(240.0, ("AcAd", "5c5d"))])
+    mc.check("call", -3.0, [(8.0, all_names(D))])  # 0.8·10
+    mc.check("raise 2.5x", -3.2, [(7.68, ("5c5d",))])  # .4·0.8·24
+    mc.check("raise 3x", -5.0, [(9.6, ("5c5d",))])  # .4·0.8·30
+    mc.check("all-in", -116.0, [(240.0, ("AcAd", "5c5d"))])  # all-in: r = 1
+    assert o["call"].realisation == 0.8
+    assert [b.realisation for b in o["raise 2.5x"].branches] == [1.0, 0.8, 1.0]
     assert o["raise 2.5x"].branches[-1].label == "Villain raises to 200 — Hero folds"
-    assert o["call"].simplifications == ("realisation",)
+    assert o["call"].simplifications == ("realisation_position",)
 
 
 # P3 pre-flop BTN vs 3-bet, Hero jams. BTN opens to 5, BB 3-bets 3x to 15; Hero (BTN)

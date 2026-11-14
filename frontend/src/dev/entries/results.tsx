@@ -4,7 +4,7 @@ import { ExplanationPanel } from '../../components/Explanation/ExplanationPanel'
 import { ResultSummary } from '../../components/ResultSummary/ResultSummary'
 import { decisionFromAttempt } from '../../lib/decision'
 import { attemptFixture, explanationLlmFixture, puzzleFixture } from '../../test/fixture'
-import { neverContinuesAttempt } from '../../test/synthetic'
+import { bbCallAttempt, neverContinuesAttempt } from '../../test/synthetic'
 import type { GalleryEntry } from '../Gallery'
 
 const caption: CSSProperties = {
@@ -39,6 +39,12 @@ const cases = [
     title: 'Pre-flop, raise',
     puzzle: 'preflop_bb_facing_open',
     attempt: attemptFixture('raise_preflop'),
+  },
+  {
+    title:
+      'Pre-flop BB, call out of position (synthetic, from the raise fixture; its Why text is the raise one)',
+    puzzle: 'preflop_bb_facing_open',
+    attempt: bbCallAttempt(),
   },
   {
     title: 'Pre-flop, fold',

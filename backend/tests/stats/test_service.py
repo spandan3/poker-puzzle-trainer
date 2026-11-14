@@ -370,8 +370,8 @@ def test_breakdown_orders_labels_and_values():
     assert [(r["key"], r["label"]) for r in b["profile"]] == [
         ("tag", "TAG"),
         ("sticky", "Sticky"),
-        ("archived", "archived"),
-        ("old", "old"),
+        ("archived", "Archived"),
+        ("old", "Old"),
     ]
     river = b["street"][3]
     assert river["count"] == 2

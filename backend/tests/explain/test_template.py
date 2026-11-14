@@ -61,6 +61,7 @@ def _numbers(res):
 
 
 LAG = "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs."
+STICKY = "Villain is a Sticky player. Competent, but defends wide and calls down lighter than most."
 
 
 def river_call(res):
@@ -182,13 +183,13 @@ def river_check_best_bet_chosen(res):
         ),
         "hand": [
             (
-                "You held 7♦ Q♠ in the big blind, against Villain, a LAG player, on the button. "
+                "You held 5♥ A♥ in the big blind, against Villain, a Sticky player, on the button. "
                 "Pre-flop, Villain opened to 2.5 bb and you called."
             ),
             (
-                "The flop came Q♥ J♦ 9♣: you checked and Villain checked. The turn was the 5♥: "
-                "you checked, Villain bet 4 bb and you called. The river was the T♥. It was "
-                "your turn to act with 13 bb in the pot."
+                "The flop came 3♣ 9♣ 4♥: you bet 1.5 bb and Villain called. The turn was the J♠: "
+                "you checked and Villain checked. The river was the 3♥. It was your turn to act "
+                "with 8 bb in the pot."
             ),
         ],
         "verdict": [
@@ -204,19 +205,19 @@ def river_check_best_bet_chosen(res):
             (
                 f"Bet 75%: Villain folds {_folds(res, 'Bet 75%')} of the time, less than the "
                 f"{n['needs']} a bet this size needs to profit on folds alone "
-                "(10 bb / (13 bb + 10 bb)), so folds alone don't pay for it: it relies on your "
+                "(6 bb / (8 bb + 6 bb)), so folds alone don't pay for it: it relies on your "
                 f"{_eq_continue(res, 'Bet 75%')} equity against the hands that continue."
             ),
             (
                 f"The largest parts of the range are {_cat(res, 'Weak made hand')} "
-                f"and {_cat(res, 'Strong value')}."
+                f"and {_cat(res, 'Air')}."
             ),
         ],
         "villain": [
-            LAG,
+            STICKY,
             (
                 "Villain's range narrowed with each action: Pre-flop: opens to 2.5 bb; Flop: "
-                "checks; Turn: bets 4 bb (80% pot)."
+                "calls; Turn: checks."
             ),
             GRADED_ON_RANGE,
         ],
@@ -224,7 +225,7 @@ def river_check_best_bet_chosen(res):
 
 
 def custom_matched(res):
-    """A custom size with zero EV loss that is not the listed top play."""
+    """A custom size with zero EV loss that is not the stored top play (a pre-M9 row)."""
     return {
         "headline": "Bet 1 bb was the top play, and you found it.",
         "verdict_0": (
@@ -246,7 +247,7 @@ GOLDEN = [
     # pre-flop fold, first in on the button (attempt_fold_preflop's spot)
     ((1, "preflop"), {"option": 0}, preflop_fold),
     # river check best with a bet chosen
-    ((4, "river"), {"option": 3, "intent": "bluff"}, river_check_best_bet_chosen),
+    ((63, "river"), {"option": 3, "intent": "bluff"}, river_check_best_bet_chosen),
 ]
 
 
@@ -327,10 +328,28 @@ def test_generated_puzzles_pass_the_guardrail():
     assert kinds == {"fold", "check", "call", "bet", "raise"}
 
 
-def test_custom_size_that_matches_the_top_play_is_not_called_the_top_play():
+def test_custom_size_that_beats_the_top_play_is_the_top_play():
     p = puzzle(*FIXTURE_SEEDS["custom_allowed"])  # attempt_custom: a 1 bb bet, EV above Bet 33%
     res = result(p, custom_to=2)
+    assert res["grade"]["ev_loss_bb"] == 0 and _chosen(res)["is_best"]
+    assert [o["label"] for o in res["options"] if o["is_best"]] == ["bet 2"]  # chips: 1 bb
+    assert res["grade"]["best_label"] == "bet 2"
+    e = res["explanation"]
+    assert e["headline"] == "Bet 1 bb was the top play, and you found it."
+    assert e["sections"][1]["paragraphs"][0] == (
+        f"You chose Bet 1 bb (EV {fmt.ev_bb(_chosen(res)['ev_bb'])}), the top play against "
+        "Villain's range. Verdict: Best."
+    )
+
+
+def test_custom_size_stored_below_listed_best_is_not_called_the_top_play():
+    """A row stored before M9 kept the listed option as best even when the custom beat it."""
+    p = puzzle(*FIXTURE_SEEDS["custom_allowed"])
+    listed = p.solution.options[p.solution.best]
+    stored = {"best_label": listed.option.label, "best_ev_chips": listed.ev_chips}
+    res = result(p, custom_to=2, stored=stored)
     assert res["grade"]["ev_loss_bb"] < EV_EPSILON and not _chosen(res)["is_best"]
+    assert [o["label"] for o in res["options"] if o["is_best"]] == ["bet 33%"]
     golden = custom_matched(res)
     e = res["explanation"]
     assert e["headline"] == golden["headline"]  # verdictLine's wording
@@ -339,12 +358,12 @@ def test_custom_size_that_matches_the_top_play_is_not_called_the_top_play():
 
 
 def test_headline_follows_verdict_line():
-    p = puzzle(17, "flop")  # facing a raise: call best (2.25 bb), raise 2.5x fine, fold lost
+    p = puzzle(17, "flop")  # facing a raise: call best (2.26 bb), raise 2.5x fine, fold lost
     texts = [result(p, option=i)["explanation"]["headline"] for i in range(3)]
     assert texts == [
-        "Call was the top play; folding loses 2.25 bb against Villain's range.",
+        "Call was the top play; folding loses 2.26 bb against Villain's range.",
         "Call was the top play, and you found it.",
-        "Raise 2.5x was close: within 0.66 bb of the top play, Call.",
+        "Raise 2.5x was close: within 0.67 bb of the top play, Call.",
     ]
 
 
@@ -356,7 +375,7 @@ def test_explain_is_what_the_view_adds():
 
 
 def test_check_best_states_the_check_ev_once():
-    res = result(puzzle(4, "river"), option=3, intent="bluff")  # check best, bet 75% chosen
+    res = result(puzzle(63, "river"), option=3, intent="bluff")  # check best, bet 75% chosen
     check_ev = f"EV {_ev(res, 'Check')}"
     assert text_of(res["explanation"]).count(check_ev) == 1
 
@@ -391,7 +410,8 @@ def test_pot_odds_conclusion_follows_the_choice():
 
 def test_pot_odds_equal_strings_are_never_above():
     p = puzzle(3, "preflop")
-    f = facts(result(p, option=1), p)
+    # a factor of 1 (a result graded before M9): raw equity against the pot odds
+    f = _with(facts(result(p, option=1), p), realisation=None, realised_equity=None)
     even = _with(f, equity=f.pot_odds, equity_beats_pot_odds=True)
     text = _pot_odds_sentence(even)
     assert f"{f.pot_odds} is exactly what it needs, so calling beats folding." in text
@@ -410,3 +430,28 @@ def test_fold_equity_close_to_when_the_shown_numbers_disagree():
     text = render(_with(f, options=options))["sections"][1]["paragraphs"][2]
     assert text.startswith(f"Bet 33%: Villain folds {f.best.fold_freq} of the time, close to the ")
     assert "so folds alone don't pay for it: it relies on your" in text
+
+
+def test_pot_odds_against_realised_equity_out_of_position():
+    p = puzzle(0, "preflop")  # BB facing an open: 34.0% equity, 30% pot odds, 80% realised
+    res = result(p, option=1)  # call
+    f = facts(res, p)
+    assert f.realisation == "80%"
+    text = _pot_odds_sentence(f)
+    assert text.endswith(
+        f"Out of position you realise only 80% of your {f.equity} equity, which makes "
+        f"{f.realised_equity}: that is below what it needs, so folding beats calling."
+    ), text
+    for answer in _answers(p):
+        _assert_sound(p, result(p, **answer))
+
+
+def test_realised_equal_strings_are_never_below():
+    p = puzzle(0, "preflop")
+    f = facts(result(p, option=1), p)
+    even = _with(f, realised_equity=f.pot_odds, equity_beats_pot_odds=True)
+    text = _pot_odds_sentence(even)
+    assert f"which makes {f.pot_odds}: exactly what it needs, so calling beats folding." in text
+    short = _with(f, realised_equity=f.pot_odds, equity_beats_pot_odds=False)
+    text = _pot_odds_sentence(short)
+    assert f"which makes {f.pot_odds}: just short of what it needs, so folding beats" in text

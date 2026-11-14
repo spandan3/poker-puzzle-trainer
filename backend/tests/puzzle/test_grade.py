@@ -4,7 +4,7 @@ from dataclasses import replace
 import pytest
 from test_solve import HERO, D, arr, facing_respond, generic_respond, river_spot
 
-from poker_trainer.game.state import Action, ActionKind, Street, legal_actions, new_hand, total_pot
+from poker_trainer.game.state import Action, ActionKind, Street, new_hand, total_pot
 from poker_trainer.puzzle.grade import Answer, grade, intent_text
 from poker_trainer.puzzle.model import (
     Option,
@@ -377,42 +377,52 @@ def test_intent_flag_never_continues():
     )
 
 
-def _custom_puzzle(monkeypatch, custom_ev):
-    """River puzzle plus a legal custom bet whose EV is forced to ``custom_ev``."""
-    from poker_trainer.puzzle import grade as grade_mod
-    from poker_trainer.puzzle.options import custom_action
-
-    p, _ = _puzzle()
-    s = p.spot.state
-    listed = {o.option.action.to for o in p.solution.options}
-    lo, hi = legal_actions(s).min_to, legal_actions(s).max_to
-    to = next(t for t in range(lo, hi + 1) if t not in listed)
-    action = custom_action(s, to)
-    custom = _ev(f"bet {to}", action, custom_ev)
-    monkeypatch.setattr(grade_mod, "evaluate_action", lambda *a, **k: custom)
-    return p, action, custom
+def _always_fold(s2):
+    """Villain folds every combo to any bet (and checks behind when not facing one)."""
+    return facing_respond(arr(ak=1, jt=1), arr())(s2)
 
 
-def test_custom_beating_every_preset_is_best(monkeypatch):
-    p, _ = _puzzle()
-    top = p.solution.options[p.solution.best].ev_chips
-    p, action, custom = _custom_puzzle(monkeypatch, top + 1.0)
-    g = grade(p, Answer(action, 0.5))
-    assert g.best is custom and g.chosen is custom
-    assert g.ev_loss_chips == 0.0 and g.verdict == "best"
+def test_custom_beats_listed_best():
+    """A custom size whose EV beats every listed option is the best play: no loss."""
+    p, me = _puzzle(
+        evs=[
+            _ev("check", Action(0, ActionKind.CHECK, Street.RIVER), 5.0),
+            _ev("bet 50%", Action(0, ActionKind.BET, Street.RIVER, 5), 6.0),
+        ]
+    )
+    assert me == 0
+    custom = Action(me, ActionKind.BET, Street.RIVER, 7)
+    g = grade(p, Answer(custom, 0.5), respond=_always_fold)
+    assert g.chosen.ev_chips == pytest.approx(10.0)  # Villain always folds: Hero wins P = 10
+    assert g.verdict == "best"
+    assert g.ev_loss_chips == 0
+    assert g.best is g.chosen
+    assert g.best_is_chosen
 
 
-@pytest.mark.parametrize("delta", [0.0, 1e-12, -0.5])
-def test_custom_tie_or_loss_keeps_preset_best(monkeypatch, delta):
-    p, _ = _puzzle()
-    preset = p.solution.options[p.solution.best]
-    p, action, custom = _custom_puzzle(monkeypatch, preset.ev_chips + delta)
-    g = grade(p, Answer(action, 0.5))
-    assert g.best.option == preset.option and g.chosen is custom
-    assert g.ev_loss_chips == pytest.approx(max(0.0, -delta))
+def test_custom_tie_keeps_listed_best():
+    """A custom size tied with the best listed option keeps the listed option as best."""
+    p, me = _puzzle(
+        evs=[
+            _ev("check", Action(0, ActionKind.CHECK, Street.RIVER), 5.0),
+            _ev("bet 50%", Action(0, ActionKind.BET, Street.RIVER, 5), 10.0),
+        ]
+    )
+    assert me == 0
+    custom = Action(me, ActionKind.BET, Street.RIVER, 7)
+    g = grade(p, Answer(custom, 0.5), respond=_always_fold)
+    assert g.chosen.ev_chips == pytest.approx(10.0)
+    assert g.best is p.solution.options[1]
+    assert g.best_is_chosen is False
+    assert g.verdict == "best" and g.ev_loss_chips == 0
 
 
-def test_preset_choice_never_replaces_best():
-    p, _ = _puzzle()
-    g = grade(p, Answer(p.solution.options[p.solution.best].option.action, 0.5))
-    assert g.best is p.solution.options[p.solution.best]
+def test_listed_best_chosen_sets_best_is_chosen():
+    p, _ = _puzzle(
+        evs=[
+            _ev("check", Action(0, ActionKind.CHECK, Street.RIVER), 5.0),
+            _ev("bet 50%", Action(0, ActionKind.BET, Street.RIVER, 5), 6.0),
+        ]
+    )
+    assert grade(p, Answer(p.solution.options[1].option.action, 0.5)).best_is_chosen
+    assert not grade(p, Answer(p.solution.options[0].option.action, 0.5)).best_is_chosen

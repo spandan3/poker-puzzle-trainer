@@ -35,18 +35,19 @@ from poker_trainer.game.state import (
     position_name,
     total_pot,
 )
-from poker_trainer.puzzle.grade import custom_beats_presets
+from poker_trainer.puzzle.grade import BEST_EPS
 from poker_trainer.puzzle.model import (
     OptionEV,
     Puzzle,
     RangeView,
     Spot,
+    load_config,
     option_ev_from_dict,
     option_ev_to_dict,
 )
 from poker_trainer.villain.features import load_thresholds
 from poker_trainer.villain.narrowing import describe
-from poker_trainer.villain.profiles import load_profile
+from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile, profile_meta
 
 __all__ = [
     "action_log",
@@ -193,14 +194,19 @@ def custom_bounds(p: Puzzle) -> tuple[int | None, int | None]:
 
 
 def villain_model_current(p: Puzzle) -> bool:
-    """True when the live profile and category thresholds match the puzzle's versions.
+    """True when the live profile, category thresholds and puzzle config match the puzzle's.
 
     The single source of this check: ``custom_allowed`` (the view) and the service's 409 on a
-    custom size both use it, so they can't drift apart.
+    custom size both use it, so they can't drift apart. The config version matters because a
+    custom size is solved with today's grader (e.g. M9's realisation factors), which must
+    match how the puzzle's stored options were graded.
     """
+    if p.spot.profile not in PROFILE_NAMES:
+        return False
     return (
         load_profile(p.spot.profile).version == p.spot.profile_version
         and load_thresholds().version == p.spot.categories_version
+        and load_config().version == p.spot.config_version
     )
 
 
@@ -232,7 +238,7 @@ def puzzle_view(
     sp = p.spot
     s = sp.state
     villain_seat = 1 - sp.hero_seat
-    prof = load_profile(sp.profile)
+    label, description = profile_meta(sp.profile)
     lo, hi = custom_bounds(p)
     allowed = bool(custom_sizes_allowed) and lo is not None
     return {
@@ -250,9 +256,9 @@ def puzzle_view(
         "pot_odds": _pot_odds(p),
         "history": action_log(sp),
         "villain_profile": {
-            "name": prof.name,
-            "label": prof.label,
-            "description": prof.description,
+            "name": sp.profile,
+            "label": label,
+            "description": description,
         },
         "options": [
             {
@@ -287,6 +293,7 @@ def option_view(o: OptionEV, *, best: bool, chosen: bool, dead: Collection[int])
         "ahead_vs_continue": _opt_float(o.ahead_vs_continue),
         "required_fold_equity": _opt_float(o.required_fold_equity),
         "put": int(o.put),
+        "realisation": float(o.realisation),
         "branches": [
             {
                 "label": b.label,
@@ -294,6 +301,7 @@ def option_view(o: OptionEV, *, best: bool, chosen: bool, dead: Collection[int])
                 "equity": _opt_float(b.equity),
                 "value_chips": float(b.value_chips),
                 "value_bb": float(b.value_chips) / 2,
+                "realisation": float(b.realisation),
             }
             for b in o.branches
         ],
@@ -329,8 +337,8 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
     ``action``, ``equity_guess``, ``range_read_guess``, ``intent``, ``verdict``,
     ``ev_loss_chips``, ``equity_error``, ``equity_score``, ``range_read_error``,
     ``range_read_score``, ``intent_truth``, ``intent_flag``, ``bluff_required``,
-    ``bluff_actual`` and ``best_label``. Nothing is regraded here. ``explanation`` is the
-    template explanation, written last from the rest of the result.
+    ``bluff_actual``, ``best_label`` and ``best_ev_chips``. Nothing is regraded here.
+    ``explanation`` is the template explanation, written last from the rest of the result.
     """
     a = attempt
     sp, sol = puzzle.spot, puzzle.solution
@@ -339,7 +347,13 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
     stored = list(sol.options)
     chosen_action = chosen.option.action
     chosen_idx = next((i for i, o in enumerate(stored) if o.option.action == chosen_action), None)
-    custom_best = chosen_idx is None and custom_beats_presets(puzzle, chosen)
+    # a custom size graded best (its EV beat the best listed option) is the one best row
+    best_ev = float(a["best_ev_chips"])
+    custom_best = (
+        chosen_idx is None
+        and best_ev == float(chosen.ev_chips)
+        and best_ev > stored[sol.best].ev_chips + BEST_EPS
+    )
     options = [
         option_view(o, best=i == sol.best and not custom_best, chosen=i == chosen_idx, dead=dead)
         for i, o in enumerate(stored)
@@ -354,7 +368,7 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
         if a["bluff_required"] is None or a["bluff_actual"] is None
         else {"required": float(a["bluff_required"]), "actual": float(a["bluff_actual"])}
     )
-    prof = load_profile(sp.profile)
+    label, description = profile_meta(sp.profile)
     ev_loss = float(a["ev_loss_chips"])
     result: dict[str, Any] = {
         "attempt": {
@@ -417,9 +431,9 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
             "villain_cards": _cards(sp.villain_hole),
             "runout": _cards(sp.runout),
             "profile": {
-                "name": prof.name,
-                "label": prof.label,
-                "description": prof.description,
+                "name": sp.profile,
+                "label": label,
+                "description": description,
                 "version": int(sp.profile_version),
             },
             "showdown": showdown(sp),

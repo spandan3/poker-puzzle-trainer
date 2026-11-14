@@ -42,7 +42,7 @@ from poker_trainer.villain.strategy import raise_to
 
 SEEDS = {
     "pre_first_in": (1, "preflop"),
-    "pre_facing": (209, "preflop"),  # BTN facing a 3-bet (BB-vs-open is paused)
+    "pre_facing": (3, "preflop"),
     "flop": (1, "flop"),
     "flop_b": (3, "flop"),
     "turn": (1, "turn"),
@@ -159,6 +159,7 @@ def _attempt_dict(p, g, *, option_index=None, custom_to=None, intent=None):
         "bluff_required": None if g.bluff_check is None else g.bluff_check[0],
         "bluff_actual": None if g.bluff_check is None else g.bluff_check[1],
         "best_label": g.best.option.label,
+        "best_ev_chips": g.best.ev_chips,
     }
 
 
@@ -296,6 +297,15 @@ def test_custom_view_and_allowed(puzzles, monkeypatch):
     assert not views.custom_allowed(p)
 
 
+def test_old_puzzle_custom_size_refused(puzzles):
+    """A pre-M9 puzzle (older config, full realisation) can't grade a custom size with today's r."""
+    p = puzzles["flop"]
+    assert views.villain_model_current(p)
+    old = replace(p, spot=replace(p.spot, config_version=load_config().version - 1))
+    assert not views.villain_model_current(old)
+    assert not views.custom_allowed(old)
+
+
 def test_range_grid_unblocked_mean():
     hero = parse_cards("AhAs")
     r = empty_range()
@@ -360,15 +370,34 @@ def test_attempt_result_custom_chosen_appended(puzzles):
     listed = {o.option.action.to for o in p.solution.options}
     to = next(t for t in range(lo, hi + 1) if t not in listed)
     g = grade(p, Answer(custom_action(p.spot.state, to), 0.4))
-    # Force a loss so the custom option is not best (a custom best has its own test).
-    chosen = replace(g.chosen, ev_chips=p.solution.options[p.solution.best].ev_chips - 1.0)
-    res = views.attempt_result(attempt=_attempt_dict(p, g, custom_to=to), puzzle=p, chosen=chosen)
+    res = views.attempt_result(attempt=_attempt_dict(p, g, custom_to=to), puzzle=p, chosen=g.chosen)
     assert len(res["options"]) == len(p.solution.options) + 1
     last = res["options"][-1]
-    assert last["is_chosen"] and not last["is_best"] and last["to"] == to
+    assert last["is_chosen"] and last["to"] == to
+    assert last["is_best"] == (g.best is g.chosen)  # best only when it beat the listed best
+    assert sum(o["is_best"] for o in res["options"]) == 1
     assert sum(o["is_chosen"] for o in res["options"]) == 1
     assert res["answer"]["custom_to"] == to
     json.dumps(res, allow_nan=False)
+
+
+def test_attempt_result_custom_tie_keeps_listed_best(puzzles):
+    """A custom size whose EV ties the best listed option leaves the listed row best."""
+    p = puzzles["river_b"]
+    lo, hi = views.custom_bounds(p)
+    listed = {o.option.action.to for o in p.solution.options}
+    to = next(t for t in range(lo, hi + 1) if t not in listed)
+    g = grade(p, Answer(custom_action(p.spot.state, to), 0.4))
+    sol = p.solution
+    tied = replace(sol.options[sol.best], ev_chips=g.chosen.ev_chips)
+    options = tuple(tied if i == sol.best else o for i, o in enumerate(sol.options))
+    q = Puzzle(p.spot, replace(sol, options=options))
+    att = _attempt_dict(q, g, custom_to=to)
+    att.update(best_label=tied.option.label, best_ev_chips=tied.ev_chips)  # grade keeps listed
+    res = views.attempt_result(attempt=att, puzzle=q, chosen=g.chosen)
+    assert [o["is_best"] for o in res["options"]].index(True) == sol.best
+    assert sum(o["is_best"] for o in res["options"]) == 1
+    assert res["options"][-1]["is_chosen"] and not res["options"][-1]["is_best"]
 
 
 def test_attempt_result_custom_equal_to_listed(puzzles):
@@ -460,59 +489,3 @@ def test_known_river_result_reveal():
     assert res["reveal"]["villain_cards"] == ["As", "Kd"]
     assert res["reveal"]["showdown"]["winner"] == "villain"
     assert np.isfinite(res["grade"]["equity"])
-
-
-def _unlisted_custom(p):
-    lo, hi = views.custom_bounds(p)
-    listed = {o.option.action.to for o in p.solution.options}
-    return next(t for t in range(lo, hi + 1) if t not in listed)
-
-
-def _custom_result(p, ev_chips):
-    """Result view for a custom size whose chosen EV is forced to ``ev_chips``."""
-    to = _unlisted_custom(p)
-    g = grade(p, Answer(custom_action(p.spot.state, to), 0.4))
-    chosen = replace(g.chosen, ev_chips=ev_chips)
-    att = _attempt_dict(p, g, custom_to=to)
-    return views.attempt_result(attempt=att, puzzle=p, chosen=chosen), to
-
-
-def test_attempt_result_custom_beating_presets_is_only_best(puzzles):
-    p = puzzles["river_b"]
-    top = p.solution.options[p.solution.best].ev_chips
-    res, to = _custom_result(p, top + 1.0)
-    best = [o for o in res["options"] if o["is_best"]]
-    assert len(best) == 1 and best[0]["is_chosen"] and best[0]["to"] == to
-    assert res["options"][-1] is best[0]
-
-
-@pytest.mark.parametrize("delta", [0.0, 1e-12, -1.0])
-def test_attempt_result_custom_tie_or_loss_keeps_preset_best(puzzles, delta):
-    p = puzzles["river_b"]
-    top = p.solution.options[p.solution.best].ev_chips
-    res, _ = _custom_result(p, top + delta)
-    best = [i for i, o in enumerate(res["options"]) if o["is_best"]]
-    assert best == [p.solution.best]
-    assert not res["options"][-1]["is_best"]
-
-
-def test_custom_best_grade_end_to_end(puzzles, monkeypatch):
-    """grade() and attempt_result() agree: the custom option is best, EV lost 0."""
-    from poker_trainer.puzzle import grade as grade_mod
-
-    p = puzzles["river_b"]
-    to = _unlisted_custom(p)
-    action = custom_action(p.spot.state, to)
-    real = grade_mod.evaluate_action
-    top = p.solution.options[p.solution.best].ev_chips
-    monkeypatch.setattr(
-        grade_mod, "evaluate_action", lambda *a, **k: replace(real(*a, **k), ev_chips=top + 2.0)
-    )
-    g = grade(p, Answer(action, 0.4))
-    assert g.best is g.chosen and g.ev_loss_chips == 0.0 and g.verdict == "best"
-    att = _attempt_dict(p, g, custom_to=to)
-    assert att["best_label"] == g.chosen.option.label
-    res = views.attempt_result(attempt=att, puzzle=p, chosen=g.chosen)
-    assert [o["is_best"] for o in res["options"]].count(True) == 1
-    assert res["options"][-1]["is_best"]
-    assert res["grade"]["best_label"] == g.chosen.option.label

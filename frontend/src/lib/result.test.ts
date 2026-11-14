@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { AttemptResult } from '../api/types'
 import { attemptFixture, puzzleFixture } from '../test/fixture'
-import { customBestAttempt } from '../test/synthetic'
 import { entryTexts } from './history'
 import {
   answerEntry,
-  bestLabel,
   chosenLabel,
   guessLines,
   optionLabel,
@@ -64,6 +62,12 @@ describe('verdictLine', () => {
     expect(verdictLine(bet)).toBe('You: Bet 33% · the top play')
   })
 
+  it('a custom size that beats the listed best is the top play', () => {
+    const custom = attemptFixture('custom')
+    expect(custom.grade.ev_loss_bb).toBe(0)
+    expect(verdictLine(custom)).toBe('You: Bet 1 bb · the top play')
+  })
+
   it('close to the top play: names it, without the verdict word', () => {
     const r = withGrade(bet, { verdict: 'fine', ev_loss_bb: 0.1149, best_label: 'bet 75%' })
     expect(verdictLine(r)).toBe('You: Bet 33% · within 0.11 bb of the top play (Bet 75%)')
@@ -72,7 +76,7 @@ describe('verdictLine', () => {
   it('a mistake: "Top EV:" and the EV lost', () => {
     const fold = attemptFixture('fold')
     expect(fold.grade.verdict).toBe('mistake')
-    expect(verdictLine(fold)).toBe('You: Fold · Top EV: Call · 2.25 bb lost')
+    expect(verdictLine(fold)).toBe('You: Fold · Top EV: Call · 2.26 bb lost')
     for (const word of ['Best', 'Fine', 'Mistake', 'Blunder']) {
       expect(verdictLine(fold)).not.toContain(word)
     }
@@ -127,21 +131,5 @@ describe('answerEntry', () => {
     })
     expect(entry).toMatchObject({ kind: 'fold', amount: 0, all_in: false })
     expect(entryTexts([entry])).toEqual(['folds'])
-  })
-})
-
-describe('bestLabel', () => {
-  it('a preset best keeps its relabelled stored label', () => {
-    expect(bestLabel(attemptFixture('fold'))).toBe('Call')
-  })
-
-  it('a custom best is shown in bb, not in chips', () => {
-    const r = customBestAttempt()
-    expect(r.grade.best_label).toBe('bet 2')
-    expect(bestLabel(r)).toBe('Bet 1 bb')
-  })
-
-  it('a custom size that lost leaves the preset best label', () => {
-    expect(bestLabel(attemptFixture('custom'))).toBe('Bet 33%')
   })
 })

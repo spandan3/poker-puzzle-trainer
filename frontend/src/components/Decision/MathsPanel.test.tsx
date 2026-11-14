@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { decisionFromAttempt } from '../../lib/decision'
 import { formatEvBb } from '../../lib/format'
 import { attemptFixture, puzzleFixture } from '../../test/fixture'
-import { customBestAttempt, neverContinuesAttempt } from '../../test/synthetic'
+import {
+  bbCallAttempt,
+  customBelowListedBestAttempt,
+  neverContinuesAttempt,
+} from '../../test/synthetic'
 import { MathsPanel } from './MathsPanel'
 
 function columns() {
@@ -20,7 +24,7 @@ describe('MathsPanel', () => {
     if (!yours || !best) throw new Error('two columns')
     expect(within(yours).getByRole('heading', { level: 3 })).toHaveTextContent(/Your play.*Fold/)
     expect(within(best).getByRole('heading', { level: 3 })).toHaveTextContent(/Best play.*Call/)
-    expect(within(best).getByText('= 37.5% × (11 bb + 3 bb) − 3 bb')).toBeInTheDocument()
+    expect(within(best).getByText('= 37.6% × (11 bb + 3 bb) − 3 bb')).toBeInTheDocument()
     expect(within(yours).getByText('EV = 0 (folding is the baseline)')).toBeInTheDocument()
     expect(screen.getByText(/^EV lost = best − yours =/)).toHaveTextContent(
       `EV lost = best − yours = ${formatEvBb(d.grade.ev_loss_bb)}`,
@@ -41,8 +45,18 @@ describe('MathsPanel', () => {
     expect(screen.getByText(/^EV lost/)).toHaveTextContent('EV lost = best − yours = 0 bb')
   })
 
-  it('custom size above the marked best: EV lost is the grade value, never negative', () => {
+  it('custom size that beats the listed best: one column, it is the best play', () => {
     const d = decisionFromAttempt(puzzleFixture('custom_allowed'), attemptFixture('custom'))
+    render(<MathsPanel decision={d} />)
+    const cols = columns()
+    expect(cols).toHaveLength(1)
+    const heading = within(cols[0] as HTMLElement).getByRole('heading', { level: 3 })
+    expect(heading).toHaveTextContent(/Your play.*Best play.*Bet 1 bb/)
+    expect(screen.getByText(/^EV lost/)).toHaveTextContent('EV lost = best − yours = 0 bb')
+  })
+
+  it('custom size above the marked best (a pre-M9 row): EV lost is the grade value, never negative', () => {
+    const d = decisionFromAttempt(puzzleFixture('custom_allowed'), customBelowListedBestAttempt())
     render(<MathsPanel decision={d} />)
     expect(columns()).toHaveLength(2)
     expect(screen.getByText(/^EV lost/)).toHaveTextContent(
@@ -60,6 +74,29 @@ describe('MathsPanel', () => {
     expect(container.textContent).not.toContain('NaN')
   })
 
+  it('a pre-flop BB call: the realisation factor and realised equity are shown', () => {
+    const d = decisionFromAttempt(puzzleFixture('preflop_bb_facing_open'), bbCallAttempt())
+    render(<MathsPanel decision={d} />)
+    const [yours, best] = columns()
+    if (!yours || !best) throw new Error('two columns')
+    expect(within(yours).getByRole('heading', { level: 3 })).toHaveTextContent(/Your play.*Call/)
+    const realisation = within(yours).getByText('Realisation (out of position, pre-flop)')
+    expect(realisation.parentElement).toHaveTextContent('80%')
+    expect(within(yours).getByText('EV = r × e × (pot + call) − call')).toBeInTheDocument()
+    expect(
+      within(yours).getByText('= 0.80 × 51.2% × (3.5 bb + 1.5 bb) − 1.5 bb').parentElement,
+    ).toHaveTextContent('0.55 bb')
+    expect(
+      within(yours).getByText(
+        'Your realised equity (80% of 51.2% = 41.0%) is above the 30.0% pot odds, so calling beats folding',
+      ),
+    ).toBeInTheDocument()
+    // the best play (a raise): its Villain-calls branch is worked with r × e
+    expect(
+      within(best).getByText('0.80 × 46.2% × (3.5 bb + 5 bb + 3.5 bb) − 5 bb'),
+    ).toBeInTheDocument()
+  })
+
   it('shows the option notes', () => {
     const d = decisionFromAttempt(
       puzzleFixture('preflop_bb_facing_open'),
@@ -68,18 +105,5 @@ describe('MathsPanel', () => {
     render(<MathsPanel decision={d} />)
     const text = d.simplifications.find((s) => s.code === 'preflop_size')?.text ?? ''
     expect(screen.getByText(text)).toBeInTheDocument()
-  })
-
-  it('a custom size that is best and chosen: one column, EV lost 0', () => {
-    const d = decisionFromAttempt(puzzleFixture('custom_allowed'), customBestAttempt())
-    render(<MathsPanel decision={d} />)
-    const cols = columns()
-    expect(cols).toHaveLength(1)
-    expect(within(cols[0] as HTMLElement).getByRole('heading', { level: 3 })).toHaveTextContent(
-      /Your play.*Best play.*Bet 1 bb/,
-    )
-    expect(screen.getByText(/^EV lost = best − yours =/)).toHaveTextContent(
-      `EV lost = best − yours = ${formatEvBb(0)}`,
-    )
   })
 })

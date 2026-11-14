@@ -1,8 +1,8 @@
 # Handoff: improving the Villain "poker bot"
 
-This is for working on the Villain model while the main line of work (M9, Phase 1 sign-off) continues on its own branch.
+This is for working on the Villain model while the main line of work (M10, Play vs Bots heads-up) continues on its own branch.
 
-Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M8 merge (2026-11-12). M3 (the puzzle generator and grader), M4 (API and storage), M5 (table UI), M6 (results view), M7 (progress) and M8 (explanations) are done. M9 (Phase 1 sign-off) is next.
+Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M9 merge (2026-11-13). M3 (the puzzle generator and grader), M4 (API and storage), M5 (table UI), M6 (results view), M7 (progress), M8 (explanations) and M9 (Phase 1 sign-off: Villain tuning, new competence checks, position-aware realisation in the grader) are done. M10 (Play vs Bots heads-up) is next.
 
 ## 1. What the project is
 
@@ -33,10 +33,11 @@ So any improvement you make to that function automatically improves all three. I
 # install uv first: https://docs.astral.sh/uv/
 cd backend
 uv sync
-uv run pytest -m "not slow"            # fast suite, about 60 s, 636 tests
-uv run pytest -m slow                  # slow cross-checks, about 10 min
+uv run pytest -m "not slow"            # fast suite, about 2 min, 991 tests
+uv run pytest -m slow                  # slow cross-checks, about 17 min
 uv run ruff check . && uv run ruff format --check .
-uv run python -m poker_trainer.analysis.competence --profile all --hands 400   # about 2 min
+uv run competence --profile all --hands 400                 # one seed, about 2 min
+uv run competence --profile all --hands 400 --seeds 0-5     # six seeds with a min/max summary, about 11 min
 ```
 
 ## 3. Scope: what's yours, what's shared, what's off-limits
@@ -106,15 +107,15 @@ Invariants that tests enforce. Keep all of them true:
 
    Anything else raises `UnsupportedSpot`, and the generator retries the hand. Extending the tree is welcome; just keep that behaviour for whatever stays unsupported.
 7. **Jams are value-only.**
-8. **No profile may fold NUTS.** STRONG must continue at least 0.93 facing a bet (the `facing_bet` row).
+8. **No profile may fold NUTS.** STRONG must continue at least 0.93 facing a bet (the `facing_bet` row). Since M9 the loader also refuses any STRONG facing row below `STRONG_CONTINUE_MIN` (0.75), because the overbet curve's STRONG floor assumes it.
 
 Old puzzles are frozen with the `profile_version` they were generated under. That's why every data change needs a version bump.
 
 ## 5. Current status
 
-M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage), M5 (table UI), M6 (results view), M7 (progress) and M8 (explanations) are done and reviewed.
+M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage), M5 (table UI), M6 (results view), M7 (progress), M8 (explanations) and M9 (Phase 1 sign-off) are done and reviewed.
 
-Roadmap (2026-11-12, M1–M8 done): M9 Phase 1 sign-off → M10 Play vs Bots heads-up → M11 UI polish → M12 Play vs Bots 5-max (play) → M13 5-max analysis. See `docs/superpowers/plans/2026-11-10-roadmap.md`.
+Roadmap (2026-11-13, M1–M9 done): M10 Play vs Bots heads-up → M11 UI polish → M12 Play vs Bots 5-max (play) → M13 5-max analysis. See `docs/superpowers/plans/2026-11-10-roadmap.md`.
 
 **Play vs Bots (M10) matters for Villain work:** the bot in that mode *is* the Villain policy (`action_distribution`, sampled for the bot's real cards), so every tuning change shows up in live play too (spec: `docs/superpowers/specs/2026-11-12-play-vs-bots-design.md`). M10 will add `STRATEGY_VERSION` to `strategy.py`: once it exists, bump it by hand whenever the policy's behaviour changes, as you already do for profile and `categories.json` versions. Play mode only offers the supported pre-flop tree (no limps, no small 4-bets); widening that tree is a welcome future Villain task, listed under "Later" in the roadmap.
 
@@ -122,19 +123,25 @@ M4 note for Villain work: custom bet sizes on a stored puzzle are refused (409) 
 
 M7 note for Villain work: each attempt now stores Hero's own hand category (`stats/hero.py`, via `categorize` and `categories.json`). It is stored only when the puzzle's `categories_version` equals the live one, so after a `categories.json` bump, answers to older puzzles store no category (they drop out of the "draws" leak rule). Keep `categorize`'s signature and the category names (`HandCategory`) stable; the stats and the API's `CategoryCode` rely on them.
 
-The competence report checks 10 things per profile over 400 simulated hands against the TAG Hero (seed 0). All 40 checks pass:
+M9 note for Villain work: the grader now discounts Hero's equity out of position before the river (puzzle `config.json` v4: 0.80 pre-flop, 0.88 flop, 0.94 turn). That changes which Hero options grade best, so judge a tuning change with `puzzle-sample` on the current config. Profiles are at **version 5**. `strategy.py`'s `_facing` now scales continue with MDF past pot size (weak hands give up faster, STRONG keeps a floor of 0.75), and `river_facing` is an optional per-profile override of the river facing rows.
 
-| Check | TAG | LAG | Tight | Sticky | Meaning |
-|---|---|---|---|---|---|
-| bluff_share_33 | 0.258 | 0.248 | 0.172 | 0.229 | Share of 33% river bets that are bluffs. Target is near f/(1+2f) ≈ 0.20, plus a profile offset. |
-| bluff_share_75 | 0.297 | 0.328 | 0.184 | 0.266 | The same for 75% bets. Target is near 0.30. |
-| defence_flop / turn / river | 0.92 / 1.03 / 0.90 | 0.95 / 1.07 / 0.96 | 0.86 / 0.96 / 0.89 | 1.05 / 1.18 / 1.06 | How often Villain continues facing a bet, divided by minimum defence frequency 1/(1+f). |
-| nuts_fold_max | 0 | 0 | 0 | 0 | Must be 0. |
-| strong_fold_max | 0.041 | 0.028 | 0.071 | 0.028 | Facing a bet of pot size or more. Must be ≤ 0.10. |
-| air_call_max | 0.071 | 0.049 | 0.023 | 0.058 | Calls with air facing a river bet of 75% pot or more. Must be ≤ 0.10. |
-| thin_value_dominated | 0.060 | 0.061 | 0.028 | 0.071 | Value bets that only better hands call. Must be ≤ 0.10. |
-| cbet_flop | 0.566 | 0.635 | 0.513 | 0.541 | Whole-range flop c-bet frequency, in [0.45, 0.70]. |
-| river_stab (info only) | 0.319 | 0.381 | 0.286 | 0.333 | How often Villain bets the river when checked to. |
+The competence report checks 13 things per profile (plus 3 info lines) over 400 simulated hands against the TAG Hero. **Since M9, all 52 checks pass on all six seeds 0–5 (312/312 check-seeds)**; the baseline before M9 was 261/312. The full before/after tables, min/max per seed, the category continue table against a 2.5×-pot bet and the BB 3-bet table are in `docs/superpowers/reports/2026-11-13-m9-competence-signoff.md`. The checks:
+
+| Check | Band | Meaning |
+|---|---|---|
+| bluff_share_33 / _75 | per profile | Share of 33% / 75% river bets that are bluffs. |
+| defence_flop / turn / river | per profile | Continue rate facing a bet, divided by MDF = prior / (prior + call). |
+| defence_overbet (M9) | per profile | The same, averaged over bets of 1.5×, 2× and 2.5× pot. |
+| nuts_fold_max | 0 | Must be 0. |
+| strong_fold_max | ≤ 0.10 | STRONG folds facing a bet of pot size or more. |
+| air_call_max | ≤ 0.10 | Calls with air facing a river bet of 75% pot or more. |
+| thin_value_dominated | ≤ 0.10 | Value bets that only better hands call. |
+| raise_dominated (M9) | ≤ 0.10 | River value raises that only better hands continue against (ratio of sums). |
+| cbet_flop | [0.45, 0.70] | Whole-range flop c-bet frequency. |
+| preflop_defence_3bet (M9) | [0.90, 1.40], all profiles | BTN continue vs a 3-bet to 15, divided by MDF 0.50. Above 1 is expected: BTN is in position. |
+| river_stab, air_continue_max, preflop_defence_open (info only) | — | River stab rate; air continuing; BB defence vs an open divided by MDF 4/7. |
+
+Also since M9: `tests/puzzle/test_solve.py::test_bb_trash_3bet_not_best` (slow) checks, for all four profiles' BTN opens, that BB 3-betting trash (whole-range equity < 0.40) never beats the better of call/fold by more than 0.25 bb. Profile changes must keep it passing.
 
 The bands live in each profile's `bands` block. **Don't widen a band just to make a check pass.** If a band looks wrong, argue the case from the theory.
 
@@ -142,9 +149,9 @@ The bands live in each profile's `bands` block. **Don't widen a band just to mak
 
 **How to see the effect of a change on real puzzles:** the generator and grader are built now. `uv run puzzle-sample --n 10 --profile tag` prints puzzles: Villain's line, Hero's cards, the board, the range size, Hero's equity, and the EV of every Hero option in bb. Each option's EV comes from your strategy's fold, call and raise responses. If a ridiculous option grades as best, the cause is usually a Villain frequency.
 
-**Found by the M3 review (fix these first). They make the grader teach the wrong lesson:**
-1. **TAG calls huge river jams too wide.** On a monotone river, TAG called a 2.5×-pot jam with about 55% of its range, so Hero jamming two pair graded as best. To fix it, have `facing_bet` continue less against big sizes for MEDIUM and WEAK hands: tighten their base rows, or steepen the size curve in `_facing`. Then add a competence check on the continue rate against bets of 2× pot or more.
-2. **BTN over-folds to 3-bets.** From the BB, 3-betting trash like 23o, 35o and 75o grades as best by 0.6–1.3bb, so Villain BTN's `btn_call_threebet` + `btn_jam` is too narrow against a 3-bet. Check it against the minimum defence frequency, MDF = 1/(1+f), where f = call ÷ (pot before the call − call):
+**Found by the M3 review: done in M9** (kept for history; see the sign-off report):
+1. ~~**TAG calls huge river jams too wide.**~~ Done in M9 (`defence_overbet`, MDF-scaled curve). On a monotone river, TAG called a 2.5×-pot jam with about 55% of its range, so Hero jamming two pair graded as best. To fix it, have `facing_bet` continue less against big sizes for MEDIUM and WEAK hands: tighten their base rows, or steepen the size curve in `_facing`. Then add a competence check on the continue rate against bets of 2× pot or more.
+2. ~~**BTN over-folds to 3-bets.**~~ Done in M9 (`preflop_defence_3bet`, wider `btn_call_threebet`, trash 3-bet test). From the BB, 3-betting trash like 23o, 35o and 75o grades as best by 0.6–1.3bb, so Villain BTN's `btn_call_threebet` + `btn_jam` is too narrow against a 3-bet. Check it against the minimum defence frequency, MDF = 1/(1+f), where f = call ÷ (pot before the call − call):
    - A 3-bet to 15 against BTN's open to 5: BTN calls 10 into 10, so f = 1 and BTN should continue about 50% of its opening range.
    - A 3-bet to 12: f = 0.7, so BTN should continue about 59%.
 
@@ -152,15 +159,15 @@ The bands live in each profile's `bands` block. **Don't widen a band just to mak
 
 **Known weaknesses:**
 1. **Per-street tables.** Flop and turn share one unopened table. Only the river has overrides, through `river_unopened`. Real players play turns differently, for example double-barrel frequencies. You could add `turn_unopened`, or generalise to per-street overrides.
-2. **MEDIUM raises a bet too often** in the `facing_bet` tables. No check measures this yet. Add a "raises are dominated" check, like `thin_value_dominated` but for raises, then tune.
-3. **STRONG folds about 34% to huge over-jams** of about 20× pot. That falls out of the size-scaling formula `continue = base ** ((1+f)/1.5)` in `_facing`. Consider a floor for STRONG, or a different curve.
+2. **MEDIUM raises a bet too often** in the `facing_bet` tables. M9 added `raise_dominated` and tuned to it, but river raises are still about 2% of the range because STRONG is a broad category. Add a "raises are dominated" check, like `thin_value_dominated` but for raises, then tune.
+3. ~~**STRONG folds about 34% to huge over-jams**~~ Done in M9 (STRONG floor 0.75 past pot size). of about 20× pot. That falls out of the size-scaling formula `continue = base ** ((1+f)/1.5)` in `_facing`. Consider a floor for STRONG, or a different curve.
 4. **Board texture is barely used.** The only texture rule is a 1.25× bet boost for draws on wet boards. Ideas:
    - on dry boards, c-bet small more often;
    - on monotone boards, slow down;
    - adjust for how the board connects with each player's range (range advantage).
 5. **Blockers.** The spec mentions "air with/without blockers". AIR is one bucket today. Bluffing with nut-flush blockers, for example, would be more realistic.
 6. **Pre-flop ignores raise size.** For example, BB defends the same range against a 2.5× open and a 3× open. Hero's pre-flop sizes are limited to 2.5×, 3× and all-in partly for this reason.
-7. **Thin margins.** Some checks are close to their band edges:
+7. ~~**Thin margins.**~~ M9 made every check pass on seeds 0–5. Remaining weak spots are listed in the sign-off report §9 (LAG defence trending down past 2× pot, Sticky at 1.375 against the 1.40 pre-flop ceiling, over-defence against an uncapped BTN lead at pot or less). The old note: Some checks are close to their band edges:
    - TAG `bluff_share_33` is 0.258 against an upper edge of 0.28;
    - Tight `cbet_flop` is about 0.50 against a lower edge of 0.45;
    - Sticky `thin_value_dominated` reaches 0.077 at seed 1.

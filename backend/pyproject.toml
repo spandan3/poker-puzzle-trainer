@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 competence = "poker_trainer.analysis.competence:main"
+explain-check = "poker_trainer.analysis.explain_check:main"
 openapi = "poker_trainer.api.app:dump_openapi"
 puzzle-sample = "poker_trainer.puzzle.cli:main"
 serve = "poker_trainer.api.app:main"

@@ -3,6 +3,7 @@ import json
 import pytest
 
 from poker_trainer.api.dev_fixtures import (
+    _dump,
     find_never_continues,
     search,
     write_fixtures,
@@ -12,6 +13,14 @@ from poker_trainer.explain.guardrail import unknown_numbers
 from poker_trainer.explain.service import Explainer
 
 ATTEMPTS = ("bet", "fold", "call", "raise_preflop", "fold_preflop", "check_river", "custom")
+
+
+def test_dump_rounds_floats(tmp_path):
+    path = tmp_path / "x.json"
+    _dump(path, {"a": 0.1 + 0.2, "b": [1, 2.0000000000004], "c": True, "d": "x", "e": 1e-20})
+    text = path.read_text(encoding="utf-8")
+    assert json.loads(text) == {"a": 0.3, "b": [1, 2.0], "c": True, "d": "x", "e": 1e-20}
+    assert "1e-20" in text and "0.30000000000000004" not in text
 
 
 def test_find_never_continues_raises_when_none_found():
@@ -28,10 +37,10 @@ def test_write_fixtures_writes_all_attempts(tmp_path):
     assert (tmp_path / "explanation_llm.json").is_file()
     custom = json.loads((tmp_path / "attempt_custom.json").read_text(encoding="utf-8"))
     last = custom["options"][-1]
-    # The custom row is best exactly when it beats every preset (custom best rule).
-    presets = custom["options"][:-1]
     assert last["is_chosen"] is True
-    assert last["is_best"] is (last["ev_chips"] > max(o["ev_chips"] for o in presets) + 1e-9)
+    # a custom size that beats every listed option is the one best row
+    beats = last["ev_chips"] > max(o["ev_chips"] for o in custom["options"][:-1])
+    assert last["is_best"] is beats
     assert sum(o["is_best"] for o in custom["options"]) == 1
     raise_pf = json.loads((tmp_path / "attempt_raise_preflop.json").read_text(encoding="utf-8"))
     assert raise_pf["answer"]["action"]["kind"] == "raise"

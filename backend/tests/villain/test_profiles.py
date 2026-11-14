@@ -106,7 +106,7 @@ def _raw(name: str = "tag") -> dict:
 
 
 def test_loader_accepts_raw_profile():
-    assert _profile_from_dict("tag", _raw()).version == 6
+    assert _profile_from_dict("tag", _raw()).version == 5
 
 
 def test_bad_row_sum_raises():
@@ -136,12 +136,17 @@ def test_missing_category_raises():
         lambda r: r["river_unopened"]["cbet"].update(BOGUS={}),
         lambda r: r["river_unopened"]["cbet"]["AIR"].update(check=0.5),
         lambda r: r["river_unopened"]["cbet"]["AIR"].pop("bet_75"),
-        lambda r: r.pop("overbet_slopes"),
-        lambda r: r["overbet_slopes"].pop("MEDIUM"),
-        lambda r: r["overbet_slopes"].update(BOGUS=1.0),
-        lambda r: r["overbet_slopes"].update(WEAK=-0.5),
-        lambda r: r["overbet_slopes"].update(WEAK="steep"),
-        lambda r: r["overbet_slopes"].update(WEAK=float("nan")),
+        lambda r: r["river_facing"].update(cbet={}),
+        lambda r: r["river_facing"]["facing_bet"].update(BOGUS={}),
+        lambda r: r["river_facing"]["facing_bet"]["MEDIUM"].update(fold=0.5),
+        lambda r: r["river_facing"]["facing_bet"]["MEDIUM"].pop("raise"),
+        # STRONG must continue at least STRONG_CONTINUE_MIN (the size curve's floor).
+        lambda r: r["facing"]["facing_raise"].update(
+            STRONG={"fold": 0.3, "call": 0.7, "raise": 0.0}
+        ),
+        lambda r: r["river_facing"]["facing_bet"].update(
+            STRONG={"fold": 0.3, "call": 0.7, "raise": 0.0}
+        ),
     ],
 )
 def test_structural_errors_raise_value_error(mutate):
@@ -168,6 +173,30 @@ def test_river_overrides_optional():
     assert dict(_profile_from_dict("tag", raw).river_unopened) == {}
 
 
+@pytest.mark.parametrize("where", ["facing", "river_facing"])
+def test_strong_continue_floor_message(where):
+    raw = copy.deepcopy(_raw())
+    raw[where]["facing_bet"]["STRONG"] = {"fold": 0.3, "call": 0.7, "raise": 0.0}
+    with pytest.raises(ValueError, match=f"{where}.facing_bet.STRONG: continue must be at least"):
+        _profile_from_dict("tag", raw)
+
+
+def test_river_facing_optional():
+    raw = copy.deepcopy(_raw())
+    del raw["river_facing"]
+    assert dict(_profile_from_dict("tag", raw).river_facing) == {}
+
+
+def test_river_facing_partial(profile: Profile):
+    for spot, rows in profile.river_facing.items():
+        assert spot in FACING
+        for row in rows.values():
+            assert set(row) == {"fold", "call", "raise"}
+            assert sum(row.values()) == pytest.approx(1.0)
+    with pytest.raises(TypeError):
+        profile.river_facing["facing_bet"][HandCategory.AIR]["fold"] = 0.0  # type: ignore[index]
+
+
 def test_river_overrides_partial(profile: Profile):
     for role, rows in profile.river_unopened.items():
         assert role in ROLES
@@ -175,22 +204,13 @@ def test_river_overrides_partial(profile: Profile):
             assert sum(row.values()) == pytest.approx(1.0)
 
 
-def test_overbet_slopes_loaded(profile: Profile):
-    assert set(profile.overbet_slopes) == set(HandCategory)
-    assert all(v >= 0.0 for v in profile.overbet_slopes.values())
-    with pytest.raises(TypeError):
-        profile.overbet_slopes[HandCategory.AIR] = 1.0  # type: ignore[index]
+def test_profile_meta_known():
+    from poker_trainer.villain.profiles import profile_meta
+
+    assert profile_meta("tag") == (load_profile("tag").label, load_profile("tag").description)
 
 
-def test_overbet_slopes_missing_category_raises():
-    raw = copy.deepcopy(_raw())
-    del raw["overbet_slopes"]["AIR"]
-    with pytest.raises(ValueError, match="overbet_slopes"):
-        _profile_from_dict("tag", raw)
+def test_profile_meta_unknown():
+    from poker_trainer.villain.profiles import profile_meta
 
-
-def test_overbet_slopes_negative_raises():
-    raw = copy.deepcopy(_raw())
-    raw["overbet_slopes"]["WEAK"] = -1.0
-    with pytest.raises(ValueError, match="overbet_slopes"):
-        _profile_from_dict("tag", raw)
+    assert profile_meta("maniac") == ("Maniac", "")

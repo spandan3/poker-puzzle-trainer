@@ -230,7 +230,8 @@ def test_probe_ready(fake):
     fake.tags("llama3.2:3b", "mistral:latest")
     assert ollama.probe(fake.url, "llama3.2:3b") == ("ready", None)
     assert ollama.probe(fake.url, "mistral") == ("ready", None)  # no tag: ":latest"
-    assert fake.requests[0][:2] == ("GET", "/api/tags")
+    assert fake.requests[0][:2] == ("GET", "/api/version")
+    assert ("GET", "/api/tags") in [r[:2] for r in fake.requests]
 
 
 def test_probe_model_missing(fake):
@@ -315,3 +316,68 @@ def test_parse_reply():
         assert e.value.reason == "invalid"
     ok = json.dumps({"headline": " x ", "hand": "y" * 1200, "verdict": "z", "extra": 1})
     assert ollama.parse_reply(ok)["hand"] == "y" * 1200
+
+
+# ---------------------------------------------------------------------------
+# version
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("0.5.0", (0, 5, 0)),
+        ("0.4.7", (0, 4, 7)),
+        ("0.5.0-rc1", (0, 5, 0)),
+        ("0.40.16", (0, 40, 16)),
+        ("v0.6", None),
+        ("0.6", (0, 6, 0)),
+        ("1.2.3+build", (1, 2, 3)),
+        ("0.0.0", None),
+        ("", None),
+        ("abc", None),
+    ],
+)
+def test_parse_version(text, expected):
+    assert ollama.parse_version(text) == expected
+
+
+def _version(fake: FakeOllama, body: bytes, status: int = 200) -> None:
+    fake.routes[("GET", "/api/version")] = lambda _b: (status, body, 0.0)
+
+
+@pytest.mark.parametrize(
+    ("body", "too_old"),
+    [
+        (b'{"version": "0.0.0"}', False),
+        (b'{"version": "0.4.7"}', True),
+        (b'{"version": "0.5.0-rc1"}', False),
+        (b'{"version": "0.40.16"}', False),
+        (b"{}", False),
+        (b'{"version": 5}', False),
+        (b"<html></html>", False),
+    ],
+)
+def test_probe_version_table(fake, body, too_old):
+    fake.tags("llama3.2:3b")
+    _version(fake, body)
+    status, detail = ollama.probe(fake.url, "llama3.2:3b")
+    if too_old:
+        assert status == "unavailable"
+        assert detail == "Ollama 0.4.7 is too old: version 0.5 or newer is needed."
+    else:
+        assert (status, detail) == ("ready", None)
+
+
+def test_probe_version_http_error_continues(fake):
+    fake.tags("llama3.2:3b")
+    _version(fake, b"{}", status=500)
+    assert ollama.probe(fake.url, "llama3.2:3b") == ("ready", None)
+
+
+def test_probe_version_timeout_skips_tags(fake):
+    fake.tags("m")
+    fake.routes[("GET", "/api/version")] = lambda _b: (200, b'{"version": "0.6.0"}', 1.0)
+    status, detail = ollama.probe(fake.url, "m", timeout=0.2)
+    assert (status, detail) == ("unavailable", f"Ollama isn't answering at {fake.url}.")
+    assert [r[1] for r in fake.requests] == ["/api/version"]

@@ -3,7 +3,7 @@ import type { AttemptResult } from '../../api/types'
 import { MathsPanel } from '../../components/Decision/MathsPanel'
 import { decisionFromAttempt } from '../../lib/decision'
 import { attemptFixture, puzzleFixture } from '../../test/fixture'
-import { neverContinuesAttempt } from '../../test/synthetic'
+import { bbCallAttempt, neverContinuesAttempt } from '../../test/synthetic'
 import type { GalleryEntry } from '../Gallery'
 
 const caption: CSSProperties = {
@@ -36,6 +36,11 @@ const cases: { title: string; puzzle: string; attempt: AttemptResult }[] = [
     title: 'Pre-flop, raise (preflop_size note)',
     puzzle: 'preflop_bb_facing_open',
     attempt: attemptFixture('raise_preflop'),
+  },
+  {
+    title: 'Pre-flop BB, call out of position (realisation 80%; synthetic, from the raise fixture)',
+    puzzle: 'preflop_bb_facing_open',
+    attempt: bbCallAttempt(),
   },
   {
     title: 'Pre-flop, fold',

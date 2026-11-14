@@ -2,6 +2,9 @@
 // puts them back into the solver's formulas (backend puzzle/solve.py). A plugged-in formula is
 // shown only when it reproduces the API value from the raw numbers, so the maths on screen is
 // the maths that was graded. Otherwise the line shows the API value on its own.
+// Before the river the solver scales Hero's equity by a realisation factor r (below 1 only out of
+// position; 1 on the river, all-in, in position and in results graded before M9). Every formula
+// that uses equity shows r when r is not 1, so it still reproduces the API value.
 import type { OptionResult } from '../api/types'
 import type { DecisionData } from './decision'
 import { bbLabel, formatBb, formatEvBb, formatPct } from './format'
@@ -53,6 +56,23 @@ function share(x: number): string {
   return formatPct(x, 1).replace(/\.0%$/, '%')
 }
 
+const STREET_WORDS: Record<DecisionData['context']['street'], string> = {
+  preflop: 'pre-flop',
+  flop: 'flop',
+  turn: 'turn',
+  river: 'river',
+}
+
+/** a realisation factor inside a formula: two decimals ("0.80") */
+const factor = (r: number) => r.toFixed(2)
+
+/** "Realisation (out of position, pre-flop)" → "80%": the line that precedes a formula with r */
+function realisationLine(r: number, d: DecisionData): MathsLine {
+  // only out-of-position factors are below 1
+  const where = r < 1 ? 'out of position, ' : ''
+  return { text: `Realisation (${where}${STREET_WORDS[d.context.street]})`, result: share(r) }
+}
+
 /** a bb value inside a sum, with negatives bracketed: "(−1.7 bb)" */
 function term(bb: number): string {
   const text = formatEvBb(bb)
@@ -82,9 +102,11 @@ function branchFormula(
   }
   if (b.label === 'Villain calls') {
     const vcall = o.to - d.context.villainStreetBetChips
+    const r = b.realisation
+    const scaled = r === 1 ? eq(e) : `${factor(r)} × ${eq(e)}`
     return {
-      chips: e * (P + o.put + vcall) - o.put,
-      text: `${eq(e)} × (${formatBb(P)} + ${formatBb(o.put)} + ${formatBb(vcall)}) ${MINUS} ${formatBb(o.put)}`,
+      chips: r * e * (P + o.put + vcall) - o.put,
+      text: `${scaled} × (${formatBb(P)} + ${formatBb(o.put)} + ${formatBb(vcall)}) ${MINUS} ${formatBb(o.put)}`,
     }
   }
   // re-raise branches: the value only
@@ -111,24 +133,33 @@ function evLines(o: OptionResult, d: DecisionData): MathsLine[] {
   if (o.kind === 'fold') {
     return o.ev_bb === 0 ? [{ text: 'EV = 0 (folding is the baseline)', result }] : apiOnly
   }
+  const r = o.realisation
+  // with r = 1 the lines are exactly the pre-M9 ones
+  const lead = r === 1 ? [] : [realisationLine(r, d)]
+  const rE = r === 1 ? 'e' : 'r × e'
+  const rEq = r === 1 ? eq(e) : `${factor(r)} × ${eq(e)}`
   if (o.kind === 'call') {
-    if (!matchesEv(e * (P + o.put) - o.put, o.ev_bb)) return apiOnly
+    if (!matchesEv(r * e * (P + o.put) - o.put, o.ev_bb)) return apiOnly
     return [
-      { text: `EV = e × (pot + call) ${MINUS} call` },
+      ...lead,
+      { text: `EV = ${rE} × (pot + call) ${MINUS} call` },
       {
-        text: `= ${eq(e)} × (${formatBb(P)} + ${formatBb(o.put)}) ${MINUS} ${formatBb(o.put)}`,
+        text: `= ${rEq} × (${formatBb(P)} + ${formatBb(o.put)}) ${MINUS} ${formatBb(o.put)}`,
         result,
       },
     ]
   }
   if (o.kind === 'check' && o.branches.length === 0) {
-    if (!matchesEv(e * P, o.ev_bb)) return apiOnly
-    return [{ text: 'EV = e × pot' }, { text: `= ${eq(e)} × ${formatBb(P)}`, result }]
+    if (!matchesEv(r * e * P, o.ev_bb)) return apiOnly
+    return [...lead, { text: `EV = ${rE} × pot` }, { text: `= ${rEq} × ${formatBb(P)}`, result }]
   }
   if (o.branches.length === 0) return apiOnly
   const sum = o.branches.reduce((acc, b) => acc + b.share * b.value_bb, 0)
   if (Math.abs(sum - o.ev_bb) >= EV_TOL) return apiOnly
+  // a bet or raise: the factor lives on its branches (the same one wherever it is not 1)
+  const branchR = o.branches.find((b) => b.realisation !== 1)?.realisation
   return [
+    ...(branchR === undefined ? [] : [realisationLine(branchR, d)]),
     { text: "EV = Σ share × value, over Villain's replies" },
     {
       text: `= ${o.branches.map((b) => `${share(b.share)} × ${term(b.value_bb)}`).join(' + ')}`,
@@ -143,6 +174,8 @@ function potOddsLines(o: OptionResult, d: DecisionData): MathsLine[] {
   const P = d.context.potChips
   const call = d.options.find((x) => x.kind === 'call')
   const e = d.grade.equity
+  // the call's value uses realised equity r × e, so that is what the pot odds compare
+  const r = call?.realisation ?? 1
   const lines: MathsLine[] =
     call !== undefined && matchesFraction(call.put / (P + call.put), po)
       ? [
@@ -153,11 +186,22 @@ function potOddsLines(o: OptionResult, d: DecisionData): MathsLine[] {
         ]
       : [{ text: 'Pot odds', result: eq(po) }]
   lines.push({ text: 'Your equity', result: eq(e) })
+  if (r === 1) {
+    lines.push({
+      text:
+        e >= po
+          ? `${eq(e)} is above ${eq(po)}, so calling beats folding`
+          : `${eq(e)} is below ${eq(po)}, so folding beats calling`,
+    })
+    return lines
+  }
+  const realised = r * e
+  const which = `Your realised equity (${share(r)} of ${eq(e)} = ${eq(realised)})`
   lines.push({
     text:
-      e >= po
-        ? `${eq(e)} is above ${eq(po)}, so calling beats folding`
-        : `${eq(e)} is below ${eq(po)}, so folding beats calling`,
+      realised >= po
+        ? `${which} is above the ${eq(po)} pot odds, so calling beats folding`
+        : `${which} is below the ${eq(po)} pot odds, so folding beats calling`,
   })
   return lines
 }

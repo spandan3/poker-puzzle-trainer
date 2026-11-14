@@ -6,21 +6,12 @@ import numpy as np
 import pytest
 
 from poker_trainer.engine.ranges import full_range, total_weight
-from poker_trainer.game.state import (
-    Action,
-    ActionKind,
-    Street,
-    apply,
-    deal,
-    legal_actions,
-    new_hand,
-)
+from poker_trainer.game.state import Street
 from poker_trainer.puzzle import generate
 from poker_trainer.puzzle.cli import main
 from poker_trainer.puzzle.generate import generate_puzzle, generate_spot
 from poker_trainer.puzzle.model import load_config, puzzle_to_dict, visible_range
 from poker_trainer.villain.profiles import PROFILE_NAMES
-from poker_trainer.villain.strategy import OPEN_MULT, allin, raise_to
 
 STREETS = [Street.PREFLOP, Street.FLOP, Street.TURN, Street.RIVER]
 
@@ -137,72 +128,3 @@ def test_cli_rejects_unknown_profile(capsys):
     with pytest.raises(SystemExit):
         main(["--n", "1", "--profile", "nobody"])
     assert "invalid choice" in capsys.readouterr().err
-
-
-# ---------------------------------------------------------------------------
-# Paused spots (pre-M7 fixes): BB facing a non-all-in open is not generated until M9
-# ---------------------------------------------------------------------------
-
-
-def _preflop_kind(spot) -> str:
-    s = spot.state
-    acts = [a for a in s.history if a.street == Street.PREFLOP]
-    hero_is_btn = spot.hero_seat == s.button
-    can_raise = legal_actions(s).aggressive is not None
-    if hero_is_btn and not acts:
-        return "btn_first_in"
-    if not hero_is_btn and len(acts) == 1 and can_raise:
-        return "bb_vs_open"
-    if hero_is_btn and len(acts) == 2:
-        return "btn_vs_3bet"
-    if not hero_is_btn and not can_raise:
-        return "bb_vs_jam"
-    return "other"
-
-
-def _preflop_spots(paused=None, n=20000):
-    """Spot kinds over ``n`` pre-flop attempts (no solving: generate_spot is cheap)."""
-    rng = random.Random(11)
-    kinds = Counter()
-    for k in range(n):
-        prof = PROFILE_NAMES[k % len(PROFILE_NAMES)]
-        spot = generate_spot(rng, Street.PREFLOP, prof, seed=11, attempt=k, paused=paused)
-        if spot is not None:
-            kinds[_preflop_kind(spot)] += 1
-    return kinds
-
-
-def test_paused_bb_vs_open_never_generated_other_preflop_spots_are():
-    paused = _preflop_spots()
-    unpaused = _preflop_spots(paused=())
-    assert paused["bb_vs_open"] == 0 and unpaused["bb_vs_open"] > 0, (paused, unpaused)
-    # The pause only fails the attempt at that decision: every other kind is unaffected.
-    assert paused == unpaused - Counter({"bb_vs_open": unpaused["bb_vs_open"]})
-    assert paused["btn_first_in"] > 0 and paused["btn_vs_3bet"] > 0, paused
-    assert paused["bb_vs_jam"] > 0 and paused["other"] == 0, paused
-
-
-def test_paused_spot_helper():
-    s = new_hand(0)  # seat 0 is the button
-    assert not generate._paused_spot(s, 0, ("preflop_bb_vs_open",))  # BTN first in
-    opened = apply(s, raise_to(s, OPEN_MULT))
-    assert generate._paused_spot(opened, 1, ("preflop_bb_vs_open",))
-    assert not generate._paused_spot(opened, 1, ())
-    threebet = apply(opened, raise_to(opened, 3.0))
-    assert not generate._paused_spot(threebet, 0, ("preflop_bb_vs_open",))  # BTN vs 3-bet
-    short = new_hand(0, (8, 8))
-    jammed = apply(short, allin(short))  # an open-jam leaves BB unable to raise
-    assert not generate._paused_spot(jammed, 1, ("preflop_bb_vs_open",))
-    flop = deal(apply(opened, Action(1, ActionKind.CALL, Street.PREFLOP, 5)), (0, 1, 2))
-    assert not generate._paused_spot(flop, 1, ("preflop_bb_vs_open",))
-
-
-def test_no_bb_vs_open_puzzle_over_seeds():
-    kinds = Counter()
-    for seed in range(40):
-        p = generate_puzzle(seed, street="preflop")
-        assert p.spot.config_version == load_config().version
-        kinds[_preflop_kind(p.spot)] += 1
-    # BTN facing a 3-bet and BB facing a jam are rare puzzles: the spot-level test above
-    # shows they are still generated.
-    assert kinds["bb_vs_open"] == 0 and kinds["btn_first_in"] > 0, kinds

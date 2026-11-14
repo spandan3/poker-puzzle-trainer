@@ -216,6 +216,7 @@ class Branch(_Out):
     equity: float | None
     value_chips: float
     value_bb: float
+    realisation: float  # equity realisation factor used in the value (1.0 when unused)
 
 
 class OptionResult(_Out):
@@ -230,6 +231,7 @@ class OptionResult(_Out):
     ahead_vs_continue: float | None
     required_fold_equity: float | None
     put: int
+    realisation: float  # factor in a call or check value; 1.0 for fold/bet/raise (see branches)
     branches: list[Branch]
     simplifications: list[str]
     continue_grid: Grid | None

@@ -18,3 +18,11 @@ def test_openapi_snapshot_fresh(tmp_path, llm_off):
     committed = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     assert committed == dumped, "frontend/openapi.json is stale: run npm run gen:openapi"
     assert b"\r\n" not in out.read_bytes()
+
+
+def test_openapi_has_realisation_fields(llm_off):
+    """M9: options and branches carry the equity realisation factor used in their value."""
+    schemas = create_app(AppSettings(_env_file=None, **llm_off)).openapi()["components"]["schemas"]
+    for name in ("OptionResult", "Branch"):
+        assert schemas[name]["properties"]["realisation"]["type"] == "number"
+        assert "realisation" in schemas[name]["required"]

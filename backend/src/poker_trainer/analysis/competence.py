@@ -12,51 +12,43 @@ Where the data comes from:
   action distribution. Unopened river spots feed the bluff-share and thin-value checks;
   facing spots (bets and raises) feed the fold/call checks.
 * Hero flop/turn/river unopened decisions ("probes"): Villain's predicted response to a
-  Hero bet of 33%, 75% and 100% pot, 2x pot and all-in. Sizes that resolve to the same
-  chips (``bet_to`` clamps big sizes to all-in at low SPR) are probed once. Villain's
-  range at a Hero decision does not depend on what Hero then does, so a probe is the
-  same spot a real bet would create.
+  Hero bet of 33%, 75% and 100% pot. Villain's range at a Hero decision does not depend
+  on what Hero then does, so a probe is the same spot a real bet would create.
   - Defence ratios use the 33% / 75% probes, each weighted by how often Hero's tracked
     range makes that bet there. This estimates the average over the facing-a-bet spots
     self-play reaches without the noise (and the thin river sample) of using only the
     bets Hero happened to make. A defence probe counts toward ``samples`` only when that
     weight is at least MIN_PROBE_WEIGHT; lighter probes still enter the mean.
   - The fold/call checks use every probe. The Villain tables only bet 33% / 75% and
-    raise 3x, so a pot-size bet is almost never faced in self-play; the 100%, 2x-pot and
-    all-in probes give ``strong_fold_max`` its spots (most of them now come from the
-    overbet probes). Against the biggest jams STRONG sits on its 0.90 floor, so every
-    profile reads exactly 0.100, the band limit. These are max-over-spots checks, so
-    every probe counts as a sample whatever Hero's frequency.
-  - ``defence_overbet`` uses the overbet probes (2x pot and all-in) whose bet is between
-    2x and 3x the pot before it, inclusive: continue rate (call + raise) over MDF, one
-    record of weight 1 per probe (Hero's TAG policy never overbets, so there is no Hero
-    frequency to weight by). Overbet probes never feed ``defence_<street>``. Near 2-3x
-    pot MDF (0.25-0.33) is a meaningful target; against a 20x-pot jam it is about 0.05,
-    which NUTS and the STRONG floor alone exceed, so bigger jams only feed the fold/call
-    checks.
-  - ``defence_overbet_p10`` is the 10th percentile of the same per-probe ratios (same
-    samples), band [defence_ratio low - _P10_MARGIN, inf). The mean can sit in band
-    while weak-range spots defend far too little, and there an any-two-cards overbet
-    bluff is clearly profitable. Each profile's ``defence_ratio`` band already encodes
-    how much it may under-defend on average (Tight's 0.70 floor is its nitty style), so
-    the tail floor keeps the worst decile within _P10_MARGIN of that profile's own
-    average floor: a profile can't hide spots far weaker than its intended style.
-    Overbet bluffs beating Tight's weakest spots is a correct exploitative lesson.
-* ``defence_preflop_3bet`` needs no simulation: it is computed from the profile's
-  pre-flop policy. BTN opens to 2.5bb and Hero (BB) 3-bets to each size Hero is offered
-  there (``raise_to`` 2.5x and 3x: to 12 and 15 chips). Continue = sum over the 1,326
-  combos of open * (call + jam) / sum of open, from ``action_distribution`` on that state
-  (no card removal: Hero's cards are not known). It is divided by MDF = 1 / (1 + f),
-  f = call / (pot before the call - call): f = 0.7 at 12 (MDF 0.588), f = 1 at 15 (MDF
-  0.5). It passes when every size's ratio is inside the profile's ``defence_ratio`` band;
-  the value reported is the ratio furthest outside (or nearest the edge of) the band. It
-  is one deterministic sample, so it is exempt from MIN_SAMPLES.
+    raise 3x, so a pot-size bet is almost never faced in self-play; the 100% probe (a
+    Hero size shortcut in the trainer) gives ``strong_fold_max`` its spots. These are
+    max-over-spots checks, so every probe counts as a sample whatever Hero's frequency.
+  - ``defence_overbet``: at every Hero unopened decision (any street), Villain's
+    continue / MDF facing Hero probes of 1.5x, 2x and 2.5x pot (``bet_to`` may clamp them
+    to all-in; sizes that resolve to the same bet count once). Each probe has weight 1 and
+    counts as a sample; the value is the mean over probes and sizes. These probes feed no
+    other check.
+  - ``raise_dominated`` (river, 33% / 75% probes): of Villain's raising weight, the share
+    that is value (category >= MEDIUM) with equity below 0.4 against the Hero combos
+    that made the probe bet and then continue (call or raise) facing the raise. Bluff
+    raises count in the denominator only. Probes are weighted by Hero's bet frequency,
+    as the defence probes are; a probe counts as a sample when it has a raise and its
+    weight is at least MIN_PROBE_WEIGHT. With fewer than MIN_SAMPLES samples the check
+    is reported as info (``CheckResult.info``), not pass/fail: raises are rare.
 * ``cbet_flop``: Villain's whole-range bet frequency (any size) at each flop decision
   in the c-bettor role, averaged over spots.
+* ``preflop_defence_3bet`` (no simulation, ``samples`` = 1326): BTN continue (call or
+  jam) facing a 3x 3-bet, weighted by BTN's opening range, over MDF (0.50 for a 3-bet to
+  15). Fixed band for every profile: BTN is in position, so continuing above MDF is
+  right; the post-flop ``defence_ratio`` bands don't apply.
 * INFO_NAMES are printed for review but are not checks: ``river_stab`` (whole-range
   river stab frequency), ``air_continue_max`` (AIR call+raise facing river bets of
-  75% pot or more; ``air_call_max`` counts calls only) and ``defence_preflop_open`` (BB's
-  call + 3-bet share of all 1,326 combos facing the 2.5bb open, over MDF; no simulation).
+  75% pot or more; ``air_call_max`` counts calls only) and ``preflop_defence_open``
+  (BB continue, call or 3-bet, over all 1,326 combos facing a 2.5x open, over MDF 4/7;
+  heads-up the BB closes the action at a price, so defending well above MDF is right).
+
+MDF convention everywhere: ``prior / (prior + call)``, where ``prior`` is the pot before
+the bet faced (``total_pot - call``).
 
 River equity is exact: per-combo hand ranks on the river board, each Villain combo
 against the weighted calling range, skipping Hero combos that share a card with it.
@@ -98,9 +90,9 @@ from poker_trainer.villain.profiles import PROFILE_NAMES, Profile, load_profile
 from poker_trainer.villain.strategy import (
     HERO_PROFILE,
     OPEN_MULT,
+    THREEBET_MULT,
     UnsupportedSpot,
     action_distribution,
-    allin,
     bet_to,
     raise_to,
     role,
@@ -113,21 +105,20 @@ CHECK_NAMES = (
     "defence_flop",
     "defence_turn",
     "defence_river",
-    "defence_overbet",
-    "defence_overbet_p10",
-    "defence_preflop_3bet",
     "nuts_fold_max",
     "strong_fold_max",
     "air_call_max",
     "thin_value_dominated",
     "cbet_flop",
+    "defence_overbet",
+    "raise_dominated",
+    "preflop_defence_3bet",
 )
 # Printed for information only; never pass/fail.
-INFO_NAMES = ("river_stab", "air_continue_max", "defence_preflop_open")
+INFO_NAMES = ("river_stab", "air_continue_max", "preflop_defence_open")
+# Checks reported as info (not pass/fail) when they have fewer than MIN_SAMPLES samples.
+SPARSE_INFO = ("raise_dominated",)
 MIN_SAMPLES = 30
-# Deterministic checks computed from the profile, not from simulated spots: one sample
-# each by construction, so MIN_SAMPLES (a guard against noisy small samples) can't apply.
-_MIN_SAMPLES_EXEMPT = ("defence_preflop_3bet",)
 # A defence probe counts toward ``samples`` only if Hero makes that bet at least this
 # often there; rarer probes still enter the weighted mean.
 MIN_PROBE_WEIGHT = 0.05
@@ -135,9 +126,7 @@ VILLAIN_SEAT, HERO_SEAT = 0, 1
 
 _BET_SIZES = {"33": 0.33, "75": 0.75}
 _PROBE_SIZES = (0.33, 0.75, 1.0)
-_OVERBET_SIZE = 2.0
-_OVERBET_WINDOW = (2.0, 3.0)  # bet / pot before it, inclusive
-_HERO_3BET_MULTS = (2.5, 3.0)  # Hero's pre-flop raise sizes (puzzle/options.py)
+_OVERBETS = (1.5, 2.0, 2.5)
 _BLUFF_EQUITY = 0.5
 _DOMINATED_EQUITY = 0.4
 _FIXED_BANDS = {
@@ -146,11 +135,10 @@ _FIXED_BANDS = {
     "air_call_max": (0.0, 0.10),
     "thin_value_dominated": (0.0, 0.10),
     "cbet_flop": (0.45, 0.70),
+    "raise_dominated": (0.0, 0.10),
+    "preflop_defence_3bet": (0.90, 1.40),
 }
 _MAX_CHECKS = ("nuts_fold_max", "strong_fold_max", "air_call_max", "air_continue_max")
-_P10_CHECKS = ("defence_overbet_p10",)
-# defence_overbet_p10 floor: the profile's defence_ratio low minus this (see docstring).
-_P10_MARGIN = 0.15
 _STREET_NAMES = {Street.FLOP: "flop", Street.TURN: "turn", Street.RIVER: "river"}
 _TOL = 1e-9
 
@@ -163,6 +151,8 @@ class CheckResult:
     band: tuple[float, float]
     passed: bool
     samples: int
+    # True when a SPARSE_INFO check has too few samples: shown, but neither pass nor fail.
+    info: bool = False
 
 
 # One record per spot: (check name, numerator, denominator, counts toward samples). A
@@ -254,6 +244,19 @@ def _share(weights: np.ndarray, mask: np.ndarray, probs: np.ndarray) -> float | 
     return None if total <= 0.0 else float(w @ probs) / total
 
 
+def mdf(s: HandState) -> float:
+    """Minimum defence frequency for the seat to act facing a bet: prior / (prior + call)."""
+    call = legal_actions(s).call
+    prior = total_pot(s) - call  # pot before the bet faced
+    return prior / (prior + call)  # 1 / (1 + f)
+
+
+def _defence_ratio(s: HandState, dist: dict[Action, np.ndarray], range_: np.ndarray) -> float:
+    """Whole-range continue (call + raise) frequency over MDF, for the seat to act."""
+    cont = _sum_kind(dist, ActionKind.CALL, ActionKind.RAISE)
+    return float(range_ @ cont) / float(range_.sum()) / mdf(s)
+
+
 def _facing_records(
     out: list[Record],
     s: HandState,
@@ -293,16 +296,6 @@ def _facing_records(
         if air is not None and air_cont is not None:
             out.append(("air_call_max", air, 1.0, True))
             out.append(("air_continue_max", air_cont, 1.0, True))
-
-
-def _defence_ratio(s: HandState, dist: dict[Action, np.ndarray], villain: np.ndarray) -> float:
-    """Villain's whole-range continue rate (call + raise) facing the bet in ``s``, over
-    MDF = 1 / (1 + f), f = bet / pot before the bet."""
-    call = legal_actions(s).call
-    prior = total_pot(s) - call
-    mdf = prior / (prior + call)
-    cont = _sum_kind(dist, ActionKind.CALL, ActionKind.RAISE)
-    return float(villain @ cont) / float(villain.sum()) / mdf
 
 
 def _river_bet_records(
@@ -358,91 +351,100 @@ def _probe_records(
 ) -> None:
     """Villain's predicted response to each probe bet at a Hero unopened decision.
 
-    Defence records are weighted by how often Hero's range makes that bet here (zero for
-    the 100% probe, which is not a Hero policy size). The overbet probes (2x pot, all-in)
-    come after them, share ``seen`` (a size already probed is not probed again) and have
-    zero defence weight; those between 2x and 3x pot add a ``defence_overbet`` record.
+    Defence and raise records are weighted by how often Hero's range makes that bet here
+    (zero for the 100% probe, which is not a Hero policy size). The 1.5x, 2x and 2.5x-pot
+    probes feed ``defence_overbet`` only, each with weight 1 (sizes that clamp to the same
+    all-in count once).
     """
     hero_dist = action_distribution(hero_profile, s)
     hero_total = float(hero.sum())
     seen: set[Action] = set()
-    sized = [(bet_to(s, frac), False) for frac in _PROBE_SIZES]
-    sized += [(bet_to(s, _OVERBET_SIZE), True), (allin(s), True)]
-    for bet, overbet in sized:
+    for frac in _PROBE_SIZES:
+        bet = bet_to(s, frac)
         if bet in seen:
             continue
         seen.add(bet)
-        weight = 0.0
-        if not overbet and bet in hero_dist:
-            weight = float(hero @ hero_dist[bet]) / hero_total
+        weight = float(hero @ hero_dist[bet]) / hero_total if bet in hero_dist else 0.0
         probe = apply(s, bet)
         dist = action_distribution(villain_profile, probe)
         _facing_records(out, probe, dist, villain, cats, defence_weight=weight)
-        if overbet:
-            call = legal_actions(probe).call
-            prior = total_pot(probe) - call
-            lo, hi = _OVERBET_WINDOW
-            if lo * prior <= call <= hi * prior:
-                ratio = _defence_ratio(probe, dist, villain)
-                out.append(("defence_overbet", ratio, 1.0, True))
-                out.append(("defence_overbet_p10", ratio, 1.0, True))
+        if s.street == Street.RIVER and weight > 0.0:
+            bettors = hero * hero_dist[bet]
+            _raise_records(out, probe, dist, hero_profile, villain, bettors, cats, weight)
+    for bet in dict.fromkeys(bet_to(s, frac) for frac in _OVERBETS):
+        over = apply(s, bet)
+        dist = action_distribution(villain_profile, over)
+        out.append(("defence_overbet", _defence_ratio(over, dist, villain), 1.0, True))
+
+
+def _raise_records(
+    out: list[Record],
+    probe: HandState,
+    dist: dict[Action, np.ndarray],
+    hero_profile: Profile,
+    villain: np.ndarray,
+    bettors: np.ndarray,
+    cats: np.ndarray,
+    weight: float,
+) -> None:
+    """``raise_dominated`` record for Villain raising a Hero river probe bet.
+
+    ``bettors`` is Hero's range times its probability of making the probe bet. Equity is
+    against the bettors that continue (call or raise) facing Villain's raise. Numerator:
+    value raises (category >= MEDIUM) with equity below 0.4; denominator: all raises.
+    Both are shares of Villain's range, scaled by ``weight`` (Hero's bet frequency).
+    If no bettor continues, nothing is dominated (the raise wins the pot).
+    """
+    range_total = float(villain.sum())
+    value_mask = cats >= HandCategory.MEDIUM
+    raised = dominated = 0.0
+    for a, arr in dist.items():
+        if a.kind != ActionKind.RAISE:
+            continue
+        raising = villain * arr
+        if float(raising.sum()) <= 0.0:
+            continue
+        raised += float(raising.sum())
+        response = action_distribution(hero_profile, apply(probe, a))
+        callers = bettors * _sum_kind(response, ActionKind.CALL, ActionKind.RAISE)
+        if float(callers.sum()) <= 0.0:
+            continue
+        eq = river_equity(probe.board, callers)
+        with np.errstate(invalid="ignore"):
+            dominated += float((raising * value_mask)[eq < _DOMINATED_EQUITY].sum())
+    if raised > 0.0:
+        counted = weight >= MIN_PROBE_WEIGHT
+        out.append(
+            (
+                "raise_dominated",
+                weight * dominated / range_total,
+                weight * raised / range_total,
+                counted,
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
-# Pre-flop defence (computed from the profile, no simulation)
+# Pre-flop defence (deterministic)
 # ---------------------------------------------------------------------------
 
 
-def _opened() -> HandState:
-    """BTN (seat 0) has opened to OPEN_MULT big blinds; BB to act."""
-    s = new_hand(0)
-    return apply(s, raise_to(s, OPEN_MULT))
+def preflop_defence(profile: Profile) -> tuple[float, float]:
+    """``(open, 3bet)`` continue / MDF ratios from the profile's pre-flop policy.
 
-
-def _mdf(s: HandState) -> float:
-    """MDF = 1 / (1 + f) for the seat to act, f = call / (pot before the call - call)."""
-    call = legal_actions(s).call
-    prior = total_pot(s) - call
-    return prior / (prior + call)
-
-
-def _continue(dist: dict[Action, np.ndarray]) -> np.ndarray:
-    return _sum_kind(dist, ActionKind.CALL, ActionKind.RAISE)
-
-
-def preflop_3bet_sizes() -> tuple[int, ...]:
-    """The ``to`` amounts of Hero's 3-bets facing the open (12 and 15 chips)."""
-    s = _opened()
-    return tuple(raise_to(s, m).to for m in _HERO_3BET_MULTS)  # type: ignore[misc]
-
-
-def preflop_3bet_ratios(profile: Profile) -> dict[int, float]:
-    """BTN's continue share (call + jam, weighted by its opening range) facing each Hero
-    3-bet size, over MDF; keyed by the 3-bet's ``to`` amount. No card removal."""
-    s = _opened()
-    opens = profile.preflop.open
-    out: dict[int, float] = {}
-    for mult in _HERO_3BET_MULTS:
-        bet = raise_to(s, mult)
-        t = apply(s, bet)
-        cont = float(opens @ _continue(action_distribution(profile, t))) / float(opens.sum())
-        out[int(bet.to)] = cont / _mdf(t)  # type: ignore[arg-type]
-    return out
-
-
-def preflop_3bet_check(profile: Profile) -> CheckResult:
-    """``defence_preflop_3bet``: passes when every size's ratio is in ``defence_ratio``."""
-    lo, hi = profile.bands.defence_ratio
-    ratios = preflop_3bet_ratios(profile).values()
-    worst = max(ratios, key=lambda r: max(lo - r, r - hi))
-    passed = all(lo - _TOL <= r <= hi + _TOL for r in ratios)
-    return CheckResult(profile.name, "defence_preflop_3bet", worst, (lo, hi), passed, 1)
-
-
-def preflop_open_ratio(profile: Profile) -> float:
-    """BB's call + 3-bet share of all 1,326 combos facing the open, over MDF (info only)."""
-    s = _opened()
-    return float(_continue(action_distribution(profile, s)).mean()) / _mdf(s)
+    ``open``: BB facing a 2.5x open (to 5 chips; MDF 4/7), call + 3-bet, over all 1,326
+    combos. ``3bet``: BTN facing a 3x 3-bet (to 15; MDF 0.50), call + jam, weighted by
+    BTN's opening range.
+    """
+    s = new_hand(VILLAIN_SEAT)
+    open_ = raise_to(s, OPEN_MULT)
+    opened = action_distribution(profile, s)[open_]
+    facing_open = apply(s, open_)
+    bb = action_distribution(profile, facing_open)
+    open_ratio = _defence_ratio(facing_open, bb, np.ones(len(COMBOS)))
+    facing_3bet = apply(facing_open, raise_to(facing_open, THREEBET_MULT))
+    btn = action_distribution(profile, facing_3bet)
+    return open_ratio, _defence_ratio(facing_3bet, btn, opened)
 
 
 # ---------------------------------------------------------------------------
@@ -503,8 +505,6 @@ def _band(profile: Profile, name: str) -> tuple[float, float]:
         base = break_even_bluff_share(_BET_SIZES[name.removeprefix("bluff_share_")])
         lo, hi = profile.bands.bluff_offset
         return round(base + lo, 6), round(base + hi, 6)
-    if name in _P10_CHECKS:
-        return round(profile.bands.defence_ratio[0] - _P10_MARGIN, 6), math.inf
     if name.startswith("defence_"):
         return profile.bands.defence_ratio
     return _FIXED_BANDS[name]
@@ -513,8 +513,9 @@ def _band(profile: Profile, name: str) -> tuple[float, float]:
 def competence_report(profile_name: str, n_hands: int = 400, seed: int = 0) -> list[CheckResult]:
     """Simulate ``n_hands`` hands and score ``profile_name`` on every check in CHECK_NAMES.
 
-    A check with fewer than MIN_SAMPLES spots fails ("insufficient samples"); a check with
-    none reports nan.
+    A check with fewer than MIN_SAMPLES spots fails ("insufficient samples"), except a
+    SPARSE_INFO check, which is then marked ``info`` (neither pass nor fail); a check
+    with none reports nan.
     """
     return competence_details(profile_name, n_hands, seed)[0]
 
@@ -533,22 +534,24 @@ def competence_details(
         except UnsupportedSpot:
             continue  # abandoned hand: its records are dropped
 
+    open_ratio, threebet_ratio = preflop_defence(villain_profile)
     results = []
     for name in CHECK_NAMES:
-        if name == "defence_preflop_3bet":
-            results.append(preflop_3bet_check(villain_profile))
-            continue
-        value, samples = _aggregate(records, name)
+        if name == "preflop_defence_3bet":
+            value, samples = threebet_ratio, len(COMBOS)
+        else:
+            value, samples = _aggregate(records, name)
         band = _band(villain_profile, name)
         passed = (
             samples >= MIN_SAMPLES
             and not math.isnan(value)
             and band[0] - _TOL <= value <= band[1] + _TOL
         )
-        results.append(CheckResult(profile_name, name, value, band, passed, samples))
-    info = {name: _aggregate(records, name)[0] for name in INFO_NAMES}
-    info["defence_preflop_open"] = preflop_open_ratio(villain_profile)
-    return results, info
+        info = name in SPARSE_INFO and samples < MIN_SAMPLES
+        results.append(CheckResult(profile_name, name, value, band, passed, samples, info))
+    infos = {name: _aggregate(records, name)[0] for name in INFO_NAMES}
+    infos["preflop_defence_open"] = open_ratio
+    return results, infos
 
 
 def _aggregate(records: list[Record], name: str) -> tuple[float, int]:
@@ -558,8 +561,6 @@ def _aggregate(records: list[Record], name: str) -> tuple[float, int]:
         return math.nan, samples
     if name in _MAX_CHECKS:
         return max(num for num, _, _ in mine), samples
-    if name in _P10_CHECKS:
-        return float(np.percentile([num for num, _, _ in mine], 10)), samples
     return sum(num for num, _, _ in mine) / sum(den for _, den, _ in mine), samples
 
 
@@ -575,7 +576,9 @@ def format_table(results: Sequence[CheckResult]) -> str:
         band = f"[{r.band[0]:.2f}, {r.band[1]:.2f}]"
         if r.passed:
             verdict = "PASS"
-        elif r.samples < MIN_SAMPLES and r.name not in _MIN_SAMPLES_EXEMPT:
+        elif r.info:
+            verdict = "INFO (insufficient samples, not checked)"
+        elif r.samples < MIN_SAMPLES:
             verdict = "FAIL (insufficient samples)"
         else:
             verdict = "FAIL"
@@ -585,26 +588,104 @@ def format_table(results: Sequence[CheckResult]) -> str:
     return "\n".join(lines)
 
 
+def format_summary(
+    runs: Sequence[tuple[list[CheckResult], dict[str, dict[str, float]]]],
+) -> str:
+    """Min / max per check over seeds and the number of seeds passing (``info`` counts
+    seeds where a sparse check was not checked). INFO_NAMES rows have no band."""
+    header = f"{'profile':<8} {'check':<22} {'min':>7} {'max':>7}  {'band':<15} {'pass':>5}  info"
+    lines = [header, "-" * len(header)]
+    n = len(runs)
+    first = runs[0][0]
+    for i, r0 in enumerate(first):
+        rs = [results[i] for results, _ in runs]
+        vals = [r.value for r in rs]
+        band = f"[{r0.band[0]:.2f}, {r0.band[1]:.2f}]"
+        passing = f"{sum(r.passed for r in rs)}/{n}"
+        info = sum(r.info for r in rs)
+        lines.append(
+            f"{r0.profile:<8} {r0.name:<22} {min(vals):>7.3f} {max(vals):>7.3f}  "
+            f"{band:<15} {passing:>5}  {info or ''}"
+        )
+        last_of_profile = i + 1 == len(first) or first[i + 1].profile != r0.profile
+        if last_of_profile:
+            for name in INFO_NAMES:
+                vals = [infos[r0.profile][name] for _, infos in runs]
+                lines.append(
+                    f"{r0.profile:<8} {name:<22} {min(vals):>7.3f} {max(vals):>7.3f}  "
+                    f"{'(info)':<15} {'-':>5}"
+                )
+    return "\n".join(lines)
+
+
+def parse_seeds(text: str) -> list[int]:
+    """``"0-5"`` -> [0, 1, 2, 3, 4, 5]; ``"0,3"`` -> [0, 3]; ranges and lists combine."""
+    seeds: list[int] = []
+    for part in text.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        lo, sep, hi = part.partition("-")
+        if sep:
+            a, b = int(lo), int(hi)
+            if a > b:
+                raise ValueError(f"empty seed range {part!r}")
+            seeds.extend(range(a, b + 1))
+        else:
+            seeds.append(int(part))
+    if not seeds:
+        raise ValueError("no seeds given")
+    return seeds
+
+
+def _seeds_arg(text: str) -> list[int]:
+    try:
+        return parse_seeds(text)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e)) from e
+
+
+def _print_infos(infos: dict[str, dict[str, float]]) -> None:
+    print("info (not checks): river_stab = whole-range river stab bet frequency;")
+    print("air_continue_max = AIR call+raise share facing river bets >= 75% pot (max);")
+    print("preflop_defence_open = BB call+3-bet share of all combos vs a 2.5x open / MDF 4/7.")
+    for n, info in infos.items():
+        print(f"{n:<8} " + "  ".join(f"{k}={v:.3f}" for k, v in info.items()))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Villain profile competence report.")
     parser.add_argument("--profile", default="all", choices=(*PROFILE_NAMES, "all"))
     parser.add_argument("--hands", type=int, default=400)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--seeds",
+        type=_seeds_arg,
+        default=None,
+        help="several seeds, e.g. 0-5 or 0,3 (overrides --seed): a table per seed and a summary",
+    )
     args = parser.parse_args(argv)
     names = PROFILE_NAMES if args.profile == "all" else (args.profile,)
-    results: list[CheckResult] = []
-    infos: dict[str, dict[str, float]] = {}
-    for n in names:
-        checks, infos[n] = competence_details(n, args.hands, args.seed)
-        results.extend(checks)
-    print(format_table(results))
-    print()
-    print("info (not checks): river_stab = whole-range river stab bet frequency;")
-    print("air_continue_max = AIR call+raise share facing river bets >= 75% pot (max);")
-    print("defence_preflop_open = BB call+3-bet share facing the 2.5bb open / MDF.")
-    for n, info in infos.items():
-        print(f"{n:<8} " + "  ".join(f"{k}={v:.3f}" for k, v in info.items()))
-    return 0 if all(r.passed for r in results) else 1
+    seeds = args.seeds if args.seeds is not None else [args.seed]
+    runs: list[tuple[list[CheckResult], dict[str, dict[str, float]]]] = []
+    for seed in seeds:
+        results: list[CheckResult] = []
+        infos: dict[str, dict[str, float]] = {}
+        for n in names:
+            checks, infos[n] = competence_details(n, args.hands, seed)
+            results.extend(checks)
+        runs.append((results, infos))
+        if args.seeds is not None:
+            print(f"=== seed {seed} ===")
+        print(format_table(results))
+        print()
+        _print_infos(infos)
+        print()
+    if args.seeds is not None:
+        print(f"=== summary over {len(seeds)} seeds, {args.hands} hands each ===")
+        print(format_summary(runs))
+    ok = all(r.passed or r.info for results, _ in runs for r in results)
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

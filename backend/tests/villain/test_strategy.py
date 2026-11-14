@@ -22,7 +22,6 @@ from poker_trainer.villain.features import (
     load_thresholds,
     range_features,
 )
-from poker_trainer.villain.narrowing import RangeTracker
 from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile
 from poker_trainer.villain.strategy import (
     ALLIN_FRACTION,
@@ -369,6 +368,97 @@ def test_nuts_never_fold_any_size(name, frac):
     assert np.all(fold_of(action_distribution(p, s))[nuts] == 0.0)
 
 
+# Continue (call + raise) limits per category facing a 2.5x-pot bet (MDF 0.29): bluff
+# catchers mostly fold, value keeps going.
+BIG_BET_LIMITS = {
+    HandCategory.WEAK: (0.0, 0.20),
+    HandCategory.MEDIUM: (0.0, 0.55),
+    HandCategory.STRONG: (0.80, 1.0),
+    HandCategory.NUTS: (1.0, 1.0),
+}
+
+
+@pytest.mark.parametrize("name", PROFILE_NAMES)
+def test_big_bet_continue_by_category(name):
+    p = load_profile(name)
+    s = facing_bet(2.5)  # BTN bets 25 into 10
+    assert legal_actions(s).call == 25 and s.pot == 10
+    cont = 1.0 - fold_of(action_distribution(p, s))
+    cats = cats_for(DRY)
+    for cat, (lo, hi) in BIG_BET_LIMITS.items():
+        mask = cats == cat
+        assert mask.any(), cat
+        assert lo - 1e-12 <= cont[mask].min(), (cat, cont[mask].min())
+        assert cont[mask].max() <= hi + 1e-12, (cat, cont[mask].max())
+
+
+@pytest.mark.parametrize("name", PROFILE_NAMES)
+def test_strong_never_folds_much_to_overjams(name):
+    p = load_profile(name)
+    s = act(flop(stacks=(205, 205)), X)  # pot 10, 200 behind each
+    s = apply(s, allin(s))  # a 20x-pot jam
+    assert legal_actions(s).call == 200 and s.pot == 10
+    cats = cats_for(DRY)
+    strong = cats == HandCategory.STRONG
+    cont = 1.0 - fold_of(action_distribution(p, s))
+    assert cont[strong].min() >= 0.70
+
+
+OVERBET_BOARDS = ("Kh7d2c", "Ah8c5d", "Qs8s3d", "Ts9s4d", "Jh6h2s")  # dry, dry, two-tone x3
+OVERBET_SIZES = (1.25, 1.5, 2.0, 2.5)
+
+
+def _bb_checked_flop(p, board: str) -> tuple[HandState, np.ndarray]:
+    """TAG BTN opens, ``p`` calls in the BB and checks the flop: the state and its range."""
+    from poker_trainer.villain.narrowing import RangeTracker
+
+    tracker = RangeTracker(p, 1)
+    s = opened()
+    call = Action(1, C, Street.PREFLOP, 5)
+    tracker.observe(s, call)
+    s = deal(apply(s, call), parse_cards(board))
+    check = Action(1, X, Street.FLOP)
+    tracker.observe(s, check)
+    live = cats_for(board) >= 0
+    return apply(s, check), np.asarray(tracker.current) * live
+
+
+def _defence_ratio(p, s: HandState, frac: float, w: np.ndarray) -> float:
+    """Whole-range continue / MDF facing a bet of ``frac`` pot."""
+    t = apply(s, bet_to(s, frac))
+    cont = 1.0 - fold_of(action_distribution(p, t))
+    call = legal_actions(t).call
+    prior = t.pot + sum(t.street_bets) - call
+    return float(w @ cont) / float(w.sum()) * (prior + call) / prior
+
+
+# A category policy defends a little more with a STRONG-heavy range (Tight's two-tone
+# checking ranges) and a little less with an air-heavy one (K72): one board may sit up to
+# BOARD_SLACK outside the band; the mean over the boards may not.
+BOARD_SLACK = 0.10
+
+
+@pytest.mark.parametrize("name", PROFILE_NAMES)
+def test_overbet_defence_stays_in_band_at_every_size(name):
+    """The BB's real check range defends near MDF at every overbet size, not only at the
+    sizes the competence report probes (no dip at 1.5-2x pot that a bluff exploits): at each
+    size the mean over five flops is inside the profile's band and no flop is more than
+    BOARD_SLACK outside it. At 4x pot no flop under-defends by more than BOARD_SLACK; over-
+    defence is allowed there: STRONG keeps a floor (test_strong_never_folds_much_to_overjams),
+    so a STRONG-heavy range defends more."""
+    p = load_profile(name)
+    lo, hi = p.bands.defence_ratio
+    spots = [_bb_checked_flop(p, board) for board in OVERBET_BOARDS]
+    for frac in OVERBET_SIZES:
+        ratios = [_defence_ratio(p, s, frac, w) for s, w in spots]
+        assert lo <= float(np.mean(ratios)) <= hi, (frac, ratios)
+        for board, ratio in zip(OVERBET_BOARDS, ratios, strict=True):
+            assert lo - BOARD_SLACK <= ratio <= hi + BOARD_SLACK, (board, frac, ratio)
+    for board, (s, w) in zip(OVERBET_BOARDS, spots, strict=True):
+        ratio = _defence_ratio(p, s, 4.0, w)
+        assert ratio >= lo - BOARD_SLACK, (board, 4.0, ratio)
+
+
 def test_jam_into_small_pot_medium_can_fold():
     tag = load_profile("tag")
     s = act(flop(), X)
@@ -526,146 +616,55 @@ def test_shipped_river_overrides_are_used(name):
         assert _cbet_row(dist, s, i) == pytest.approx(want)
 
 
-# ---------------------------------------------------------------------------
-# Overbets: continue less above pot, STRONG floor, NUTS never fold
-# ---------------------------------------------------------------------------
-
-# A monotone board: three hearts on the flop, two blanks after it.
-MONO_FLOP, MONO_TURN, MONO_RIVER = "Th6h2h", "Ks", "4c"
+def river_facing_bet(board: str = DRY + "4s9c") -> HandState:
+    """River after ``river_cbet``: BTN bets 75% pot, BB (seat 1) faces it."""
+    s = river_cbet(board)
+    return apply(s, bet_to(s, 0.75))
 
 
-def _cont_of(dist: dict[Action, np.ndarray]) -> np.ndarray:
-    return sum((arr for a, arr in dist.items() if a.kind in (C, R)), np.zeros(1326))
+def _facing_row(dist: dict[Action, np.ndarray], i: int) -> list[float]:
+    """[fold, call, raise] probabilities of combo i facing a bet."""
+    by_kind = {k: 0.0 for k in (F, C, R)}
+    for a, arr in dist.items():
+        by_kind[a.kind] += float(arr[i])
+    return [by_kind[F], by_kind[C], by_kind[R]]
 
 
-def mono_river_overbet(name: str) -> tuple[HandState, np.ndarray]:
-    """BTN (Hero, seat 0) opens to 5, BB (Villain, seat 1) calls. Flop Th6h2h: BB checks,
-    BTN bets 33%, BB calls. Turn Ks: BB checks, BTN bets 75%, BB calls. River 4c: BB
-    checks, BTN bets 2.5x pot. Returns the state facing that bet and BB's tracked range."""
-    p = load_profile(name)
-    tracker = RangeTracker(p, 1)
+def test_river_facing_override_applies_on_river_only():
+    from dataclasses import replace
 
-    def do(s: HandState, a: Action) -> HandState:
-        if s.to_act == 1:
-            tracker.observe(s, a)
-        return apply(s, a)
+    tag = replace(load_profile("tag"), river_facing={})  # the shared tables only
+    row = {"fold": 0.0, "call": 0.0, "raise": 1.0}
+    p = replace(tag, river_facing={"facing_bet": {HandCategory.MEDIUM: row}})
 
-    def call(s: HandState) -> Action:
-        return Action(s.to_act, C, s.street, s.street_bets[s.to_act] + legal_actions(s).call)
+    flop_s = facing_bet(1.0)
+    flop_medium = int(np.flatnonzero(cats_for(DRY) == HandCategory.MEDIUM)[0])
+    assert _facing_row(action_distribution(p, flop_s), flop_medium) == pytest.approx(
+        _facing_row(action_distribution(tag, flop_s), flop_medium)
+    )
 
-    s = new_hand(0)
-    s = do(s, raise_to(s, OPEN_MULT))
-    s = do(s, call(s))
-    for cards, frac in ((MONO_FLOP, 0.33), (MONO_TURN, 0.75)):
-        s = deal(s, parse_cards(cards))
-        s = do(s, Action(1, X, s.street))
-        s = do(s, bet_to(s, frac))
-        s = do(s, call(s))
-    s = deal(s, parse_cards(MONO_RIVER))
-    s = do(s, Action(1, X, s.street))
-    assert board_texture(s.board).monotone
-    pot = s.pot
-    s = apply(s, bet_to(s, 2.5))
-    assert s.street_bets[0] == round(2.5 * pot)
-    return s, tracker.current
+    river_s = river_facing_bet()
+    assert role(river_s) == "facing_bet" and river_s.street == Street.RIVER
+    river_cats = cats_for(DRY + "4s9c")
+    dist = action_distribution(p, river_s)
+    medium = int(np.flatnonzero(river_cats == HandCategory.MEDIUM)[0])
+    assert _facing_row(dist, medium) == pytest.approx([0.0, 0.0, 1.0])
+    # Categories without an override use the shared table on the river.
+    strong = int(np.flatnonzero(river_cats == HandCategory.STRONG)[0])
+    assert _facing_row(dist, strong) == pytest.approx(
+        _facing_row(action_distribution(tag, river_s), strong)
+    )
 
 
 @pytest.mark.parametrize("name", PROFILE_NAMES)
-def test_monotone_river_overbet_defence_near_mdf(name):
+def test_river_bluff_catchers_never_raise(name):
+    """On the river WEAK and MEDIUM hands call or fold a bet: a raise only folds out worse
+    and gets called by better (the ``raise_dominated`` check)."""
     p = load_profile(name)
-    s, villain = mono_river_overbet(name)
-    assert role(s) == "facing_bet"
-    lg = legal_actions(s)
-    f = lg.call / (s.pot + sum(s.street_bets) - lg.call)
-    assert f == pytest.approx(2.5)
-    mdf = 1.0 / (1.0 + f)
-    share = float(villain @ _cont_of(action_distribution(p, s))) / float(villain.sum())
-    lo, hi = p.bands.defence_ratio
-    assert lo * mdf <= share <= hi * mdf, (share, mdf)
-
-
-def overbet_flop(frac: float) -> HandState:
-    """Flop on DRY, pot 10, deep stacks: BB checks, BTN bets frac of the pot exactly."""
-    s = act(manual_flop(10, (400, 400)), X)
-    s = apply(s, bet_to(s, frac))
-    assert s.street_bets[0] == round(frac * 10)
-    assert role(s) == "facing_bet"
-    return s
-
-
-@pytest.mark.parametrize("name", PROFILE_NAMES)
-@pytest.mark.parametrize("frac", [1.0, 2.5, 20.0])
-def test_strong_floor_and_nuts_any_size(name, frac):
-    p = load_profile(name)
-    s = overbet_flop(frac)
-    cats = cats_for(DRY)
-    dist = action_distribution(p, s)
-    check_sums(dist, cats < 0)
-    cont = _cont_of(dist)
-    strong, nuts = cats == HandCategory.STRONG, cats == HandCategory.NUTS
-    assert strong.any() and nuts.any()
-    assert cont[strong].min() >= 0.90 - 1e-12
-    assert np.allclose(cont[nuts], 1.0)
-
-
-@pytest.mark.parametrize("name", PROFILE_NAMES)
-def test_overbets_cut_medium_and_weak(name):
-    """Above pot, MEDIUM and WEAK continue less than the old curve base ** ((1+f)/1.5)."""
-    p = load_profile(name)
-    cats = cats_for(DRY)
-    row_cats = (HandCategory.WEAK, HandCategory.MEDIUM)
-    for frac in (2.0, 2.5, 5.0):
-        cont = _cont_of(action_distribution(p, overbet_flop(frac)))
-        for cat in row_cats:
-            row = p.facing["facing_bet"][cat]
-            old = (row["call"] + row["raise"]) ** ((1.0 + frac) / 1.5)
-            assert cont[cats == cat].max() < old - 1e-6, (cat, frac)
-
-
-@pytest.mark.parametrize("name", PROFILE_NAMES)
-def test_pot_or_smaller_unchanged(name):
-    """At pot or less the size curve is the old one: base ** ((1+f)/1.5)."""
-    p = load_profile(name)
-    cats = cats_for(DRY)
-    for frac in (0.33, 0.75, 1.0):
-        s = overbet_flop(frac)
-        f = legal_actions(s).call / 10
-        cont = _cont_of(action_distribution(p, s))
-        for cat in HandCategory:
-            if not (cats == cat).any():
-                continue
-            row = p.facing["facing_bet"][cat]
-            want = (row["call"] + row["raise"]) ** ((1.0 + f) / 1.5)
-            assert cont[cats == cat] == pytest.approx(want), (cat, frac)
-    # Facing a 3x raise of a 33% bet: call 6 into 16, f = 0.375.
-    s = act(manual_flop(10, (400, 400)), X)
-    s = apply(s, bet_to(s, 0.33))
-    s = apply(s, raise_to(s, RAISE_MULT))
-    assert role(s) == "facing_raise"
-    lg = legal_actions(s)
-    f = lg.call / (s.pot + sum(s.street_bets) - lg.call)
-    assert f == pytest.approx(0.375)
-    cont = _cont_of(action_distribution(p, s))
-    for cat in HandCategory:
-        if not (cats == cat).any():
-            continue
-        row = p.facing["facing_raise"][cat]
-        want = (row["call"] + row["raise"]) ** ((1.0 + f) / 1.5)
-        assert cont[cats == cat] == pytest.approx(want), cat
-
-
-@pytest.mark.parametrize("name", PROFILE_NAMES)
-def test_strong_floor_facing_raise_jam(name):
-    """Facing a huge check-raise jam, STRONG keeps at least its pot-size rate (capped 0.90)."""
-    p = load_profile(name)
-    s = act(manual_flop(10, (400, 400)), X)
-    s = apply(s, bet_to(s, 0.33))
-    s = apply(s, allin(s))
-    assert role(s) == "facing_raise"
-    row = p.facing["facing_raise"][HandCategory.STRONG]
-    floor = min(0.90, (row["call"] + row["raise"]) ** (4 / 3))
-    cats = cats_for(DRY)
-    dist = action_distribution(p, s)
-    check_sums(dist, cats < 0)
-    cont = _cont_of(dist)
-    assert cont[cats == HandCategory.STRONG].min() == pytest.approx(floor)
+    s = river_facing_bet()
+    cats = cats_for(DRY + "4s9c")
+    raises = sum(arr for a, arr in action_distribution(p, s).items() if a.kind == R)
+    for cat in (HandCategory.WEAK, HandCategory.MEDIUM):
+        mask = cats == cat
+        assert mask.any(), cat
+        assert raises[mask].max() == 0.0, cat

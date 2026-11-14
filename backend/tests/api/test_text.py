@@ -17,6 +17,10 @@ def test_text_covers_all_codes():
         assert HAND_CLASS_NAMES[cls]
     for code in SIMPLIFICATIONS:
         assert simplification_text(code) == SIMPLIFICATIONS[code]
+    # Stored pre-M9 results show "realisation"; M9 puzzles show "realisation_position".
+    assert {"realisation", "realisation_position"} <= set(SIMPLIFICATIONS)
+    assert simplification_text("realisation").endswith("realise full equity.")
+    assert "out of position 80% pre-flop" in simplification_text("realisation_position")
     assert CATEGORY_NAMES["strong_draw"] == "Strong draw"
     assert HAND_CLASS_NAMES[HandClass.TWO_PAIR] == "Two pair"
     assert "whole range" in JUDGED_ON_RANGE

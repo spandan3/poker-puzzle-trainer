@@ -13,6 +13,10 @@
     "gap_eq_lo": 0.10
   },
   "intent": {"semi_bluff_equity": 0.30},
-  "max_attempts": 200,
-  "paused_spots": ["preflop_bb_vs_open"]
+  "realisation": {
+    "preflop": {"ip": 1.0, "oop": 0.80},
+    "flop": {"ip": 1.0, "oop": 0.88},
+    "turn": {"ip": 1.0, "oop": 0.94}
+  },
+  "max_attempts": 200
 }

@@ -20,6 +20,10 @@ UNOPENED_ROLES = ("cbet", "lead", "stab")
 UNOPENED_ACTIONS = ("check", "bet_33", "bet_75")
 FACING_SPOTS = ("facing_bet", "facing_raise")
 FACING_ACTIONS = ("fold", "call", "raise")
+# Least continue (call + raise) a STRONG facing row may have. The size curve in
+# ``strategy._facing`` floors STRONG at this value against huge bets, which is only a floor
+# (never a boost above the row) when the row itself continues at least this much.
+STRONG_CONTINUE_MIN = 0.75
 
 Table = Mapping[HandCategory, Mapping[str, float]]
 
@@ -52,13 +56,14 @@ class Profile:
     unopened: Mapping[str, Table]
     facing: Mapping[str, Table]
     bands: Bands
-    # Facing a bet above pot, the size-curve exponent grows by this much per extra pot,
-    # per category (see ``strategy._facing``). Pot-size bets and smaller don't use it.
-    overbet_slopes: Mapping[HandCategory, float]
     # River-only overrides of unopened rows: role -> category -> row. Missing roles or
     # categories fall back to ``unopened``. A river bet has no protection or draw value,
     # so WEAK/MEDIUM/AIR rows that are sensible on the flop over-bluff there.
     river_unopened: Mapping[str, Table] = MappingProxyType({})
+    # River-only overrides of facing rows: spot -> category -> row, applied before the size
+    # curve. On the river a raise has no protection value: a bluff catcher that raises only
+    # folds out worse hands and gets called by better ones.
+    river_facing: Mapping[str, Table] = MappingProxyType({})
 
 
 def _table(raw: Any, actions: tuple[str, ...], where: str) -> Table:
@@ -83,12 +88,17 @@ def _row(raw: Any, actions: tuple[str, ...], where: str) -> Mapping[str, float]:
     return MappingProxyType(probs)
 
 
-def _river_overrides(raw: Any, where: str) -> Mapping[str, Table]:
-    """Optional partial unopened tables: any subset of roles and categories."""
+def _river_overrides(
+    raw: Any,
+    where: str,
+    roles: tuple[str, ...] = UNOPENED_ROLES,
+    actions: tuple[str, ...] = UNOPENED_ACTIONS,
+) -> Mapping[str, Table]:
+    """Optional partial tables: any subset of ``roles`` and categories."""
     if raw is None:
         return MappingProxyType({})
-    if not isinstance(raw, dict) or not set(raw) <= set(UNOPENED_ROLES):
-        raise ValueError(f"{where}: roles must be a subset of {UNOPENED_ROLES}")
+    if not isinstance(raw, dict) or not set(raw) <= set(roles):
+        raise ValueError(f"{where}: roles must be a subset of {roles}")
     names = {c.name for c in HandCategory}
     out = {}
     for role, rows in raw.items():
@@ -96,26 +106,10 @@ def _river_overrides(raw: Any, where: str) -> Mapping[str, Table]:
             raise ValueError(f"{where}.{role}: categories must be a subset of {sorted(names)}")
         out[role] = MappingProxyType(
             {
-                HandCategory[cat]: _row(row, UNOPENED_ACTIONS, f"{where}.{role}.{cat}")
+                HandCategory[cat]: _row(row, actions, f"{where}.{role}.{cat}")
                 for cat, row in rows.items()
             }
         )
-    return MappingProxyType(out)
-
-
-def _slopes(raw: Any, where: str) -> Mapping[HandCategory, float]:
-    names = {c.name for c in HandCategory}
-    if not isinstance(raw, dict) or set(raw) != names:
-        raise ValueError(f"{where}: categories must be exactly {sorted(names)}")
-    out = {}
-    for cat in HandCategory:
-        v = raw[cat.name]
-        if isinstance(v, bool) or not isinstance(v, (int, float)):
-            raise ValueError(f"{where}.{cat.name}: slope must be a number")  # noqa: TRY004
-        v = float(v)
-        if not (math.isfinite(v) and v >= 0.0):
-            raise ValueError(f"{where}.{cat.name}: slope must be a finite number >= 0")
-        out[cat] = v
     return MappingProxyType(out)
 
 
@@ -149,6 +143,19 @@ def load_profile(name: str) -> Profile:
     return _load(name)
 
 
+def profile_meta(name: str) -> tuple[str, str]:
+    """``(label, description)`` for a stored profile name.
+
+    Falls back to ``(name.title(), "")`` for a name that is not a stored profile (the loader's
+    ``ValueError``) instead of raising.
+    """
+    try:
+        prof = load_profile(name)
+    except ValueError:
+        return name.title(), ""
+    return prof.label, prof.description
+
+
 @lru_cache(maxsize=len(PROFILE_NAMES))
 def _load(name: str) -> Profile:
     text = (files("poker_trainer.villain") / "profiles" / f"{name}.json").read_text(
@@ -177,6 +184,17 @@ def _profile_from_dict(name: str, raw: Any) -> Profile:
                 for spot in FACING_SPOTS
             }
         )
+        river_facing = _river_overrides(
+            raw.get("river_facing"), f"{name}.river_facing", FACING_SPOTS, FACING_ACTIONS
+        )
+        for where, tables in (("facing", facing), ("river_facing", river_facing)):
+            for spot, table in tables.items():
+                row = table.get(HandCategory.STRONG)
+                if row is not None and row["call"] + row["raise"] < STRONG_CONTINUE_MIN - 1e-9:
+                    raise ValueError(
+                        f"{name}.{where}.{spot}.STRONG: continue must be at least "
+                        f"{STRONG_CONTINUE_MIN}"
+                    )
         return Profile(
             name=name,
             label=str(raw["label"]),
@@ -185,8 +203,8 @@ def _profile_from_dict(name: str, raw: Any) -> Profile:
             preflop=_ranges(raw["preflop"], f"{name}.preflop"),
             unopened=unopened,
             facing=facing,
-            overbet_slopes=_slopes(raw["overbet_slopes"], f"{name}.overbet_slopes"),
             river_unopened=_river_overrides(raw.get("river_unopened"), f"{name}.river_unopened"),
+            river_facing=river_facing,
             bands=Bands(
                 bluff_offset=_band(raw["bands"]["bluff_offset"], f"{name}.bands.bluff_offset"),
                 defence_ratio=_band(raw["bands"]["defence_ratio"], f"{name}.bands.defence_ratio"),

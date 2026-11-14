@@ -17,6 +17,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, available_timezones
 
 from poker_trainer.stats import leaks
+from poker_trainer.villain.profiles import profile_meta
 
 ROLLING_WINDOW = 50  # trend averages and the headline's "last 50"
 TREND_MAX_POINTS = 500  # newest first attempts returned in the trend
@@ -172,16 +173,21 @@ def _breakdown_row(key: str, label: str, rows: Sequence[StatRow]) -> dict[str, A
 
 
 def _breakdown(
-    first: Sequence[StatRow], key: Callable[[StatRow], str], known: Sequence[tuple[str, str]]
+    first: Sequence[StatRow],
+    key: Callable[[StatRow], str],
+    known: Sequence[tuple[str, str]],
+    other_label: Callable[[str], str] = lambda k: k,
 ) -> list[dict[str, Any]]:
-    """Rows in ``known`` order (key, label), then any other stored key alphabetically (its label
-    is the key). Keys without attempts are omitted."""
+    """Rows in ``known`` order (key, label), then any other stored key alphabetically (labelled
+    by ``other_label``, by default the key). Keys without attempts are omitted."""
     groups: dict[str, list[StatRow]] = {}
     for r in first:
         groups.setdefault(key(r), []).append(r)
     labels = dict(known)
     order = [k for k, _ in known if k in groups] + sorted(k for k in groups if k not in labels)
-    return [_breakdown_row(k, labels.get(k, k), groups[k]) for k in order]
+    return [
+        _breakdown_row(k, labels[k] if k in labels else other_label(k), groups[k]) for k in order
+    ]
 
 
 def _streak(first: Sequence[StatRow]) -> dict[str, int]:
@@ -240,7 +246,7 @@ def compute(
 
     ``now`` (aware) fixes "today" in ``tz``; ``goal`` is the daily goal, applied to past days too.
     ``profile_labels`` maps current profile names to labels, in display order; a stored profile
-    not in it sorts after them by name, labelled with its name.
+    not in it sorts after them by name, labelled by ``profile_meta``.
     """
     ordered = sorted(rows, key=lambda r: r.id)  # insert order
     first = [r for r in ordered if r.is_first]
@@ -252,7 +258,12 @@ def compute(
         "breakdowns": {
             "street": _breakdown(first, lambda r: r.street, STREETS),
             "action": _breakdown(first, lambda r: r.action_kind, ACTIONS),
-            "profile": _breakdown(first, lambda r: r.profile, list(profile_labels.items())),
+            "profile": _breakdown(
+                first,
+                lambda r: r.profile,
+                list(profile_labels.items()),
+                lambda k: profile_meta(k)[0],
+            ),
         },
         "streak": _streak(first),
         "days": _days(first, tz, now, goal),

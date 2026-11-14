@@ -35,7 +35,14 @@ from poker_trainer.game.state import (
     pot_odds,
     total_pot,
 )
-from poker_trainer.puzzle.model import Branch, CategoryRow, Option, OptionEV, Solution
+from poker_trainer.puzzle.model import (
+    Branch,
+    CategoryRow,
+    Option,
+    OptionEV,
+    Solution,
+    load_config,
+)
 from poker_trainer.puzzle.options import hero_options
 from poker_trainer.villain.features import (
     HandCategory,
@@ -132,6 +139,28 @@ def _reply(call_value: float, floor: float) -> tuple[str, float]:
     return ("calls", call_value) if call_value > floor else ("folds", floor)
 
 
+def realisation(street: Street, in_position: bool, all_in: bool) -> float:
+    """Share of equity Hero realises in a pot that is still open after the decision street.
+
+    1.0 on the river or when no betting is left (a player is all-in); otherwise the
+    configured ``(in position, out of position)`` factor for the street.
+    """
+    if street == Street.RIVER or all_in:
+        return 1.0
+    ip, oop = load_config().realisation[street]
+    return ip if in_position else oop
+
+
+def _all_in(s: HandState) -> bool:
+    """No betting is left: a player has no chips behind."""
+    return min(s.stacks) == 0
+
+
+def _r(s: HandState, after: HandState) -> float:
+    """Factor for Hero (``s.to_act``, deciding in ``s``) once the hand reaches ``after``."""
+    return realisation(s.street, s.to_act == s.button, _all_in(after))
+
+
 # ---------------------------------------------------------------------------
 # Option EVs
 # ---------------------------------------------------------------------------
@@ -168,7 +197,7 @@ def evaluate_action(
         raise ValueError("empty range")
     eq = float(eq_all.equity)
 
-    def plain(ev: float, put: int, codes: tuple[str, ...]) -> OptionEV:
+    def plain(ev: float, put: int, codes: tuple[str, ...], r: float = 1.0) -> OptionEV:
         return OptionEV(
             option=option,
             ev_chips=float(ev),
@@ -181,24 +210,27 @@ def evaluate_action(
             continue_range=None,
             branches=(),
             simplifications=codes,
+            realisation=float(r),
         )
 
-    realisation = ("realisation",) if preriver else ()
+    realised = ("realisation_position",) if preriver else ()
 
     if action.kind == ActionKind.FOLD:
         return plain(0.0, 0, ())
 
     if action.kind == ActionKind.CALL:
         put = action.to - s.street_bets[me]
-        return plain(eq * (P + put) - put, put, realisation)
+        r = _r(s, apply(s, action))
+        return plain(r * eq * (P + put) - put, put, realised, r)
 
     if action.kind == ActionKind.CHECK:
         s2 = apply(s, action)
         # Out of position: the street stays open and Villain acts next on it.
         oop = s2.to_act is not None and s2.street == s.street
         if preriver or s2.to_act is None:
-            codes = ("check_reply", *realisation) if oop else realisation
-            return plain(eq * P, 0, codes)
+            codes = ("check_reply", *realised) if oop else realised
+            r = _r(s, s2)
+            return plain(r * eq * P, 0, codes, r)
         return _river_check_lookahead(s2, hero, d, size, ce, option, respond, P, samples)
 
     if action.kind in _AGGRESSIVE:
@@ -291,7 +323,7 @@ def _bet_or_raise(
 
     codes: set[str] = set()
     if s.street < Street.RIVER:
-        codes.add("realisation")
+        codes.add("realisation_position")
     if s.street == Street.PREFLOP and action.kind == ActionKind.RAISE:
         codes.add("preflop_size")
 
@@ -312,19 +344,23 @@ def _bet_or_raise(
         e = float(r.equity)
         if key.kind == ActionKind.CALL:
             vcall = legal_actions(s2).call
-            v = e * (P + put + vcall) - put
+            r_b = _r(s, apply(s2, key))
+            v = r_b * e * (P + put + vcall) - put
             lab = "Villain calls"
         elif key.kind in _AGGRESSIVE:
             codes.add("reraise_reply")
             s3 = apply(s2, key)
             c = legal_actions(s3).call
             final = total_pot(s3) + c
-            how, v = _reply(e * final - (put + c), float(-put))
+            hero_call = Action(me, ActionKind.CALL, s3.street, s3.street_bets[me] + c)
+            r_call = _r(s, apply(s3, hero_call))
+            how, v = _reply(r_call * e * final - (put + c), float(-put))
+            r_b = r_call if how == "calls" else 1.0  # folding realises nothing
             lab = f"Villain raises to {key.to} — Hero {how}"
         else:
             raise ValueError(f"unexpected Villain response to a bet: {key}")
         ev += share * v
-        branches.append(Branch(lab, float(share), e, float(v)))
+        branches.append(Branch(lab, float(share), e, float(v), float(r_b)))
 
     if never_continues:
         F = 1.0

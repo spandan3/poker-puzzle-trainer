@@ -21,28 +21,9 @@ from poker_trainer.game.state import Action, ActionKind, HandState, Street
 
 FORMAT = 1
 
-SIMPLIFICATIONS: Mapping[str, str] = MappingProxyType(
-    {
-        "realisation": "Before the river, Hero is assumed to realise full equity.",
-        "reraise_reply": "After a Villain re-raise, Hero only folds or calls.",
-        "preflop_size": "Pre-flop, Villain's responses don't depend on Hero's raise size.",
-        "check_reply": (
-            "After Hero checks, Villain's bet and Hero's response are simplified: on the river "
-            "Hero only folds or calls; before the river Villain's bet behind is not modelled."
-        ),
-    }
-)
-
-
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-
-# Spot kinds the config's ``paused_spots`` may name; the generator skips a paused kind.
-# "preflop_bb_vs_open": Hero in the BB facing a non-all-in open (paused until the M9
-# lookahead fixes out-of-position pre-flop realisation).
-PREFLOP_BB_VS_OPEN = "preflop_bb_vs_open"
-PAUSABLE_SPOTS = (PREFLOP_BB_VS_OPEN,)
 
 
 @dataclass(frozen=True)
@@ -85,7 +66,9 @@ class PuzzleConfig:
     trivial: TrivialConfig
     max_attempts: int
     intent: IntentConfig
-    paused_spots: tuple[str, ...]
+    # Equity realisation before the river, as ``(in position, out of position)`` per street.
+    # The river has no entry: it always realises 100%.
+    realisation: Mapping[Street, tuple[float, float]]
 
 
 def verdict_pot(pot: float, v: VerdictConfig) -> float:
@@ -98,25 +81,11 @@ def best_margin(pot: float, v: VerdictConfig) -> float:
     return max(v.best_bb * 2, v.best_pot * verdict_pot(pot, v))
 
 
-def _paused_spots(raw: Any) -> tuple[str, ...]:
-    if not isinstance(raw, list) or not all(isinstance(x, str) for x in raw):
-        raise ValueError(f"paused_spots must be a list of spot names, got {raw!r}")
-    unknown = [x for x in raw if x not in PAUSABLE_SPOTS]
-    if unknown:
-        raise ValueError(f"paused_spots: unknown spot {unknown}; expected one of {PAUSABLE_SPOTS}")
-    return tuple(raw)
-
-
 @lru_cache(maxsize=1)
 def load_config() -> PuzzleConfig:
     raw = json.loads(
         files("poker_trainer.puzzle").joinpath("config.json").read_text(encoding="utf-8")
     )
-    return config_from_dict(raw)
-
-
-def config_from_dict(raw: Mapping[str, Any]) -> PuzzleConfig:
-    """Build (and validate) a ``PuzzleConfig`` from the parsed ``config.json``."""
     return PuzzleConfig(
         version=raw["version"],
         street_weights=MappingProxyType(dict(raw["street_weights"])),
@@ -127,8 +96,56 @@ def config_from_dict(raw: Mapping[str, Any]) -> PuzzleConfig:
         trivial=TrivialConfig(**raw["trivial"]),
         max_attempts=raw["max_attempts"],
         intent=IntentConfig(**raw["intent"]),
-        paused_spots=_paused_spots(raw["paused_spots"]),
+        realisation=MappingProxyType(
+            {
+                Street[name.upper()]: (float(v["ip"]), float(v["oop"]))
+                for name, v in raw["realisation"].items()
+            }
+        ),
     )
+
+
+_REALISATION_STREETS = (
+    (Street.PREFLOP, "pre-flop"),
+    (Street.FLOP, "on the flop"),
+    (Street.TURN, "on the turn"),
+)
+
+
+def _pct(x: float) -> str:
+    return f"{x * 100:.4g}%"
+
+
+def _realisation_side(r: Mapping[Street, tuple[float, float]], side: int) -> str:
+    """One position's factors: a single number when every street agrees, else per street."""
+    values = [r[st][side] for st, _ in _REALISATION_STREETS]
+    if all(v == values[0] for v in values):
+        return _pct(values[0])
+    return ", ".join(f"{_pct(r[st][side])} {name}" for st, name in _REALISATION_STREETS)
+
+
+def realisation_text(r: Mapping[Street, tuple[float, float]]) -> str:
+    """The ``realisation_position`` simplification text, from the configured factors."""
+    return (
+        "Before the river, Hero is assumed to realise a share of equity set by position: "
+        f"in position {_realisation_side(r, 0)}; out of position {_realisation_side(r, 1)}. "
+        "All-in pots realise 100%."
+    )
+
+
+SIMPLIFICATIONS: Mapping[str, str] = MappingProxyType(
+    {
+        # Pre-M9 puzzles store this code; they were graded with full realisation. Keep the text.
+        "realisation": "Before the river, Hero is assumed to realise full equity.",
+        "realisation_position": realisation_text(load_config().realisation),
+        "reraise_reply": "After a Villain re-raise, Hero only folds or calls.",
+        "preflop_size": "Pre-flop, Villain's responses don't depend on Hero's raise size.",
+        "check_reply": (
+            "After Hero checks, Villain's bet and Hero's response are simplified: on the river "
+            "Hero only folds or calls; before the river Villain's bet behind is not modelled."
+        ),
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +192,8 @@ class Branch:
     share: float
     equity: float | None
     value_chips: float
+    # Equity realisation factor used in ``value_chips`` (1.0 where it does not apply).
+    realisation: float = 1.0
 
 
 @dataclass(frozen=True, eq=False)
@@ -190,6 +209,8 @@ class OptionEV:
     continue_range: Range | None
     branches: tuple[Branch, ...]
     simplifications: tuple[str, ...]
+    # Factor used in a call or check value; 1.0 for fold, bet and raise (see the branches).
+    realisation: float = 1.0
 
     @property
     def ev_bb(self) -> float:
@@ -349,10 +370,12 @@ def _option_ev_to_dict(o: OptionEV) -> dict[str, Any]:
                 "share": float(b.share),
                 "equity": _f(b.equity),
                 "value_chips": float(b.value_chips),
+                "realisation": float(b.realisation),
             }
             for b in o.branches
         ],
         "simplifications": list(o.simplifications),
+        "realisation": float(o.realisation),
     }
 
 
@@ -368,9 +391,12 @@ def _option_ev_from_dict(d: dict[str, Any]) -> OptionEV:
         put=d["put"],
         continue_range=None if d["continue_range"] is None else _ro(d["continue_range"]),
         branches=tuple(
-            Branch(b["label"], b["share"], b["equity"], b["value_chips"]) for b in d["branches"]
+            # Pre-M9 puzzles have no "realisation" keys: they were graded with full realisation.
+            Branch(b["label"], b["share"], b["equity"], b["value_chips"], b.get("realisation", 1.0))
+            for b in d["branches"]
         ),
         simplifications=tuple(d["simplifications"]),
+        realisation=d.get("realisation", 1.0),
     )
 
 

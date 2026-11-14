@@ -40,16 +40,6 @@ export function chosenLabel(result: AttemptResult): string {
   return optionLabel(answer.chosen_label)
 }
 
-/**
- * The label of the best play. A custom size that beat every preset is the best option, and its
- * server label is in chips ("bet 14"), so it is shown the way `chosenLabel` shows it.
- */
-export function bestLabel(result: AttemptResult): string {
-  const best = result.options.find((o) => o.is_best)
-  if (result.answer.custom_to !== null && best?.is_chosen) return chosenLabel(result)
-  return optionLabel(result.grade.best_label)
-}
-
 /** EV differences below this (in bb) are shown as "0 bb" noise-free. */
 const EV_EPSILON = 0.005
 
@@ -62,7 +52,7 @@ const EV_EPSILON = 0.005
 export function verdictLine(result: AttemptResult): string {
   const { grade } = result
   const you = `You: ${chosenLabel(result)}`
-  const best = bestLabel(result)
+  const best = optionLabel(grade.best_label)
   const loss = grade.ev_loss_bb
   if (loss < EV_EPSILON) return `${you} · the top play`
   if (grade.verdict === 'best' || grade.verdict === 'fine') {

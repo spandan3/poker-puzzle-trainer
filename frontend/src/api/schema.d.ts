@@ -337,6 +337,8 @@ export interface components {
             equity: number | null;
             /** Label */
             label: string;
+            /** Realisation */
+            realisation: number;
             /** Share */
             share: number;
             /** Value Bb */
@@ -578,6 +580,8 @@ export interface components {
             label: string;
             /** Put */
             put: number;
+            /** Realisation */
+            realisation: number;
             /** Required Fold Equity */
             required_fold_equity: number | null;
             /** Simplifications */

@@ -8,6 +8,8 @@ frontend view that shows the same quantity:
 |---------------------------------------|--------------|-------------------------------|
 | equity vs the whole range, ahead now  | pct, 1 digit | the summary (``guessLines``)  |
 | pot odds                              | pct, 1 digit | Maths                         |
+| realisation factor (call option)      | pct, ".0" off| Maths                         |
+| realised equity (factor × equity)     | pct, 1 digit | Maths                         |
 | fold frequency of an option           | pct, 0 digit | Options table                 |
 | fold equity a bet or raise needs      | pct, 1 digit | Maths                         |
 | equity vs the continuing range        | pct, 1 digit | Options table                 |
@@ -111,12 +113,17 @@ class Facts:
     pot_odds: str | None
     pot_odds_formula: str | None  # "2 bb / (5 bb + 2 bb)" when it reproduces pot_odds
     call_amount: str | None
+    # realised equity (the call option's realisation factor × equity) >= pot odds
     equity_beats_pot_odds: bool | None
     options: tuple[OptionFact, ...]
     check_best: bool
     best_bet: OptionFact | None  # the highest-EV bet or raise
     categories: tuple[CategoryFact, ...]  # the largest two by share
     range_steps: tuple[str, ...]  # without "Start", in bb
+    # the call option's equity realisation factor ("80%") and factor × equity ("27.2%"); None
+    # when the factor is 1 (in position, the river, all-in, or a result graded before M9)
+    realisation: str | None = None
+    realised_equity: str | None = None
 
     @property
     def chosen(self) -> OptionFact:
@@ -160,6 +167,14 @@ class Facts:
             out.append(("Pot odds", self.pot_odds))
         if self.pot_odds_formula is not None:
             out.append(("Pot odds formula", f"{self.pot_odds_formula} = {self.pot_odds}"))
+        if self.realisation is not None and self.realised_equity is not None:
+            out.append(("Equity you realise out of position", self.realisation))
+            out.append(
+                (
+                    f"Your realised equity ({self.realisation} of {self.equity})",
+                    self.realised_equity,
+                )
+            )
         if self.call_amount is not None:
             out.append(("Call amount", self.call_amount))
         for o in self.options:
@@ -302,6 +317,12 @@ def _fraction_formula(put: int, pot: int, api: float) -> str | None:
     return f"{bb(put)} / ({bb(pot)} + {bb(put)})"
 
 
+def _share(x: float) -> str:
+    """A factor as Maths shows it: one decimal, ".0" dropped (``0.8`` -> ``"80%"``)."""
+    text = pct(x, 1)
+    return text[:-3] + "%" if text.endswith(".0%") else text
+
+
 def _loss_case(loss_bb: float, verdict: str) -> LossCase:
     """``verdictLine``'s three cases."""
     if loss_bb < EV_EPSILON:
@@ -332,9 +353,15 @@ def build_facts(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]
     call = next((o for o in raw_options if o["kind"] == "call"), None)
     po_formula = None
     beats = None
+    realisation = realised = None
     if pot_odds is not None and call is not None:
         po_formula = _fraction_formula(int(call["put"]), pot_chips, pot_odds)
-        beats = grade["equity"] >= pot_odds
+        r = float(call["realisation"])
+        realised_equity = r * grade["equity"]
+        beats = realised_equity >= pot_odds
+        if r != 1.0:
+            realisation = _share(r)
+            realised = pct(realised_equity, 1)
 
     aggressive = [o for o in raw_options if o["kind"] in ("bet", "raise")]
     best_bet = None
@@ -383,4 +410,6 @@ def build_facts(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]
         best_bet=best_bet,
         categories=categories,
         range_steps=tuple(bb_label(st["label"]) for st in result["range_steps"][1:]),
+        realisation=realisation,
+        realised_equity=realised,
     )
