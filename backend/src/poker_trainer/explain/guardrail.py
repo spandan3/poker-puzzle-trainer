@@ -37,8 +37,10 @@ the template passes them by construction, which a test checks on every fixture s
   other than the actual verdict's word;
 - ``headline``: the headline names the top play as the template's headline does (the choice's
   label when it matched or beat the top play, else the top play's label) and, when the choice
-  lost EV (``loss_case`` is not ``"top"``), the choice too. A label matches as written or in
-  the headline's gerund form (``"Fold"`` or ``"folding"``), case-insensitive, as whole words;
+  lost EV (``loss_case`` is not ``"top"``), the choice too. After a loss (``loss_case``
+  ``"lost"``) the top play is named first, as the template does (after a close call the template
+  names the choice first, so that case is not ordered). A label matches as written or in the
+  headline's gerund form (``"Fold"`` or ``"folding"``), case-insensitive, as whole words;
 - ``result``: nothing about how the hand ended. Banned: the words ``won``, ``win``, ``wins``,
   ``winning``, ``showdown`` and the phrase ``lost the hand``, and Villain's actual hand
   ("Villain had", "Villain held", "Villain's hand was"). The template's own wording avoids all
@@ -285,6 +287,16 @@ def _names(text: str, label: str) -> bool:
     )
 
 
+def _first_name_at(text: str, label: str) -> int | None:
+    """Where ``label`` (as written or as a gerund) is first named in ``text``, or ``None``."""
+    hits = [
+        m.start()
+        for form in (label, gerund(label))
+        if (m := re.search(rf"(?<!\w){re.escape(form)}(?!\w)", text, re.IGNORECASE))
+    ]
+    return min(hits) if hits else None
+
+
 def check_claims(fields: Mapping[str, str], facts: Facts) -> dict[str, str]:
     """``{rule: what hit}`` for every rule of the module doc a model's fields break (empty when
     they pass): ``verdict``, ``headline``, ``result``."""
@@ -301,6 +313,13 @@ def check_claims(fields: Mapping[str, str], facts: Facts) -> dict[str, str]:
     missing = [label for label in needed if not _names(headline, label)]
     if missing:
         out["headline"] = "missing " + ", ".join(missing)
+    elif facts.loss_case == "lost":
+        # the template names the top play first after a loss; the close case names the choice
+        # first ("Fold was close: ... the top play, Raise"), so only a loss is ordered
+        at_top = _first_name_at(headline, top)
+        at_chosen = _first_name_at(headline, facts.chosen_label)
+        if at_top is not None and at_chosen is not None and at_chosen < at_top:
+            out["headline"] = "top play not named first"
     said = sorted({m.group().lower() for m in _RESULT.finditer(text)})
     if said:
         out["result"] = ", ".join(said)

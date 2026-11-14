@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import re
 import urllib.request
 from typing import Any, Literal
 from urllib.error import HTTPError, URLError
@@ -224,10 +225,40 @@ def _model_names(data: Any) -> set[str]:
     return names
 
 
+MIN_VERSION = (0, 5, 0)  # structured output (the JSON schema ``format``)
+_VERSION = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?", re.ASCII)
+
+
+def parse_version(text: str) -> tuple[int, int, int] | None:
+    """A leading ``major.minor[.patch]`` of ``text`` (any suffix is ignored); ``None`` when there
+    is none, or for ``0.0.0`` (a development build: unknown)."""
+    m = _VERSION.match(text.strip())
+    if m is None:
+        return None
+    version = (int(m.group(1)), int(m.group(2)), int(m.group(3) or 0))
+    return None if version == (0, 0, 0) else version
+
+
 def probe(url: str, model: str, timeout: float = PROBE_TIMEOUT) -> tuple[ProbeStatus, str | None]:
     """``("ready", None)`` when Ollama at ``url`` lists ``model`` (a name without a tag means
-    ``name:latest``), else ``("unavailable", <what to do>)``. A detail is a plain sentence (no Markdown) ending with a full
-    stop: the settings view shows it as text."""
+    ``name:latest``), else ``("unavailable", <what to do>)``. A detail is a plain sentence (no
+    Markdown) ending with a full stop: the settings view shows it as text.
+
+    ``GET /api/version`` comes first: a version below 0.5 is too old. Nobody answering there
+    ends the probe at once (``/api/tags`` would only double the wait); an HTTP error, a reply
+    that isn't JSON or has no usable version is not an answer about the version, so the model
+    check goes on."""
+    try:
+        data = _request_json(urllib.request.Request(_endpoint(url, "/api/version")), timeout)
+    except LlmFailure as e:
+        if not (isinstance(e, LlmError) or isinstance(e.__cause__, HTTPError)):
+            return "unavailable", f"Ollama isn't answering at {url}."
+    else:
+        raw = data.get("version") if isinstance(data, dict) else None
+        version = parse_version(raw) if isinstance(raw, str) else None
+        if version is not None and version < MIN_VERSION:
+            shown = ".".join(str(n) for n in version)
+            return "unavailable", f"Ollama {shown} is too old: version 0.5 or newer is needed."
     req = urllib.request.Request(_endpoint(url, "/api/tags"), method="GET")
     try:
         names = _model_names(_request_json(req, timeout))
