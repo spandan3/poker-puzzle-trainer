@@ -6,7 +6,7 @@ A personal NLHE trainer: a FastAPI backend (`backend/`, uv, Python 3.13) and a V
 
 - Spec: `docs/superpowers/specs/2026-11-10-poker-puzzle-trainer-design.md`. Play vs Bots: `docs/superpowers/specs/2026-11-12-play-vs-bots-design.md`.
 - Roadmap: `docs/superpowers/plans/2026-11-10-roadmap.md`. Order: M6 results → M7 progress → M8 explanations (local LLM) → M9 Phase 1 sign-off → M10 Play vs Bots heads-up → M11 UI polish → M12 5-max play → M13 5-max analysis.
-- Status (2026-11-12): M1–M8 are merged. **M9 (Phase 1 sign-off) is next.** Its starting point is the end of `docs/superpowers/plans/2026-11-12-m8-explanations.md` (rulings, then open items for M9 and later), including a manual check of the Ollama explanations with a real model.
+- Status (2026-11-13): M1–M9 are merged. **M10 (Play vs Bots, heads-up) is next.** Its starting point is the end of `docs/superpowers/plans/2026-11-13-m9-signoff.md` (rulings, then open items for M10 and later). The Phase 1 sign-off report, `docs/superpowers/reports/2026-11-13-m9-competence-signoff.md`, is waiting for the user's approval.
 - Each milestone has a plan in `docs/superpowers/plans/`. The end of the latest plan lists the open items for the next milestones. Read it before planning the next one.
 - `handoff.md` is for parallel work on the Villain model (`villain/*` branches). It also says which paths the main line owns.
 
