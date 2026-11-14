@@ -358,12 +358,12 @@ def test_custom_size_stored_below_listed_best_is_not_called_the_top_play():
 
 
 def test_headline_follows_verdict_line():
-    p = puzzle(17, "flop")  # facing a raise: call best (2.25 bb), raise 2.5x fine, fold lost
+    p = puzzle(17, "flop")  # facing a raise: call best (2.26 bb), raise 2.5x fine, fold lost
     texts = [result(p, option=i)["explanation"]["headline"] for i in range(3)]
     assert texts == [
-        "Call was the top play; folding loses 2.25 bb against Villain's range.",
+        "Call was the top play; folding loses 2.26 bb against Villain's range.",
         "Call was the top play, and you found it.",
-        "Raise 2.5x was close: within 0.66 bb of the top play, Call.",
+        "Raise 2.5x was close: within 0.67 bb of the top play, Call.",
     ]
 
 

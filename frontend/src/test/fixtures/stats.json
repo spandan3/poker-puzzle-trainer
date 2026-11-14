@@ -4,8 +4,8 @@
       {
         "accuracy": 0.5,
         "count": 10,
-        "equity_error_avg": 0.09421857644,
-        "ev_lost_bb_avg": 14.01756596,
+        "equity_error_avg": 0.0912295254,
+        "ev_lost_bb_avg": 13.61537617,
         "key": "fold",
         "label": "Fold",
         "verdicts": {
@@ -32,7 +32,7 @@
       {
         "accuracy": 1.0,
         "count": 30,
-        "equity_error_avg": 0.09768797046,
+        "equity_error_avg": 0.09656662011,
         "ev_lost_bb_avg": 0.0,
         "key": "call",
         "label": "Call",
@@ -47,7 +47,7 @@
         "accuracy": 0.825,
         "count": 40,
         "equity_error_avg": 0.09060040871,
-        "ev_lost_bb_avg": 0.6832170901,
+        "ev_lost_bb_avg": 0.6759072058,
         "key": "bet",
         "label": "Bet",
         "verdicts": {
@@ -91,7 +91,7 @@
         "accuracy": 0.88,
         "count": 75,
         "equity_error_avg": 0.0880136311,
-        "ev_lost_bb_avg": 0.4136771906,
+        "ev_lost_bb_avg": 0.4097785856,
         "key": "lag",
         "label": "LAG",
         "verdicts": {
@@ -104,8 +104,8 @@
       {
         "accuracy": 0.5,
         "count": 10,
-        "equity_error_avg": 0.09877465287,
-        "ev_lost_bb_avg": 13.82253471,
+        "equity_error_avg": 0.09279655081,
+        "ev_lost_bb_avg": 13.42034492,
         "key": "tight",
         "label": "Tight",
         "verdicts": {
@@ -118,7 +118,7 @@
       {
         "accuracy": 1.0,
         "count": 10,
-        "equity_error_avg": 0.10565,
+        "equity_error_avg": 0.105275,
         "ev_lost_bb_avg": 0.0,
         "key": "sticky",
         "label": "Sticky",
@@ -148,8 +148,8 @@
       {
         "accuracy": 0.8387096774,
         "count": 31,
-        "equity_error_avg": 0.09598185484,
-        "ev_lost_bb_avg": 0.5167292906,
+        "equity_error_avg": 0.0958608871,
+        "ev_lost_bb_avg": 0.5193647413,
         "key": "flop",
         "label": "Flop",
         "verdicts": {
@@ -176,8 +176,8 @@
       {
         "accuracy": 0.5714285714,
         "count": 21,
-        "equity_error_avg": 0.09191941611,
-        "ev_lost_bb_avg": 7.296787067,
+        "equity_error_avg": 0.08907270084,
+        "ev_lost_bb_avg": 7.087454102,
         "key": "river",
         "label": "River",
         "verdicts": {
@@ -255,16 +255,16 @@
   },
   "headline": {
     "accuracy_last50": 0.88,
-    "equity_error_last50": 0.0928818821,
-    "ev_lost_bb_last50": 1.465697213,
-    "ev_lost_bb_prev50": 1.90597098,
-    "range_read_error_last50": 0.06156462999
+    "equity_error_last50": 0.0922465719,
+    "ev_lost_bb_last50": 1.435156009,
+    "ev_lost_bb_prev50": 1.850226318,
+    "range_read_error_last50": 0.06156951321
   },
   "leaks": [
     {
       "count": 10,
-      "detail": "You folded 10 times; continuing was better 10 times (100%), costing 140.2 bb.",
-      "ev_lost_bb": 140.1756596,
+      "detail": "You folded 10 times; continuing was better 10 times (100%), costing 136.2 bb.",
+      "ev_lost_bb": 136.1537617,
       "id": "overfold",
       "kind": "share",
       "mean_error": null,
@@ -273,11 +273,11 @@
     },
     {
       "count": 105,
-      "detail": "Your equity guesses are 9.0 pts too high on average (105 spots).",
+      "detail": "Your equity guesses are 8.9 pts too high on average (105 spots).",
       "ev_lost_bb": null,
       "id": "equity_overestimate",
       "kind": "mean",
-      "mean_error": 0.08977860605,
+      "mean_error": 0.08917354871,
       "sample": 105,
       "title": "Overestimating your equity"
     }
@@ -360,131 +360,131 @@
     {
       "attempt_id": 7,
       "created_at": "2026-10-26T06:00:00+00:00",
-      "equity_error": 0.05465,
-      "equity_error_avg": 0.08288819814,
+      "equity_error": 0.054275,
+      "equity_error_avg": 0.08283462671,
       "ev_lost_bb": 0.0,
       "ev_lost_bb_avg": 0.374005613,
       "n": 7,
-      "range_read_error": 0.04012903067,
-      "range_read_error_avg": 0.06798192149
+      "range_read_error": 0.03993370183,
+      "range_read_error_avg": 0.06794936668
     },
     {
       "attempt_id": 8,
       "created_at": "2026-10-26T13:00:00+00:00",
-      "equity_error": 0.1317746529,
-      "equity_error_avg": 0.08899900498,
-      "ev_lost_bb": 27.64506943,
-      "ev_lost_bb_avg": 3.78288859,
+      "equity_error": 0.1257965508,
+      "equity_error_avg": 0.08820486723,
+      "ev_lost_bb": 26.84068984,
+      "ev_lost_bb_avg": 3.682341141,
       "n": 8,
       "range_read_error": null,
-      "range_read_error_avg": 0.06798192149
+      "range_read_error_avg": 0.06794936668
     },
     {
       "attempt_id": 9,
       "created_at": "2026-10-26T20:00:00+00:00",
       "equity_error": 0.0001953349349,
-      "equity_error_avg": 0.07913193053,
+      "equity_error_avg": 0.0784260303,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 3.362567635,
+      "ev_lost_bb_avg": 3.273192126,
       "n": 9,
       "range_read_error": 0.0137188553,
-      "range_read_error_avg": 0.06023005489
+      "range_read_error_avg": 0.06020215077
     },
     {
       "attempt_id": 10,
       "created_at": "2026-10-27T03:00:00+00:00",
       "equity_error": 0.0806625,
-      "equity_error_avg": 0.07928498748,
+      "equity_error_avg": 0.07864967727,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 3.026310872,
+      "ev_lost_bb_avg": 2.945872913,
       "n": 10,
       "range_read_error": 0.1212328767,
-      "range_read_error_avg": 0.06785540762
+      "range_read_error_avg": 0.06783099151
     },
     {
       "attempt_id": 11,
       "created_at": "2026-10-27T10:00:00+00:00",
       "equity_error": 0.157675,
-      "equity_error_avg": 0.08641135225,
+      "equity_error_avg": 0.08583379752,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.751191702,
+      "ev_lost_bb_avg": 2.678066285,
       "n": 11,
       "range_read_error": 0.01897959184,
-      "range_read_error_avg": 0.06242476142
+      "range_read_error_avg": 0.06240305821
     },
     {
       "attempt_id": 12,
       "created_at": "2026-10-27T17:00:00+00:00",
       "equity_error": 0.0308125,
-      "equity_error_avg": 0.08177811457,
+      "equity_error_avg": 0.08124868939,
       "ev_lost_bb": 0.2376251903,
-      "ev_lost_bb_avg": 2.541727826,
+      "ev_lost_bb_avg": 2.474696193,
       "n": 12,
       "range_read_error": 0.09244221922,
-      "range_read_error_avg": 0.0654265072
+      "range_read_error_avg": 0.06540697431
     },
     {
       "attempt_id": 13,
       "created_at": "2026-10-28T00:00:00+00:00",
       "equity_error": 0.1128147526,
-      "equity_error_avg": 0.08416554826,
+      "equity_error_avg": 0.0836768481,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.346210301,
+      "ev_lost_bb_avg": 2.284334948,
       "n": 13,
       "range_read_error": 0.04778200413,
-      "range_read_error_avg": 0.06382246146
+      "range_read_error_avg": 0.0638047043
     },
     {
       "attempt_id": 14,
       "created_at": "2026-10-28T07:00:00+00:00",
       "equity_error": 0.1858401344,
-      "equity_error_avg": 0.0914280187,
+      "equity_error_avg": 0.0909742257,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.178623851,
+      "ev_lost_bb_avg": 2.121168166,
       "n": 14,
       "range_read_error": null,
-      "range_read_error_avg": 0.06382246146
+      "range_read_error_avg": 0.0638047043
     },
     {
       "attempt_id": 15,
       "created_at": "2026-10-28T14:00:00+00:00",
       "equity_error": 0.0576125,
-      "equity_error_avg": 0.08917365079,
+      "equity_error_avg": 0.08875011065,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.03338226,
+      "ev_lost_bb_avg": 1.979756955,
       "n": 15,
       "range_read_error": 0.080591133,
-      "range_read_error_avg": 0.06521985076
+      "range_read_error_avg": 0.06520357336
     },
     {
       "attempt_id": 16,
       "created_at": "2026-10-28T21:00:00+00:00",
       "equity_error": 0.1361625,
-      "equity_error_avg": 0.09211045386,
+      "equity_error_avg": 0.09171338498,
       "ev_lost_bb": 0.6573331299,
-      "ev_lost_bb_avg": 1.94737919,
+      "ev_lost_bb_avg": 1.897105466,
       "n": 16,
       "range_read_error": 0.03040173724,
-      "range_read_error_avg": 0.06254153433
+      "range_read_error_avg": 0.06252650904
     },
     {
       "attempt_id": 17,
       "created_at": "2026-10-29T04:00:00+00:00",
-      "equity_error": 0.01465,
-      "equity_error_avg": 0.08755395658,
+      "equity_error": 0.014275,
+      "equity_error_avg": 0.08715818587,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.832827473,
+      "ev_lost_bb_avg": 1.785511026,
       "n": 17,
-      "range_read_error": 0.1098709693,
+      "range_read_error": 0.1100662982,
       "range_read_error_avg": 0.06592220826
     },
     {
       "attempt_id": 18,
       "created_at": "2026-10-29T11:00:00+00:00",
-      "equity_error": 0.09177465287,
-      "equity_error_avg": 0.0877884397,
+      "equity_error": 0.08579655081,
+      "equity_error_avg": 0.08708253947,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.731003724,
+      "ev_lost_bb_avg": 1.686315969,
       "n": 18,
       "range_read_error": null,
       "range_read_error_avg": 0.06592220826
@@ -493,9 +493,9 @@
       "attempt_id": 19,
       "created_at": "2026-10-29T18:00:00+00:00",
       "equity_error": 0.1701953349,
-      "equity_error_avg": 0.09212564472,
+      "equity_error_avg": 0.09145689713,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.639898265,
+      "ev_lost_bb_avg": 1.597562497,
       "n": 19,
       "range_read_error": 0.0937188553,
       "range_read_error_avg": 0.06777531807
@@ -504,9 +504,9 @@
       "attempt_id": 20,
       "created_at": "2026-10-30T01:00:00+00:00",
       "equity_error": 0.0406625,
-      "equity_error_avg": 0.08955248748,
+      "equity_error_avg": 0.08891717727,
       "ev_lost_bb": 0.3900625,
-      "ev_lost_bb_avg": 1.577406477,
+      "ev_lost_bb_avg": 1.537187497,
       "n": 20,
       "range_read_error": 0.02876712329,
       "range_read_error_avg": 0.06533730589
@@ -515,9 +515,9 @@
       "attempt_id": 21,
       "created_at": "2026-10-30T08:00:00+00:00",
       "equity_error": 0.117675,
-      "equity_error_avg": 0.09089165474,
+      "equity_error_avg": 0.0902865974,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.502291883,
+      "ev_lost_bb_avg": 1.463988093,
       "n": 21,
       "range_read_error": 0.08102040816,
       "range_read_error_avg": 0.06625984132
@@ -526,9 +526,9 @@
       "attempt_id": 22,
       "created_at": "2026-10-30T15:00:00+00:00",
       "equity_error": 0.0091875,
-      "equity_error_avg": 0.08717782953,
+      "equity_error_avg": 0.08660027479,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.434005888,
+      "ev_lost_bb_avg": 1.39744318,
       "n": 22,
       "range_read_error": 0.05755778078,
       "range_read_error_avg": 0.06577639351
@@ -537,9 +537,9 @@
       "attempt_id": 23,
       "created_at": "2026-10-30T22:00:00+00:00",
       "equity_error": 0.07281475259,
-      "equity_error_avg": 0.08655334792,
+      "equity_error_avg": 0.08600090426,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.371657806,
+      "ev_lost_bb_avg": 1.33668478,
       "n": 23,
       "range_read_error": 0.05221799587,
       "range_read_error_avg": 0.06506279364
@@ -548,9 +548,9 @@
       "attempt_id": 24,
       "created_at": "2026-10-31T05:00:00+00:00",
       "equity_error": 0.1458401344,
-      "equity_error_avg": 0.08902363069,
-      "ev_lost_bb": 6.53849538,
-      "ev_lost_bb_avg": 1.586942705,
+      "equity_error_avg": 0.08849420552,
+      "ev_lost_bb": 6.164401035,
+      "ev_lost_bb_avg": 1.537839624,
       "n": 24,
       "range_read_error": null,
       "range_read_error_avg": 0.06506279364
@@ -559,9 +559,9 @@
       "attempt_id": 25,
       "created_at": "2026-10-31T12:00:00+00:00",
       "equity_error": 0.0176125,
-      "equity_error_avg": 0.08616718546,
+      "equity_error_avg": 0.0856589373,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.523464997,
+      "ev_lost_bb_avg": 1.476326039,
       "n": 25,
       "range_read_error": 0.019408867,
       "range_read_error_avg": 0.0627800973
@@ -570,9 +570,9 @@
       "attempt_id": 26,
       "created_at": "2026-10-31T19:00:00+00:00",
       "equity_error": 0.0961625,
-      "equity_error_avg": 0.08655162064,
+      "equity_error_avg": 0.08606292048,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.464870189,
+      "ev_lost_bb_avg": 1.419544269,
       "n": 26,
       "range_read_error": 0.1195982628,
       "range_read_error_avg": 0.06548572423
@@ -580,131 +580,131 @@
     {
       "attempt_id": 27,
       "created_at": "2026-11-01T02:00:00+00:00",
-      "equity_error": 0.18465,
-      "equity_error_avg": 0.09018489395,
+      "equity_error": 0.184275,
+      "equity_error_avg": 0.08970040491,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.410615738,
+      "ev_lost_bb_avg": 1.366968555,
       "n": 27,
-      "range_read_error": 0.009870969334,
-      "range_read_error_avg": 0.06295778083
+      "range_read_error": 0.01006629817,
+      "range_read_error_avg": 0.06296665941
     },
     {
       "attempt_id": 28,
       "created_at": "2026-11-01T09:00:00+00:00",
-      "equity_error": 0.05177465287,
-      "equity_error_avg": 0.08881309962,
-      "ev_lost_bb": 27.64506943,
-      "ev_lost_bb_avg": 2.347560512,
+      "equity_error": 0.04579655081,
+      "equity_error_avg": 0.08813241012,
+      "ev_lost_bb": 26.84068984,
+      "ev_lost_bb_avg": 2.276744315,
       "n": 28,
       "range_read_error": null,
-      "range_read_error_avg": 0.06295778083
+      "range_read_error_avg": 0.06296665941
     },
     {
       "attempt_id": 29,
       "created_at": "2026-11-01T16:00:00+00:00",
       "equity_error": 0.1301953349,
-      "equity_error_avg": 0.09024007326,
+      "equity_error_avg": 0.0895828558,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.26661015,
+      "ev_lost_bb_avg": 2.19823589,
       "n": 29,
       "range_read_error": 0.0362811447,
-      "range_read_error_avg": 0.06179792708
+      "range_read_error_avg": 0.06180641964
     },
     {
       "attempt_id": 30,
       "created_at": "2026-11-01T23:00:00+00:00",
       "equity_error": 0.0006625,
-      "equity_error_avg": 0.08725415415,
+      "equity_error_avg": 0.08661884394,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.191056478,
+      "ev_lost_bb_avg": 2.124961361,
       "n": 30,
       "range_read_error": 0.07123287671,
-      "range_read_error_avg": 0.06219104998
+      "range_read_error_avg": 0.06219918868
     },
     {
       "attempt_id": 31,
       "created_at": "2026-11-02T06:00:00+00:00",
       "equity_error": 0.077675,
-      "equity_error_avg": 0.08694514917,
+      "equity_error_avg": 0.08633033285,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.120377237,
+      "ev_lost_bb_avg": 2.05641422,
       "n": 31,
       "range_read_error": 0.06897959184,
-      "range_read_error_avg": 0.06246259166
+      "range_read_error_avg": 0.06247040481
     },
     {
       "attempt_id": 32,
       "created_at": "2026-11-02T13:00:00+00:00",
       "equity_error": 0.1608125,
-      "equity_error_avg": 0.08925350389,
+      "equity_error_avg": 0.08865790057,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.054115448,
+      "ev_lost_bb_avg": 1.992151276,
       "n": 32,
       "range_read_error": 0.04244221922,
-      "range_read_error_avg": 0.06169257733
+      "range_read_error_avg": 0.06170008998
     },
     {
       "attempt_id": 33,
       "created_at": "2026-11-02T20:00:00+00:00",
       "equity_error": 0.03281475259,
-      "equity_error_avg": 0.0875432387,
+      "equity_error_avg": 0.08696568396,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.991869526,
+      "ev_lost_bb_avg": 1.931783055,
       "n": 33,
       "range_read_error": 0.08778200413,
-      "range_read_error_avg": 0.0626588524
+      "range_read_error_avg": 0.0626660868
     },
     {
       "attempt_id": 34,
       "created_at": "2026-11-03T03:00:00+00:00",
       "equity_error": 0.1058401344,
-      "equity_error_avg": 0.08808138269,
+      "equity_error_avg": 0.08752081486,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.933285128,
+      "ev_lost_bb_avg": 1.874965907,
       "n": 34,
       "range_read_error": null,
-      "range_read_error_avg": 0.0626588524
+      "range_read_error_avg": 0.0626660868
     },
     {
       "attempt_id": 35,
       "created_at": "2026-11-03T10:00:00+00:00",
       "equity_error": 0.1876125,
-      "equity_error_avg": 0.0909251289,
+      "equity_error_avg": 0.09038057729,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.87804841,
+      "ev_lost_bb_avg": 1.821395452,
       "n": 35,
       "range_read_error": 0.119408867,
-      "range_read_error_avg": 0.06468563863
+      "range_read_error_avg": 0.06469261466
     },
     {
       "attempt_id": 36,
       "created_at": "2026-11-03T17:00:00+00:00",
       "equity_error": 0.0561625,
-      "equity_error_avg": 0.08995950032,
+      "equity_error_avg": 0.08943007514,
       "ev_lost_bb": 0.2571350456,
-      "ev_lost_bb_avg": 1.833023039,
+      "ev_lost_bb_avg": 1.777943774,
       "n": 36,
       "range_read_error": 0.01959826276,
-      "range_read_error_avg": 0.06313090154
+      "range_read_error_avg": 0.06313763701
     },
     {
       "attempt_id": 37,
       "created_at": "2026-11-04T00:00:00+00:00",
-      "equity_error": 0.14465,
-      "equity_error_avg": 0.09143762193,
+      "equity_error": 0.144275,
+      "equity_error_avg": 0.09091237041,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.783481875,
+      "ev_lost_bb_avg": 1.72989124,
       "n": 37,
-      "range_read_error": 0.09012903067,
+      "range_read_error": 0.08993370183,
       "range_read_error_avg": 0.06403083917
     },
     {
       "attempt_id": 38,
       "created_at": "2026-11-04T07:00:00+00:00",
-      "equity_error": 0.01177465287,
-      "equity_error_avg": 0.08934122801,
+      "equity_error": 0.005796550807,
+      "equity_error_avg": 0.08867248042,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.736548142,
+      "ev_lost_bb_avg": 1.684367786,
       "n": 38,
       "range_read_error": null,
       "range_read_error_avg": 0.06403083917
@@ -713,9 +713,9 @@
       "attempt_id": 39,
       "created_at": "2026-11-04T14:00:00+00:00",
       "equity_error": 0.09019533493,
-      "equity_error_avg": 0.08936312818,
+      "equity_error_avg": 0.08871152797,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.692021266,
+      "ev_lost_bb_avg": 1.641178868,
       "n": 39,
       "range_read_error": 0.0637188553,
       "range_read_error_avg": 0.06402077518
@@ -724,9 +724,9 @@
       "attempt_id": 40,
       "created_at": "2026-11-04T21:00:00+00:00",
       "equity_error": 0.1706625,
-      "equity_error_avg": 0.09139561248,
+      "equity_error_avg": 0.09076030227,
       "ev_lost_bb": 0.3900625,
-      "ev_lost_bb_avg": 1.659472297,
+      "ev_lost_bb_avg": 1.609900959,
       "n": 40,
       "range_read_error": 0.07876712329,
       "range_read_error_avg": 0.06448159856
@@ -735,9 +735,9 @@
       "attempt_id": 41,
       "created_at": "2026-11-05T04:00:00+00:00",
       "equity_error": 0.037675,
-      "equity_error_avg": 0.09008535364,
+      "equity_error_avg": 0.0894655388,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.618997363,
+      "ev_lost_bb_avg": 1.570635082,
       "n": 41,
       "range_read_error": 0.03102040816,
       "range_read_error_avg": 0.06346762309
@@ -746,9 +746,9 @@
       "attempt_id": 42,
       "created_at": "2026-11-05T11:00:00+00:00",
       "equity_error": 0.1208125,
-      "equity_error_avg": 0.09081695236,
+      "equity_error_avg": 0.09021189502,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.580449807,
+      "ev_lost_bb_avg": 1.533239009,
       "n": 42,
       "range_read_error": 0.08755778078,
       "range_read_error_avg": 0.06417615714
@@ -757,9 +757,9 @@
       "attempt_id": 43,
       "created_at": "2026-11-05T18:00:00+00:00",
       "equity_error": 0.00718524741,
-      "equity_error_avg": 0.08887202899,
+      "equity_error_avg": 0.08828104275,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.54369516,
+      "ev_lost_bb_avg": 1.497582288,
       "n": 43,
       "range_read_error": 0.002217995875,
       "range_read_error_avg": 0.06240592396
@@ -768,9 +768,9 @@
       "attempt_id": 44,
       "created_at": "2026-11-06T01:00:00+00:00",
       "equity_error": 0.0658401344,
-      "equity_error_avg": 0.08834857684,
+      "equity_error_avg": 0.08777102211,
       "ev_lost_bb": 3.062290316,
-      "ev_lost_bb_avg": 1.578208686,
+      "ev_lost_bb_avg": 1.533143834,
       "n": 44,
       "range_read_error": null,
       "range_read_error_avg": 0.06240592396
@@ -779,9 +779,9 @@
       "attempt_id": 45,
       "created_at": "2026-11-06T08:00:00+00:00",
       "equity_error": 0.1476125,
-      "equity_error_avg": 0.08966555291,
+      "equity_error_avg": 0.08910083273,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.543137382,
+      "ev_lost_bb_avg": 1.499073971,
       "n": 45,
       "range_read_error": 0.030591133,
       "range_read_error_avg": 0.06152217977
@@ -790,9 +790,9 @@
       "attempt_id": 46,
       "created_at": "2026-11-06T15:00:00+00:00",
       "equity_error": 0.0161625,
-      "equity_error_avg": 0.08806766046,
+      "equity_error_avg": 0.0875152168,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.509590917,
+      "ev_lost_bb_avg": 1.466485406,
       "n": 46,
       "range_read_error": 0.08040173724,
       "range_read_error_avg": 0.06203243808
@@ -800,651 +800,651 @@
     {
       "attempt_id": 47,
       "created_at": "2026-11-06T22:00:00+00:00",
-      "equity_error": 0.10465,
-      "equity_error_avg": 0.08842047619,
+      "equity_error": 0.104275,
+      "equity_error_avg": 0.08787180793,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.477471962,
+      "ev_lost_bb_avg": 1.435283589,
       "n": 47,
-      "range_read_error": 0.05987096933,
-      "range_read_error_avg": 0.06197555732
+      "range_read_error": 0.06006629817,
+      "range_read_error_avg": 0.06198069755
     },
     {
       "attempt_id": 48,
       "created_at": "2026-11-07T05:00:00+00:00",
-      "equity_error": 0.1817746529,
-      "equity_error_avg": 0.09036535487,
-      "ev_lost_bb": 27.64506943,
-      "ev_lost_bb_avg": 2.022630242,
+      "equity_error": 0.1757965508,
+      "equity_error_avg": 0.08970357341,
+      "ev_lost_bb": 26.84068984,
+      "ev_lost_bb_avg": 1.964562886,
       "n": 48,
       "range_read_error": null,
-      "range_read_error_avg": 0.06197555732
+      "range_read_error_avg": 0.06198069755
     },
     {
       "attempt_id": 49,
       "created_at": "2026-11-07T12:00:00+00:00",
       "equity_error": 0.05019533493,
-      "equity_error_avg": 0.08954555855,
+      "equity_error_avg": 0.08889728283,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.981352074,
+      "ev_lost_bb_avg": 1.924469766,
       "n": 49,
       "range_read_error": 0.0862811447,
-      "range_read_error_avg": 0.06259877751
+      "range_read_error_avg": 0.06260378594
     },
     {
       "attempt_id": 50,
       "created_at": "2026-11-07T19:00:00+00:00",
       "equity_error": 0.1306625,
-      "equity_error_avg": 0.09036789738,
+      "equity_error_avg": 0.08973258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.941725033,
+      "ev_lost_bb_avg": 1.88598037,
       "n": 50,
       "range_read_error": 0.02123287671,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 51,
       "created_at": "2026-11-08T02:00:00+00:00",
       "equity_error": 0.002325,
-      "equity_error_avg": 0.09016789738,
+      "equity_error_avg": 0.08953258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.941725033,
+      "ev_lost_bb_avg": 1.88598037,
       "n": 51,
       "range_read_error": 0.1189795918,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 53,
       "created_at": "2026-11-08T09:00:00+00:00",
       "equity_error": 0.0808125,
-      "equity_error_avg": 0.09036789738,
+      "equity_error_avg": 0.08973258717,
       "ev_lost_bb": 0.830336643,
-      "ev_lost_bb_avg": 1.958331765,
+      "ev_lost_bb_avg": 1.902587103,
       "n": 52,
       "range_read_error": 0.007557780783,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 54,
       "created_at": "2026-11-08T16:00:00+00:00",
       "equity_error": 0.1628147526,
-      "equity_error_avg": 0.09056789738,
+      "equity_error_avg": 0.08993258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.958331765,
+      "ev_lost_bb_avg": 1.902587103,
       "n": 53,
       "range_read_error": 0.1022179959,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 55,
       "created_at": "2026-11-08T23:00:00+00:00",
       "equity_error": 0.0258401344,
-      "equity_error_avg": 0.09076789738,
+      "equity_error_avg": 0.09013258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.90597098,
+      "ev_lost_bb_avg": 1.850226318,
       "n": 54,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 56,
       "created_at": "2026-11-09T06:00:00+00:00",
       "equity_error": 0.1076125,
-      "equity_error_avg": 0.09096789738,
+      "equity_error_avg": 0.09033258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.90597098,
+      "ev_lost_bb_avg": 1.850226318,
       "n": 55,
       "range_read_error": 0.069408867,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 57,
       "created_at": "2026-11-09T13:00:00+00:00",
       "equity_error": 0.1861625,
-      "equity_error_avg": 0.09116789738,
+      "equity_error_avg": 0.09053258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.90597098,
+      "ev_lost_bb_avg": 1.850226318,
       "n": 56,
       "range_read_error": 0.06959826276,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 58,
       "created_at": "2026-11-09T20:00:00+00:00",
-      "equity_error": 0.06465,
-      "equity_error_avg": 0.09136789738,
+      "equity_error": 0.064275,
+      "equity_error_avg": 0.09073258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.90597098,
+      "ev_lost_bb_avg": 1.850226318,
       "n": 57,
-      "range_read_error": 0.04012903067,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error": 0.03993370183,
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 59,
       "created_at": "2026-11-10T03:00:00+00:00",
-      "equity_error": 0.1417746529,
-      "equity_error_avg": 0.09156789738,
+      "equity_error": 0.1357965508,
+      "equity_error_avg": 0.09093258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.353069591,
+      "ev_lost_bb_avg": 1.313412521,
       "n": 58,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 60,
       "created_at": "2026-11-10T10:00:00+00:00",
       "equity_error": 0.01019533493,
-      "equity_error_avg": 0.09176789738,
+      "equity_error_avg": 0.09113258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.353069591,
+      "ev_lost_bb_avg": 1.313412521,
       "n": 59,
       "range_read_error": 0.0137188553,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 61,
       "created_at": "2026-11-10T17:00:00+00:00",
       "equity_error": 0.0906625,
-      "equity_error_avg": 0.09196789738,
+      "equity_error_avg": 0.09133258717,
       "ev_lost_bb": 0.3900625,
-      "ev_lost_bb_avg": 1.360870841,
+      "ev_lost_bb_avg": 1.321213771,
       "n": 60,
       "range_read_error": 0.1212328767,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 62,
       "created_at": "2026-11-11T00:00:00+00:00",
       "equity_error": 0.167675,
-      "equity_error_avg": 0.09216789738,
+      "equity_error_avg": 0.09153258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.360870841,
+      "ev_lost_bb_avg": 1.321213771,
       "n": 61,
       "range_read_error": 0.01897959184,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 63,
       "created_at": "2026-11-11T07:00:00+00:00",
       "equity_error": 0.0408125,
-      "equity_error_avg": 0.09236789738,
+      "equity_error_avg": 0.09173258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.356118337,
+      "ev_lost_bb_avg": 1.316461267,
       "n": 62,
       "range_read_error": 0.09244221922,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 64,
       "created_at": "2026-11-11T14:00:00+00:00",
       "equity_error": 0.1228147526,
-      "equity_error_avg": 0.09256789738,
+      "equity_error_avg": 0.09193258717,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.356118337,
+      "ev_lost_bb_avg": 1.316461267,
       "n": 63,
       "range_read_error": 0.04778200413,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 65,
       "created_at": "2026-11-11T21:00:00+00:00",
       "equity_error": 0.0141598656,
-      "equity_error_avg": 0.089134292,
+      "equity_error_avg": 0.08849898179,
       "ev_lost_bb": 2.028535691,
-      "ev_lost_bb_avg": 1.396689051,
+      "ev_lost_bb_avg": 1.357031981,
       "n": 64,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 66,
       "created_at": "2026-11-12T04:00:00+00:00",
       "equity_error": 0.0676125,
-      "equity_error_avg": 0.089334292,
+      "equity_error_avg": 0.08869898179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.396689051,
+      "ev_lost_bb_avg": 1.357031981,
       "n": 65,
       "range_read_error": 0.080591133,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 67,
       "created_at": "2026-11-12T11:00:00+00:00",
       "equity_error": 0.1461625,
-      "equity_error_avg": 0.089534292,
+      "equity_error_avg": 0.08889898179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.383542389,
+      "ev_lost_bb_avg": 1.343885318,
       "n": 66,
       "range_read_error": 0.03040173724,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 68,
       "created_at": "2026-11-12T18:00:00+00:00",
-      "equity_error": 0.02465,
-      "equity_error_avg": 0.089734292,
+      "equity_error": 0.024275,
+      "equity_error_avg": 0.08909898179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.383542389,
+      "ev_lost_bb_avg": 1.343885318,
       "n": 67,
-      "range_read_error": 0.1098709693,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error": 0.1100662982,
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 69,
       "created_at": "2026-11-13T01:00:00+00:00",
-      "equity_error": 0.1017746529,
-      "equity_error_avg": 0.089934292,
-      "ev_lost_bb": 27.64506943,
-      "ev_lost_bb_avg": 1.936443777,
+      "equity_error": 0.09579655081,
+      "equity_error_avg": 0.08929898179,
+      "ev_lost_bb": 26.84068984,
+      "ev_lost_bb_avg": 1.880699115,
       "n": 68,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 70,
       "created_at": "2026-11-13T08:00:00+00:00",
       "equity_error": 0.1801953349,
-      "equity_error_avg": 0.090134292,
+      "equity_error_avg": 0.08949898179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.936443777,
+      "ev_lost_bb_avg": 1.880699115,
       "n": 69,
       "range_read_error": 0.0937188553,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 71,
       "created_at": "2026-11-13T15:00:00+00:00",
       "equity_error": 0.0506625,
-      "equity_error_avg": 0.090334292,
+      "equity_error_avg": 0.08969898179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.928642527,
+      "ev_lost_bb_avg": 1.872897865,
       "n": 70,
       "range_read_error": 0.02876712329,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 72,
       "created_at": "2026-11-13T22:00:00+00:00",
       "equity_error": 0.127675,
-      "equity_error_avg": 0.090534292,
+      "equity_error_avg": 0.08989898179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.928642527,
+      "ev_lost_bb_avg": 1.872897865,
       "n": 71,
       "range_read_error": 0.08102040816,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 73,
       "created_at": "2026-11-14T05:00:00+00:00",
       "equity_error": 0.0008125,
-      "equity_error_avg": 0.090366792,
-      "ev_lost_bb": 5.048954979,
-      "ev_lost_bb_avg": 2.029621627,
+      "equity_error_avg": 0.08973148179,
+      "ev_lost_bb": 5.131604547,
+      "ev_lost_bb_avg": 1.975529956,
       "n": 72,
       "range_read_error": 0.05755778078,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 74,
       "created_at": "2026-11-14T12:00:00+00:00",
       "equity_error": 0.08281475259,
-      "equity_error_avg": 0.090566792,
+      "equity_error_avg": 0.08993148179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.029621627,
+      "ev_lost_bb_avg": 1.975529956,
       "n": 73,
       "range_read_error": 0.05221799587,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 75,
       "created_at": "2026-11-14T19:00:00+00:00",
       "equity_error": 0.1558401344,
-      "equity_error_avg": 0.090766792,
+      "equity_error_avg": 0.09013148179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.898851719,
+      "ev_lost_bb_avg": 1.852241935,
       "n": 74,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 76,
       "created_at": "2026-11-15T02:00:00+00:00",
       "equity_error": 0.0276125,
-      "equity_error_avg": 0.090966792,
+      "equity_error_avg": 0.09033148179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.898851719,
+      "ev_lost_bb_avg": 1.852241935,
       "n": 75,
       "range_read_error": 0.019408867,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 77,
       "created_at": "2026-11-15T09:00:00+00:00",
       "equity_error": 0.1061625,
-      "equity_error_avg": 0.091166792,
+      "equity_error_avg": 0.09053148179,
       "ev_lost_bb": 0.2487297545,
-      "ev_lost_bb_avg": 1.903826314,
+      "ev_lost_bb_avg": 1.85721653,
       "n": 76,
       "range_read_error": 0.1195982628,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 78,
       "created_at": "2026-11-15T16:00:00+00:00",
-      "equity_error": 0.19465,
-      "equity_error_avg": 0.091366792,
+      "equity_error": 0.194275,
+      "equity_error_avg": 0.09073148179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.903826314,
+      "ev_lost_bb_avg": 1.85721653,
       "n": 77,
-      "range_read_error": 0.009870969334,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error": 0.01006629817,
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 79,
       "created_at": "2026-11-15T23:00:00+00:00",
-      "equity_error": 0.06177465287,
-      "equity_error_avg": 0.091566792,
+      "equity_error": 0.05579655081,
+      "equity_error_avg": 0.09093148179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.350924926,
+      "ev_lost_bb_avg": 1.320402733,
       "n": 78,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 80,
       "created_at": "2026-11-16T06:00:00+00:00",
       "equity_error": 0.1401953349,
-      "equity_error_avg": 0.091766792,
+      "equity_error_avg": 0.09113148179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.350924926,
+      "ev_lost_bb_avg": 1.320402733,
       "n": 79,
       "range_read_error": 0.0362811447,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 81,
       "created_at": "2026-11-16T13:00:00+00:00",
       "equity_error": 0.0106625,
-      "equity_error_avg": 0.091966792,
+      "equity_error_avg": 0.09133148179,
       "ev_lost_bb": 0.3900625,
-      "ev_lost_bb_avg": 1.358726176,
+      "ev_lost_bb_avg": 1.328203983,
       "n": 80,
       "range_read_error": 0.07123287671,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 82,
       "created_at": "2026-11-16T20:00:00+00:00",
       "equity_error": 0.087675,
-      "equity_error_avg": 0.092166792,
+      "equity_error_avg": 0.09153148179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.358726176,
+      "ev_lost_bb_avg": 1.328203983,
       "n": 81,
       "range_read_error": 0.06897959184,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 83,
       "created_at": "2026-11-17T03:00:00+00:00",
       "equity_error": 0.1708125,
-      "equity_error_avg": 0.092366792,
+      "equity_error_avg": 0.09173148179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.358726176,
+      "ev_lost_bb_avg": 1.328203983,
       "n": 82,
       "range_read_error": 0.04244221922,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 84,
       "created_at": "2026-11-17T10:00:00+00:00",
       "equity_error": 0.04281475259,
-      "equity_error_avg": 0.092566792,
+      "equity_error_avg": 0.09193148179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.358726176,
+      "ev_lost_bb_avg": 1.328203983,
       "n": 83,
       "range_read_error": 0.08778200413,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 85,
       "created_at": "2026-11-17T17:00:00+00:00",
       "equity_error": 0.1158401344,
-      "equity_error_avg": 0.092766792,
+      "equity_error_avg": 0.09213148179,
       "ev_lost_bb": 0.7598206086,
-      "ev_lost_bb_avg": 1.373922588,
+      "ev_lost_bb_avg": 1.343400396,
       "n": 84,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 86,
       "created_at": "2026-11-18T00:00:00+00:00",
       "equity_error": 0.0123875,
-      "equity_error_avg": 0.089262292,
+      "equity_error_avg": 0.08862698179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.373922588,
+      "ev_lost_bb_avg": 1.343400396,
       "n": 85,
       "range_read_error": 0.119408867,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 87,
       "created_at": "2026-11-18T07:00:00+00:00",
       "equity_error": 0.0661625,
-      "equity_error_avg": 0.089462292,
+      "equity_error_avg": 0.08882698179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.368779887,
+      "ev_lost_bb_avg": 1.338257695,
       "n": 86,
       "range_read_error": 0.01959826276,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 88,
       "created_at": "2026-11-18T14:00:00+00:00",
-      "equity_error": 0.15465,
-      "equity_error_avg": 0.089662292,
+      "equity_error": 0.154275,
+      "equity_error_avg": 0.08902698179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.368779887,
+      "ev_lost_bb_avg": 1.338257695,
       "n": 87,
-      "range_read_error": 0.09012903067,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error": 0.08993370183,
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 89,
       "created_at": "2026-11-18T21:00:00+00:00",
-      "equity_error": 0.02177465287,
-      "equity_error_avg": 0.089862292,
-      "ev_lost_bb": 27.64506943,
-      "ev_lost_bb_avg": 1.921681275,
+      "equity_error": 0.01579655081,
+      "equity_error_avg": 0.08922698179,
+      "ev_lost_bb": 26.84068984,
+      "ev_lost_bb_avg": 1.875071492,
       "n": 88,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 90,
       "created_at": "2026-11-19T04:00:00+00:00",
       "equity_error": 0.1001953349,
-      "equity_error_avg": 0.090062292,
+      "equity_error_avg": 0.08942698179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.921681275,
+      "ev_lost_bb_avg": 1.875071492,
       "n": 89,
       "range_read_error": 0.0637188553,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 91,
       "created_at": "2026-11-19T11:00:00+00:00",
       "equity_error": 0.1806625,
-      "equity_error_avg": 0.090262292,
+      "equity_error_avg": 0.08962698179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.913880025,
+      "ev_lost_bb_avg": 1.867270242,
       "n": 90,
       "range_read_error": 0.07876712329,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 92,
       "created_at": "2026-11-19T18:00:00+00:00",
       "equity_error": 0.047675,
-      "equity_error_avg": 0.090462292,
+      "equity_error_avg": 0.08982698179,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.913880025,
+      "ev_lost_bb_avg": 1.867270242,
       "n": 91,
       "range_read_error": 0.03102040816,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 94,
       "created_at": "2026-11-20T01:00:00+00:00",
       "equity_error": 0.1308125,
-      "equity_error_avg": 0.090662292,
+      "equity_error_avg": 0.09002698179,
       "ev_lost_bb": 0.70171008,
-      "ev_lost_bb_avg": 1.927914227,
+      "ev_lost_bb_avg": 1.881304443,
       "n": 92,
       "range_read_error": 0.08755778078,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 95,
       "created_at": "2026-11-20T08:00:00+00:00",
       "equity_error": 0.00281475259,
-      "equity_error_avg": 0.0905748821,
+      "equity_error_avg": 0.0899395719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.927914227,
+      "ev_lost_bb_avg": 1.881304443,
       "n": 93,
       "range_read_error": 0.002217995875,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 96,
       "created_at": "2026-11-20T15:00:00+00:00",
       "equity_error": 0.0758401344,
-      "equity_error_avg": 0.0907748821,
+      "equity_error_avg": 0.0901395719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.866668421,
+      "ev_lost_bb_avg": 1.820058637,
       "n": 94,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 97,
       "created_at": "2026-11-20T22:00:00+00:00",
       "equity_error": 0.1576125,
-      "equity_error_avg": 0.0909748821,
+      "equity_error_avg": 0.0903395719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.866668421,
+      "ev_lost_bb_avg": 1.820058637,
       "n": 95,
       "range_read_error": 0.030591133,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 98,
       "created_at": "2026-11-22T11:00:00+00:00",
       "equity_error": 0.0261625,
-      "equity_error_avg": 0.0911748821,
-      "ev_lost_bb": 8.036783185,
-      "ev_lost_bb_avg": 2.027404084,
+      "equity_error_avg": 0.0905395719,
+      "ev_lost_bb": 8.03583259,
+      "ev_lost_bb_avg": 1.980775289,
       "n": 96,
       "range_read_error": 0.08040173724,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 99,
       "created_at": "2026-11-22T18:00:00+00:00",
-      "equity_error": 0.11465,
-      "equity_error_avg": 0.0913748821,
+      "equity_error": 0.114275,
+      "equity_error_avg": 0.0907395719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.027404084,
+      "ev_lost_bb_avg": 1.980775289,
       "n": 97,
-      "range_read_error": 0.05987096933,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error": 0.06006629817,
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 100,
       "created_at": "2026-11-23T01:00:00+00:00",
-      "equity_error": 0.1917746529,
-      "equity_error_avg": 0.0915748821,
+      "equity_error": 0.1857965508,
+      "equity_error_avg": 0.0909395719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.474502696,
+      "ev_lost_bb_avg": 1.443961492,
       "n": 98,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 101,
       "created_at": "2026-11-23T08:00:00+00:00",
       "equity_error": 0.06019533493,
-      "equity_error_avg": 0.0917748821,
+      "equity_error_avg": 0.0911395719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.474502696,
+      "ev_lost_bb_avg": 1.443961492,
       "n": 99,
       "range_read_error": 0.0862811447,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 102,
       "created_at": "2026-11-23T15:00:00+00:00",
       "equity_error": 0.1406625,
-      "equity_error_avg": 0.0919748821,
+      "equity_error_avg": 0.0913395719,
       "ev_lost_bb": 0.3900625,
-      "ev_lost_bb_avg": 1.482303946,
+      "ev_lost_bb_avg": 1.451762742,
       "n": 100,
       "range_read_error": 0.02123287671,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 103,
       "created_at": "2026-11-23T22:00:00+00:00",
       "equity_error": 0.007675,
-      "equity_error_avg": 0.0920818821,
+      "equity_error_avg": 0.0914465719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.482303946,
+      "ev_lost_bb_avg": 1.451762742,
       "n": 101,
       "range_read_error": 0.1189795918,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 105,
       "created_at": "2026-11-24T05:00:00+00:00",
       "equity_error": 0.0908125,
-      "equity_error_avg": 0.0922818821,
+      "equity_error_avg": 0.0916465719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.465697213,
+      "ev_lost_bb_avg": 1.435156009,
       "n": 102,
       "range_read_error": 0.007557780783,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 106,
       "created_at": "2026-11-24T12:00:00+00:00",
       "equity_error": 0.1728147526,
-      "equity_error_avg": 0.0924818821,
+      "equity_error_avg": 0.0918465719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.465697213,
+      "ev_lost_bb_avg": 1.435156009,
       "n": 103,
       "range_read_error": 0.1022179959,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 107,
       "created_at": "2026-11-24T19:00:00+00:00",
       "equity_error": 0.0358401344,
-      "equity_error_avg": 0.0926818821,
+      "equity_error_avg": 0.0920465719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.465697213,
+      "ev_lost_bb_avg": 1.435156009,
       "n": 104,
       "range_read_error": null,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     },
     {
       "attempt_id": 108,
       "created_at": "2026-11-25T02:00:00+00:00",
       "equity_error": 0.1176125,
-      "equity_error_avg": 0.0928818821,
+      "equity_error_avg": 0.0922465719,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.465697213,
+      "ev_lost_bb_avg": 1.435156009,
       "n": 105,
       "range_read_error": 0.069408867,
-      "range_read_error_avg": 0.06156462999
+      "range_read_error_avg": 0.06156951321
     }
   ],
   "tz": "UTC"

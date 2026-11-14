@@ -20,6 +20,10 @@ UNOPENED_ROLES = ("cbet", "lead", "stab")
 UNOPENED_ACTIONS = ("check", "bet_33", "bet_75")
 FACING_SPOTS = ("facing_bet", "facing_raise")
 FACING_ACTIONS = ("fold", "call", "raise")
+# Least continue (call + raise) a STRONG facing row may have. The size curve in
+# ``strategy._facing`` floors STRONG at this value against huge bets, which is only a floor
+# (never a boost above the row) when the row itself continues at least this much.
+STRONG_CONTINUE_MIN = 0.75
 
 Table = Mapping[HandCategory, Mapping[str, float]]
 
@@ -179,6 +183,17 @@ def _profile_from_dict(name: str, raw: Any) -> Profile:
                 for spot in FACING_SPOTS
             }
         )
+        river_facing = _river_overrides(
+            raw.get("river_facing"), f"{name}.river_facing", FACING_SPOTS, FACING_ACTIONS
+        )
+        for where, tables in (("facing", facing), ("river_facing", river_facing)):
+            for spot, table in tables.items():
+                row = table.get(HandCategory.STRONG)
+                if row is not None and row["call"] + row["raise"] < STRONG_CONTINUE_MIN - 1e-9:
+                    raise ValueError(
+                        f"{name}.{where}.{spot}.STRONG: continue must be at least "
+                        f"{STRONG_CONTINUE_MIN}"
+                    )
         return Profile(
             name=name,
             label=str(raw["label"]),
@@ -188,9 +203,7 @@ def _profile_from_dict(name: str, raw: Any) -> Profile:
             unopened=unopened,
             facing=facing,
             river_unopened=_river_overrides(raw.get("river_unopened"), f"{name}.river_unopened"),
-            river_facing=_river_overrides(
-                raw.get("river_facing"), f"{name}.river_facing", FACING_SPOTS, FACING_ACTIONS
-            ),
+            river_facing=river_facing,
             bands=Bands(
                 bluff_offset=_band(raw["bands"]["bluff_offset"], f"{name}.bands.bluff_offset"),
                 defence_ratio=_band(raw["bands"]["defence_ratio"], f"{name}.bands.defence_ratio"),

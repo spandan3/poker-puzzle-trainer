@@ -140,6 +140,13 @@ def test_missing_category_raises():
         lambda r: r["river_facing"]["facing_bet"].update(BOGUS={}),
         lambda r: r["river_facing"]["facing_bet"]["MEDIUM"].update(fold=0.5),
         lambda r: r["river_facing"]["facing_bet"]["MEDIUM"].pop("raise"),
+        # STRONG must continue at least STRONG_CONTINUE_MIN (the size curve's floor).
+        lambda r: r["facing"]["facing_raise"].update(
+            STRONG={"fold": 0.3, "call": 0.7, "raise": 0.0}
+        ),
+        lambda r: r["river_facing"]["facing_bet"].update(
+            STRONG={"fold": 0.3, "call": 0.7, "raise": 0.0}
+        ),
     ],
 )
 def test_structural_errors_raise_value_error(mutate):
@@ -164,6 +171,14 @@ def test_river_overrides_optional():
     raw = copy.deepcopy(_raw())
     del raw["river_unopened"]
     assert dict(_profile_from_dict("tag", raw).river_unopened) == {}
+
+
+@pytest.mark.parametrize("where", ["facing", "river_facing"])
+def test_strong_continue_floor_message(where):
+    raw = copy.deepcopy(_raw())
+    raw[where]["facing_bet"]["STRONG"] = {"fold": 0.3, "call": 0.7, "raise": 0.0}
+    with pytest.raises(ValueError, match=f"{where}.facing_bet.STRONG: continue must be at least"):
+        _profile_from_dict("tag", raw)
 
 
 def test_river_facing_optional():

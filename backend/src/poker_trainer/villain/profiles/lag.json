@@ -8,7 +8,7 @@
     "bb_call": "22+, A2+, K2+, Q2+, J2+, T2s+, T5o+, 92s+, 95o+, 82s+, 85o+, 72s+, 74o+, 62s+, 64o+, 52s+, 54o, 42s+, 32s, 99+:0, 88:0.5, AT+:0, A9s:0, A8s:0.5, A2s-A7s:0.4, KJ+:0, KTs:0, K6s-K9s:0.6, QJs:0, Q8s-QTs:0.6, J8s-JTs:0.6, T8s-T9s:0.6, 97s-98s:0.6, 86s-87s:0.6, 75s-76s:0.6, 64s-65s:0.6, 54s:0.6, A5o-A9o:0.7, KTo:0.7, QJo:0.7, QTo:0.8, JTo:0.8",
     "bb_threebet": "99+, 88:0.5, AT+, A9s, A8s:0.5, A2s-A7s:0.6, KJ+, KTs, K6s-K9s:0.4, QJs, Q8s-QTs:0.4, J8s-JTs:0.4, T8s-T9s:0.4, 97s-98s:0.4, 86s-87s:0.4, 75s-76s:0.4, 64s-65s:0.4, 54s:0.4, A5o-A9o:0.3, KTo:0.3, QJo:0.3, QTo:0.2, JTo:0.2",
     "bb_call_open_jam": "88+, AJ+, ATs, KQs",
-    "btn_call_threebet": "22-TT, TT:0.8, JJ:0.6, AQs:0.6, A2s-AJs, AQo, A2o-AJo, K2s+, K8o+, Q4s+, Q9o+, J6s+, J8o+, T6s+, T8o+, 95s+, 97o+, 85s+, 87o, 74s+, 63s+, 52s+, 42s+, 32s:0.5",
+    "btn_call_threebet": "22-TT, TT:0.8, JJ:0.6, AQs:0.6, A2s-AJs, AQo, A2o-AJo, K2s+, K7o+, Q2s+, Q8o+, J2s+, J8o+, T2s+, T8o+, 95s+, 97o+, 85s+, 87o, 74s+, 63s+, 52s+, 42s+, 32s:0.5",
     "btn_jam": "QQ+, AK, JJ:0.4, TT:0.2, AQs:0.4",
     "btn_call_jam": "TT+, 99:0.5, AQ+, AJs",
     "bb_call_jam": "TT+, 99:0.3, AQ+, AJs:0.5"

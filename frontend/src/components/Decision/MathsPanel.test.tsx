@@ -24,7 +24,7 @@ describe('MathsPanel', () => {
     if (!yours || !best) throw new Error('two columns')
     expect(within(yours).getByRole('heading', { level: 3 })).toHaveTextContent(/Your play.*Fold/)
     expect(within(best).getByRole('heading', { level: 3 })).toHaveTextContent(/Best play.*Call/)
-    expect(within(best).getByText('= 37.5% × (11 bb + 3 bb) − 3 bb')).toBeInTheDocument()
+    expect(within(best).getByText('= 37.6% × (11 bb + 3 bb) − 3 bb')).toBeInTheDocument()
     expect(within(yours).getByText('EV = 0 (folding is the baseline)')).toBeInTheDocument()
     expect(screen.getByText(/^EV lost = best − yours =/)).toHaveTextContent(
       `EV lost = best − yours = ${formatEvBb(d.grade.ev_loss_bb)}`,
@@ -93,7 +93,7 @@ describe('MathsPanel', () => {
     ).toBeInTheDocument()
     // the best play (a raise): its Villain-calls branch is worked with r × e
     expect(
-      within(best).getByText('0.80 × 45.1% × (3.5 bb + 5 bb + 3.5 bb) − 5 bb'),
+      within(best).getByText('0.80 × 46.2% × (3.5 bb + 5 bb + 3.5 bb) − 5 bb'),
     ).toBeInTheDocument()
   })
 

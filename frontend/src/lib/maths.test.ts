@@ -96,9 +96,9 @@ describe('optionMaths', () => {
     const m = optionMaths(call, d)
     const texts = m.ev.map((l) => l.text)
     expect(texts).toContain('EV = e × (pot + call) − call')
-    // pot 11 bb, call 3 bb, equity 37.5%
-    expect(texts).toContain('= 37.5% × (11 bb + 3 bb) − 3 bb')
-    expect(m.ev.at(-1)?.result).toBe('2.25 bb')
+    // pot 11 bb, call 3 bb, equity 37.6%
+    expect(texts).toContain('= 37.6% × (11 bb + 3 bb) − 3 bb')
+    expect(m.ev.at(-1)?.result).toBe('2.26 bb')
     expect(m.potOdds[0]).toEqual({
       text: 'Pot odds = call / (pot + call) = 3 bb / (11 bb + 3 bb)',
       result: '21.4%',
@@ -245,7 +245,7 @@ describe('optionMaths', () => {
     if (!allIn) throw new Error('no all-in')
     const a = optionMaths(allIn, d)
     expect(a.branches.find((b) => b.label === 'Villain calls')?.formula).toBe(
-      '19.4% × (5 bb + 97.5 bb + 97.5 bb) − 97.5 bb',
+      '19.6% × (5 bb + 97.5 bb + 97.5 bb) − 97.5 bb',
     )
     expect(a.ev.map((l) => l.text)).not.toContain('Realisation (out of position, flop)')
   })
@@ -262,7 +262,7 @@ describe('optionMaths', () => {
     const call = d.options.find((o) => o.kind === 'call')
     if (!call) throw new Error('no call')
     expect(optionMaths(call, d).potOdds.at(-1)).toEqual({
-      text: '37.5% is above 21.4%, so calling beats folding',
+      text: '37.6% is above 21.4%, so calling beats folding',
     })
   })
 
