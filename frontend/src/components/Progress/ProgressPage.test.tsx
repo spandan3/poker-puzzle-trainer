@@ -54,9 +54,9 @@ describe('ProgressPage', () => {
     expect(await screen.findByTestId('progress-totals')).toHaveTextContent(
       `${stats.totals.first_attempts} puzzles answered · ${stats.totals.retries} practice attempts`,
     )
-    // 1.5711 -> "1.57 bb", the change against the 50 before (2.1759) is an improvement
-    expect(tile('ev')).toHaveTextContent('1.57 bb')
-    expect(tile('ev')).toHaveTextContent('0.6 bb better than the 50 before')
+    // 1.4657 -> "1.47 bb", the change against the 50 before (1.9060) is an improvement
+    expect(tile('ev')).toHaveTextContent('1.47 bb')
+    expect(tile('ev')).toHaveTextContent('0.44 bb better than the 50 before')
     expect(tile('accuracy')).toHaveTextContent('88%')
     expect(tile('equity')).toHaveTextContent('9.3 pts')
     expect(tile('range')).toHaveTextContent('6.2 pts')

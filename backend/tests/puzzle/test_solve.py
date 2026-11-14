@@ -28,6 +28,7 @@ from poker_trainer.puzzle.solve import (
     solve,
     villain_respond,
 )
+from poker_trainer.villain.narrowing import RangeTracker
 from poker_trainer.villain.profiles import load_profile
 from poker_trainer.villain.strategy import allin, bet_to, raise_to
 
@@ -554,3 +555,40 @@ def test_reraise_call_branch_uses_realisation():
     rr = o.branches[-1]
     assert rr.label == "Villain raises to 15 — Hero folds"
     assert rr.value_chips == -5.0 and rr.realisation == 1.0
+
+
+# BB facing a TAG BTN open to 5 (M9 Task 7): whole-range equity < 0.40 hands are gated,
+# 0.40-0.45 hands (plausible 3-bet bluffs) are only reported in the sign-off table.
+TRASH_GATED = ("9h5s", "7d5s", "6c4h", "Jc3d")
+TRASH_REPORTED = ("Qs2h", "Qs3c", "Jd6d", "Jc5h")
+TRASH_GAP_MAX_BB = 0.25
+
+
+def bb_vs_open(hand: str, samples: int = 40_000):
+    """``solve()`` for Hero in the BB facing a TAG BTN open to 5 with ``hand``."""
+    tag = load_profile("tag")
+    s0 = new_hand(0)
+    open_ = raise_to(s0, 2.5)
+    tracker = RangeTracker(tag, 0)
+    tracker.observe(s0, open_)
+    s = apply(s0, open_)
+    hero = parse_cards(hand)
+    d = visible_range(tracker.current, hero, ())
+    return solve(s, hero, d, villain_respond(tag), rng=random.Random(0), samples=samples)
+
+
+def raise_gap_bb(sol) -> float:
+    """Best raise (any size, all-in included) minus the better of call and fold, in bb."""
+    kinds = {o.option.action.kind: o for o in sol.options}
+    base = max(kinds[ActionKind.CALL].ev_chips, kinds[ActionKind.FOLD].ev_chips)
+    best_raise = max(o.ev_chips for o in sol.options if o.option.action.kind == ActionKind.RAISE)
+    return (best_raise - base) / 2
+
+
+@pytest.mark.slow
+def test_bb_trash_3bet_not_best():
+    for hand in TRASH_GATED:
+        sol = bb_vs_open(hand)
+        assert sol.equity < 0.40, (hand, sol.equity)
+        gap = raise_gap_bb(sol)
+        assert gap <= TRASH_GAP_MAX_BB, (hand, gap)

@@ -19,7 +19,7 @@
         "accuracy": 0.3333333333,
         "count": 3,
         "equity_error_avg": 0.0676050448,
-        "ev_lost_bb_avg": 1.137970926,
+        "ev_lost_bb_avg": 1.232368563,
         "key": "check",
         "label": "Check",
         "verdicts": {
@@ -47,7 +47,7 @@
         "accuracy": 0.825,
         "count": 40,
         "equity_error_avg": 0.09060040871,
-        "ev_lost_bb_avg": 1.152341203,
+        "ev_lost_bb_avg": 0.6832170901,
         "key": "bet",
         "label": "Bet",
         "verdicts": {
@@ -91,7 +91,7 @@
         "accuracy": 0.88,
         "count": 75,
         "equity_error_avg": 0.0880136311,
-        "ev_lost_bb_avg": 0.6601008117,
+        "ev_lost_bb_avg": 0.4136771906,
         "key": "lag",
         "label": "LAG",
         "verdicts": {
@@ -149,7 +149,7 @@
         "accuracy": 0.8387096774,
         "count": 31,
         "equity_error_avg": 0.09598185484,
-        "ev_lost_bb_avg": 0.6881160474,
+        "ev_lost_bb_avg": 0.5167292906,
         "key": "flop",
         "label": "Flop",
         "verdicts": {
@@ -177,7 +177,7 @@
         "accuracy": 0.5714285714,
         "count": 21,
         "equity_error_avg": 0.09191941611,
-        "ev_lost_bb_avg": 7.92387193,
+        "ev_lost_bb_avg": 7.296787067,
         "key": "river",
         "label": "River",
         "verdicts": {
@@ -256,8 +256,8 @@
   "headline": {
     "accuracy_last50": 0.88,
     "equity_error_last50": 0.0928818821,
-    "ev_lost_bb_last50": 1.571116295,
-    "ev_lost_bb_prev50": 2.175851188,
+    "ev_lost_bb_last50": 1.465697213,
+    "ev_lost_bb_prev50": 1.90597098,
     "range_read_error_last50": 0.06156462999
   },
   "leaks": [
@@ -329,8 +329,8 @@
       "created_at": "2026-10-25T09:00:00+00:00",
       "equity_error": 0.0158401344,
       "equity_error_avg": 0.06294809675,
-      "ev_lost_bb": 2.33484638,
-      "ev_lost_bb_avg": 0.5837115949,
+      "ev_lost_bb": 2.618039291,
+      "ev_lost_bb_avg": 0.6545098228,
       "n": 4,
       "range_read_error": null,
       "range_read_error_avg": 0.0762517895
@@ -341,7 +341,7 @@
       "equity_error": 0.0976125,
       "equity_error_avg": 0.0698809774,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 0.4669692759,
+      "ev_lost_bb_avg": 0.5236078582,
       "n": 5,
       "range_read_error": 0.069408867,
       "range_read_error_avg": 0.07454105887
@@ -352,7 +352,7 @@
       "equity_error": 0.1761625,
       "equity_error_avg": 0.0875945645,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 0.3891410633,
+      "ev_lost_bb_avg": 0.4363398818,
       "n": 6,
       "range_read_error": 0.06959826276,
       "range_read_error_avg": 0.07355249965
@@ -363,7 +363,7 @@
       "equity_error": 0.05465,
       "equity_error_avg": 0.08288819814,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 0.3335494828,
+      "ev_lost_bb_avg": 0.374005613,
       "n": 7,
       "range_read_error": 0.04012903067,
       "range_read_error_avg": 0.06798192149
@@ -374,7 +374,7 @@
       "equity_error": 0.1317746529,
       "equity_error_avg": 0.08899900498,
       "ev_lost_bb": 27.64506943,
-      "ev_lost_bb_avg": 3.747489476,
+      "ev_lost_bb_avg": 3.78288859,
       "n": 8,
       "range_read_error": null,
       "range_read_error_avg": 0.06798192149
@@ -385,7 +385,7 @@
       "equity_error": 0.0001953349349,
       "equity_error_avg": 0.07913193053,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 3.331101756,
+      "ev_lost_bb_avg": 3.362567635,
       "n": 9,
       "range_read_error": 0.0137188553,
       "range_read_error_avg": 0.06023005489
@@ -396,7 +396,7 @@
       "equity_error": 0.0806625,
       "equity_error_avg": 0.07928498748,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.997991581,
+      "ev_lost_bb_avg": 3.026310872,
       "n": 10,
       "range_read_error": 0.1212328767,
       "range_read_error_avg": 0.06785540762
@@ -407,7 +407,7 @@
       "equity_error": 0.157675,
       "equity_error_avg": 0.08641135225,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.725446891,
+      "ev_lost_bb_avg": 2.751191702,
       "n": 11,
       "range_read_error": 0.01897959184,
       "range_read_error_avg": 0.06242476142
@@ -418,7 +418,7 @@
       "equity_error": 0.0308125,
       "equity_error_avg": 0.08177811457,
       "ev_lost_bb": 0.2376251903,
-      "ev_lost_bb_avg": 2.518128416,
+      "ev_lost_bb_avg": 2.541727826,
       "n": 12,
       "range_read_error": 0.09244221922,
       "range_read_error_avg": 0.0654265072
@@ -429,7 +429,7 @@
       "equity_error": 0.1128147526,
       "equity_error_avg": 0.08416554826,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.32442623,
+      "ev_lost_bb_avg": 2.346210301,
       "n": 13,
       "range_read_error": 0.04778200413,
       "range_read_error_avg": 0.06382246146
@@ -440,7 +440,7 @@
       "equity_error": 0.1858401344,
       "equity_error_avg": 0.0914280187,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.158395785,
+      "ev_lost_bb_avg": 2.178623851,
       "n": 14,
       "range_read_error": null,
       "range_read_error_avg": 0.06382246146
@@ -451,7 +451,7 @@
       "equity_error": 0.0576125,
       "equity_error_avg": 0.08917365079,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.014502733,
+      "ev_lost_bb_avg": 2.03338226,
       "n": 15,
       "range_read_error": 0.080591133,
       "range_read_error_avg": 0.06521985076
@@ -462,7 +462,7 @@
       "equity_error": 0.1361625,
       "equity_error_avg": 0.09211045386,
       "ev_lost_bb": 0.6573331299,
-      "ev_lost_bb_avg": 1.929679633,
+      "ev_lost_bb_avg": 1.94737919,
       "n": 16,
       "range_read_error": 0.03040173724,
       "range_read_error_avg": 0.06254153433
@@ -473,7 +473,7 @@
       "equity_error": 0.01465,
       "equity_error_avg": 0.08755395658,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.816169066,
+      "ev_lost_bb_avg": 1.832827473,
       "n": 17,
       "range_read_error": 0.1098709693,
       "range_read_error_avg": 0.06592220826
@@ -484,7 +484,7 @@
       "equity_error": 0.09177465287,
       "equity_error_avg": 0.0877884397,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.715270785,
+      "ev_lost_bb_avg": 1.731003724,
       "n": 18,
       "range_read_error": null,
       "range_read_error_avg": 0.06592220826
@@ -495,7 +495,7 @@
       "equity_error": 0.1701953349,
       "equity_error_avg": 0.09212564472,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.624993375,
+      "ev_lost_bb_avg": 1.639898265,
       "n": 19,
       "range_read_error": 0.0937188553,
       "range_read_error_avg": 0.06777531807
@@ -506,7 +506,7 @@
       "equity_error": 0.0406625,
       "equity_error_avg": 0.08955248748,
       "ev_lost_bb": 0.3900625,
-      "ev_lost_bb_avg": 1.563246831,
+      "ev_lost_bb_avg": 1.577406477,
       "n": 20,
       "range_read_error": 0.02876712329,
       "range_read_error_avg": 0.06533730589
@@ -517,7 +517,7 @@
       "equity_error": 0.117675,
       "equity_error_avg": 0.09089165474,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.488806506,
+      "ev_lost_bb_avg": 1.502291883,
       "n": 21,
       "range_read_error": 0.08102040816,
       "range_read_error_avg": 0.06625984132
@@ -528,7 +528,7 @@
       "equity_error": 0.0091875,
       "equity_error_avg": 0.08717782953,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.421133483,
+      "ev_lost_bb_avg": 1.434005888,
       "n": 22,
       "range_read_error": 0.05755778078,
       "range_read_error_avg": 0.06577639351
@@ -539,7 +539,7 @@
       "equity_error": 0.07281475259,
       "equity_error_avg": 0.08655334792,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.359345071,
+      "ev_lost_bb_avg": 1.371657806,
       "n": 23,
       "range_read_error": 0.05221799587,
       "range_read_error_avg": 0.06506279364
@@ -549,8 +549,8 @@
       "created_at": "2026-10-31T05:00:00+00:00",
       "equity_error": 0.1458401344,
       "equity_error_avg": 0.08902363069,
-      "ev_lost_bb": 20.09439867,
-      "ev_lost_bb_avg": 2.139972304,
+      "ev_lost_bb": 6.53849538,
+      "ev_lost_bb_avg": 1.586942705,
       "n": 24,
       "range_read_error": null,
       "range_read_error_avg": 0.06506279364
@@ -561,7 +561,7 @@
       "equity_error": 0.0176125,
       "equity_error_avg": 0.08616718546,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.054373412,
+      "ev_lost_bb_avg": 1.523464997,
       "n": 25,
       "range_read_error": 0.019408867,
       "range_read_error_avg": 0.0627800973
@@ -572,7 +572,7 @@
       "equity_error": 0.0961625,
       "equity_error_avg": 0.08655162064,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.97535905,
+      "ev_lost_bb_avg": 1.464870189,
       "n": 26,
       "range_read_error": 0.1195982628,
       "range_read_error_avg": 0.06548572423
@@ -583,7 +583,7 @@
       "equity_error": 0.18465,
       "equity_error_avg": 0.09018489395,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.902197603,
+      "ev_lost_bb_avg": 1.410615738,
       "n": 27,
       "range_read_error": 0.009870969334,
       "range_read_error_avg": 0.06295778083
@@ -594,7 +594,7 @@
       "equity_error": 0.05177465287,
       "equity_error_avg": 0.08881309962,
       "ev_lost_bb": 27.64506943,
-      "ev_lost_bb_avg": 2.821585883,
+      "ev_lost_bb_avg": 2.347560512,
       "n": 28,
       "range_read_error": null,
       "range_read_error_avg": 0.06295778083
@@ -605,7 +605,7 @@
       "equity_error": 0.1301953349,
       "equity_error_avg": 0.09024007326,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.724289818,
+      "ev_lost_bb_avg": 2.26661015,
       "n": 29,
       "range_read_error": 0.0362811447,
       "range_read_error_avg": 0.06179792708
@@ -616,7 +616,7 @@
       "equity_error": 0.0006625,
       "equity_error_avg": 0.08725415415,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.633480157,
+      "ev_lost_bb_avg": 2.191056478,
       "n": 30,
       "range_read_error": 0.07123287671,
       "range_read_error_avg": 0.06219104998
@@ -627,7 +627,7 @@
       "equity_error": 0.077675,
       "equity_error_avg": 0.08694514917,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.548529184,
+      "ev_lost_bb_avg": 2.120377237,
       "n": 31,
       "range_read_error": 0.06897959184,
       "range_read_error_avg": 0.06246259166
@@ -638,7 +638,7 @@
       "equity_error": 0.1608125,
       "equity_error_avg": 0.08925350389,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.468887647,
+      "ev_lost_bb_avg": 2.054115448,
       "n": 32,
       "range_read_error": 0.04244221922,
       "range_read_error_avg": 0.06169257733
@@ -649,7 +649,7 @@
       "equity_error": 0.03281475259,
       "equity_error_avg": 0.0875432387,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.39407287,
+      "ev_lost_bb_avg": 1.991869526,
       "n": 33,
       "range_read_error": 0.08778200413,
       "range_read_error_avg": 0.0626588524
@@ -660,7 +660,7 @@
       "equity_error": 0.1058401344,
       "equity_error_avg": 0.08808138269,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.323658962,
+      "ev_lost_bb_avg": 1.933285128,
       "n": 34,
       "range_read_error": null,
       "range_read_error_avg": 0.0626588524
@@ -671,7 +671,7 @@
       "equity_error": 0.1876125,
       "equity_error_avg": 0.0909251289,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.257268706,
+      "ev_lost_bb_avg": 1.87804841,
       "n": 35,
       "range_read_error": 0.119408867,
       "range_read_error_avg": 0.06468563863
@@ -682,7 +682,7 @@
       "equity_error": 0.0561625,
       "equity_error_avg": 0.08995950032,
       "ev_lost_bb": 0.2571350456,
-      "ev_lost_bb_avg": 2.201709438,
+      "ev_lost_bb_avg": 1.833023039,
       "n": 36,
       "range_read_error": 0.01959826276,
       "range_read_error_avg": 0.06313090154
@@ -693,7 +693,7 @@
       "equity_error": 0.14465,
       "equity_error_avg": 0.09143762193,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.142203777,
+      "ev_lost_bb_avg": 1.783481875,
       "n": 37,
       "range_read_error": 0.09012903067,
       "range_read_error_avg": 0.06403083917
@@ -704,7 +704,7 @@
       "equity_error": 0.01177465287,
       "equity_error_avg": 0.08934122801,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.085829994,
+      "ev_lost_bb_avg": 1.736548142,
       "n": 38,
       "range_read_error": null,
       "range_read_error_avg": 0.06403083917
@@ -715,7 +715,7 @@
       "equity_error": 0.09019533493,
       "equity_error_avg": 0.08936312818,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.032347173,
+      "ev_lost_bb_avg": 1.692021266,
       "n": 39,
       "range_read_error": 0.0637188553,
       "range_read_error_avg": 0.06402077518
@@ -726,7 +726,7 @@
       "equity_error": 0.1706625,
       "equity_error_avg": 0.09139561248,
       "ev_lost_bb": 0.3900625,
-      "ev_lost_bb_avg": 1.991290057,
+      "ev_lost_bb_avg": 1.659472297,
       "n": 40,
       "range_read_error": 0.07876712329,
       "range_read_error_avg": 0.06448159856
@@ -737,7 +737,7 @@
       "equity_error": 0.037675,
       "equity_error_avg": 0.09008535364,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.942722006,
+      "ev_lost_bb_avg": 1.618997363,
       "n": 41,
       "range_read_error": 0.03102040816,
       "range_read_error_avg": 0.06346762309
@@ -748,7 +748,7 @@
       "equity_error": 0.1208125,
       "equity_error_avg": 0.09081695236,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.896466721,
+      "ev_lost_bb_avg": 1.580449807,
       "n": 42,
       "range_read_error": 0.08755778078,
       "range_read_error_avg": 0.06417615714
@@ -759,7 +759,7 @@
       "equity_error": 0.00718524741,
       "equity_error_avg": 0.08887202899,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.852362843,
+      "ev_lost_bb_avg": 1.54369516,
       "n": 43,
       "range_read_error": 0.002217995875,
       "range_read_error_avg": 0.06240592396
@@ -769,8 +769,8 @@
       "created_at": "2026-11-06T01:00:00+00:00",
       "equity_error": 0.0658401344,
       "equity_error_avg": 0.08834857684,
-      "ev_lost_bb": 3.00039745,
-      "ev_lost_bb_avg": 1.878454539,
+      "ev_lost_bb": 3.062290316,
+      "ev_lost_bb_avg": 1.578208686,
       "n": 44,
       "range_read_error": null,
       "range_read_error_avg": 0.06240592396
@@ -781,7 +781,7 @@
       "equity_error": 0.1476125,
       "equity_error_avg": 0.08966555291,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.836711105,
+      "ev_lost_bb_avg": 1.543137382,
       "n": 45,
       "range_read_error": 0.030591133,
       "range_read_error_avg": 0.06152217977
@@ -792,7 +792,7 @@
       "equity_error": 0.0161625,
       "equity_error_avg": 0.08806766046,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.796782602,
+      "ev_lost_bb_avg": 1.509590917,
       "n": 46,
       "range_read_error": 0.08040173724,
       "range_read_error_avg": 0.06203243808
@@ -803,7 +803,7 @@
       "equity_error": 0.10465,
       "equity_error_avg": 0.08842047619,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.758553185,
+      "ev_lost_bb_avg": 1.477471962,
       "n": 47,
       "range_read_error": 0.05987096933,
       "range_read_error_avg": 0.06197555732
@@ -814,7 +814,7 @@
       "equity_error": 0.1817746529,
       "equity_error_avg": 0.09036535487,
       "ev_lost_bb": 27.64506943,
-      "ev_lost_bb_avg": 2.297855607,
+      "ev_lost_bb_avg": 2.022630242,
       "n": 48,
       "range_read_error": null,
       "range_read_error_avg": 0.06197555732
@@ -825,7 +825,7 @@
       "equity_error": 0.05019533493,
       "equity_error_avg": 0.08954555855,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.250960595,
+      "ev_lost_bb_avg": 1.981352074,
       "n": 49,
       "range_read_error": 0.0862811447,
       "range_read_error_avg": 0.06259877751
@@ -836,7 +836,7 @@
       "equity_error": 0.1306625,
       "equity_error_avg": 0.09036789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.205941383,
+      "ev_lost_bb_avg": 1.941725033,
       "n": 50,
       "range_read_error": 0.02123287671,
       "range_read_error_avg": 0.06156462999
@@ -847,7 +847,7 @@
       "equity_error": 0.002325,
       "equity_error_avg": 0.09016789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.205941383,
+      "ev_lost_bb_avg": 1.941725033,
       "n": 51,
       "range_read_error": 0.1189795918,
       "range_read_error_avg": 0.06156462999
@@ -858,7 +858,7 @@
       "equity_error": 0.0808125,
       "equity_error_avg": 0.09036789738,
       "ev_lost_bb": 0.830336643,
-      "ev_lost_bb_avg": 2.222548116,
+      "ev_lost_bb_avg": 1.958331765,
       "n": 52,
       "range_read_error": 0.007557780783,
       "range_read_error_avg": 0.06156462999
@@ -869,7 +869,7 @@
       "equity_error": 0.1628147526,
       "equity_error_avg": 0.09056789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.222548116,
+      "ev_lost_bb_avg": 1.958331765,
       "n": 53,
       "range_read_error": 0.1022179959,
       "range_read_error_avg": 0.06156462999
@@ -880,7 +880,7 @@
       "equity_error": 0.0258401344,
       "equity_error_avg": 0.09076789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.175851188,
+      "ev_lost_bb_avg": 1.90597098,
       "n": 54,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -891,7 +891,7 @@
       "equity_error": 0.1076125,
       "equity_error_avg": 0.09096789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.175851188,
+      "ev_lost_bb_avg": 1.90597098,
       "n": 55,
       "range_read_error": 0.069408867,
       "range_read_error_avg": 0.06156462999
@@ -902,7 +902,7 @@
       "equity_error": 0.1861625,
       "equity_error_avg": 0.09116789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.175851188,
+      "ev_lost_bb_avg": 1.90597098,
       "n": 56,
       "range_read_error": 0.06959826276,
       "range_read_error_avg": 0.06156462999
@@ -913,7 +913,7 @@
       "equity_error": 0.06465,
       "equity_error_avg": 0.09136789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.175851188,
+      "ev_lost_bb_avg": 1.90597098,
       "n": 57,
       "range_read_error": 0.04012903067,
       "range_read_error_avg": 0.06156462999
@@ -924,7 +924,7 @@
       "equity_error": 0.1417746529,
       "equity_error_avg": 0.09156789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.6229498,
+      "ev_lost_bb_avg": 1.353069591,
       "n": 58,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -935,7 +935,7 @@
       "equity_error": 0.01019533493,
       "equity_error_avg": 0.09176789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.6229498,
+      "ev_lost_bb_avg": 1.353069591,
       "n": 59,
       "range_read_error": 0.0137188553,
       "range_read_error_avg": 0.06156462999
@@ -946,7 +946,7 @@
       "equity_error": 0.0906625,
       "equity_error_avg": 0.09196789738,
       "ev_lost_bb": 0.3900625,
-      "ev_lost_bb_avg": 1.63075105,
+      "ev_lost_bb_avg": 1.360870841,
       "n": 60,
       "range_read_error": 0.1212328767,
       "range_read_error_avg": 0.06156462999
@@ -957,7 +957,7 @@
       "equity_error": 0.167675,
       "equity_error_avg": 0.09216789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.63075105,
+      "ev_lost_bb_avg": 1.360870841,
       "n": 61,
       "range_read_error": 0.01897959184,
       "range_read_error_avg": 0.06156462999
@@ -968,7 +968,7 @@
       "equity_error": 0.0408125,
       "equity_error_avg": 0.09236789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.625998546,
+      "ev_lost_bb_avg": 1.356118337,
       "n": 62,
       "range_read_error": 0.09244221922,
       "range_read_error_avg": 0.06156462999
@@ -979,7 +979,7 @@
       "equity_error": 0.1228147526,
       "equity_error_avg": 0.09256789738,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.625998546,
+      "ev_lost_bb_avg": 1.356118337,
       "n": 63,
       "range_read_error": 0.04778200413,
       "range_read_error_avg": 0.06156462999
@@ -989,8 +989,8 @@
       "created_at": "2026-11-11T21:00:00+00:00",
       "equity_error": 0.0141598656,
       "equity_error_avg": 0.089134292,
-      "ev_lost_bb": 1.994710794,
-      "ev_lost_bb_avg": 1.665892762,
+      "ev_lost_bb": 2.028535691,
+      "ev_lost_bb_avg": 1.396689051,
       "n": 64,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -1001,7 +1001,7 @@
       "equity_error": 0.0676125,
       "equity_error_avg": 0.089334292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.665892762,
+      "ev_lost_bb_avg": 1.396689051,
       "n": 65,
       "range_read_error": 0.080591133,
       "range_read_error_avg": 0.06156462999
@@ -1012,7 +1012,7 @@
       "equity_error": 0.1461625,
       "equity_error_avg": 0.089534292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.652746099,
+      "ev_lost_bb_avg": 1.383542389,
       "n": 66,
       "range_read_error": 0.03040173724,
       "range_read_error_avg": 0.06156462999
@@ -1023,7 +1023,7 @@
       "equity_error": 0.02465,
       "equity_error_avg": 0.089734292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.652746099,
+      "ev_lost_bb_avg": 1.383542389,
       "n": 67,
       "range_read_error": 0.1098709693,
       "range_read_error_avg": 0.06156462999
@@ -1034,7 +1034,7 @@
       "equity_error": 0.1017746529,
       "equity_error_avg": 0.089934292,
       "ev_lost_bb": 27.64506943,
-      "ev_lost_bb_avg": 2.205647488,
+      "ev_lost_bb_avg": 1.936443777,
       "n": 68,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -1045,7 +1045,7 @@
       "equity_error": 0.1801953349,
       "equity_error_avg": 0.090134292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.205647488,
+      "ev_lost_bb_avg": 1.936443777,
       "n": 69,
       "range_read_error": 0.0937188553,
       "range_read_error_avg": 0.06156462999
@@ -1056,7 +1056,7 @@
       "equity_error": 0.0506625,
       "equity_error_avg": 0.090334292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.197846238,
+      "ev_lost_bb_avg": 1.928642527,
       "n": 70,
       "range_read_error": 0.02876712329,
       "range_read_error_avg": 0.06156462999
@@ -1067,7 +1067,7 @@
       "equity_error": 0.127675,
       "equity_error_avg": 0.090534292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.197846238,
+      "ev_lost_bb_avg": 1.928642527,
       "n": 71,
       "range_read_error": 0.08102040816,
       "range_read_error_avg": 0.06156462999
@@ -1077,8 +1077,8 @@
       "created_at": "2026-11-14T05:00:00+00:00",
       "equity_error": 0.0008125,
       "equity_error_avg": 0.090366792,
-      "ev_lost_bb": 8.295762734,
-      "ev_lost_bb_avg": 2.363761492,
+      "ev_lost_bb": 5.048954979,
+      "ev_lost_bb_avg": 2.029621627,
       "n": 72,
       "range_read_error": 0.05755778078,
       "range_read_error_avg": 0.06156462999
@@ -1089,7 +1089,7 @@
       "equity_error": 0.08281475259,
       "equity_error_avg": 0.090566792,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.363761492,
+      "ev_lost_bb_avg": 2.029621627,
       "n": 73,
       "range_read_error": 0.05221799587,
       "range_read_error_avg": 0.06156462999
@@ -1100,7 +1100,7 @@
       "equity_error": 0.1558401344,
       "equity_error_avg": 0.090766792,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.961873519,
+      "ev_lost_bb_avg": 1.898851719,
       "n": 74,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -1111,7 +1111,7 @@
       "equity_error": 0.0276125,
       "equity_error_avg": 0.090966792,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.961873519,
+      "ev_lost_bb_avg": 1.898851719,
       "n": 75,
       "range_read_error": 0.019408867,
       "range_read_error_avg": 0.06156462999
@@ -1122,7 +1122,7 @@
       "equity_error": 0.1061625,
       "equity_error_avg": 0.091166792,
       "ev_lost_bb": 0.2487297545,
-      "ev_lost_bb_avg": 1.966848114,
+      "ev_lost_bb_avg": 1.903826314,
       "n": 76,
       "range_read_error": 0.1195982628,
       "range_read_error_avg": 0.06156462999
@@ -1133,7 +1133,7 @@
       "equity_error": 0.19465,
       "equity_error_avg": 0.091366792,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.966848114,
+      "ev_lost_bb_avg": 1.903826314,
       "n": 77,
       "range_read_error": 0.009870969334,
       "range_read_error_avg": 0.06156462999
@@ -1144,7 +1144,7 @@
       "equity_error": 0.06177465287,
       "equity_error_avg": 0.091566792,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.413946725,
+      "ev_lost_bb_avg": 1.350924926,
       "n": 78,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -1155,7 +1155,7 @@
       "equity_error": 0.1401953349,
       "equity_error_avg": 0.091766792,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.413946725,
+      "ev_lost_bb_avg": 1.350924926,
       "n": 79,
       "range_read_error": 0.0362811447,
       "range_read_error_avg": 0.06156462999
@@ -1166,7 +1166,7 @@
       "equity_error": 0.0106625,
       "equity_error_avg": 0.091966792,
       "ev_lost_bb": 0.3900625,
-      "ev_lost_bb_avg": 1.421747975,
+      "ev_lost_bb_avg": 1.358726176,
       "n": 80,
       "range_read_error": 0.07123287671,
       "range_read_error_avg": 0.06156462999
@@ -1177,7 +1177,7 @@
       "equity_error": 0.087675,
       "equity_error_avg": 0.092166792,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.421747975,
+      "ev_lost_bb_avg": 1.358726176,
       "n": 81,
       "range_read_error": 0.06897959184,
       "range_read_error_avg": 0.06156462999
@@ -1188,7 +1188,7 @@
       "equity_error": 0.1708125,
       "equity_error_avg": 0.092366792,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.421747975,
+      "ev_lost_bb_avg": 1.358726176,
       "n": 82,
       "range_read_error": 0.04244221922,
       "range_read_error_avg": 0.06156462999
@@ -1199,7 +1199,7 @@
       "equity_error": 0.04281475259,
       "equity_error_avg": 0.092566792,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.421747975,
+      "ev_lost_bb_avg": 1.358726176,
       "n": 83,
       "range_read_error": 0.08778200413,
       "range_read_error_avg": 0.06156462999
@@ -1209,8 +1209,8 @@
       "created_at": "2026-11-17T17:00:00+00:00",
       "equity_error": 0.1158401344,
       "equity_error_avg": 0.092766792,
-      "ev_lost_bb": 0.7516101226,
-      "ev_lost_bb_avg": 1.436780178,
+      "ev_lost_bb": 0.7598206086,
+      "ev_lost_bb_avg": 1.373922588,
       "n": 84,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -1221,7 +1221,7 @@
       "equity_error": 0.0123875,
       "equity_error_avg": 0.089262292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.436780178,
+      "ev_lost_bb_avg": 1.373922588,
       "n": 85,
       "range_read_error": 0.119408867,
       "range_read_error_avg": 0.06156462999
@@ -1232,7 +1232,7 @@
       "equity_error": 0.0661625,
       "equity_error_avg": 0.089462292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.431637477,
+      "ev_lost_bb_avg": 1.368779887,
       "n": 86,
       "range_read_error": 0.01959826276,
       "range_read_error_avg": 0.06156462999
@@ -1243,7 +1243,7 @@
       "equity_error": 0.15465,
       "equity_error_avg": 0.089662292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.431637477,
+      "ev_lost_bb_avg": 1.368779887,
       "n": 87,
       "range_read_error": 0.09012903067,
       "range_read_error_avg": 0.06156462999
@@ -1254,7 +1254,7 @@
       "equity_error": 0.02177465287,
       "equity_error_avg": 0.089862292,
       "ev_lost_bb": 27.64506943,
-      "ev_lost_bb_avg": 1.984538866,
+      "ev_lost_bb_avg": 1.921681275,
       "n": 88,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -1265,7 +1265,7 @@
       "equity_error": 0.1001953349,
       "equity_error_avg": 0.090062292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.984538866,
+      "ev_lost_bb_avg": 1.921681275,
       "n": 89,
       "range_read_error": 0.0637188553,
       "range_read_error_avg": 0.06156462999
@@ -1276,7 +1276,7 @@
       "equity_error": 0.1806625,
       "equity_error_avg": 0.090262292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.976737616,
+      "ev_lost_bb_avg": 1.913880025,
       "n": 90,
       "range_read_error": 0.07876712329,
       "range_read_error_avg": 0.06156462999
@@ -1287,7 +1287,7 @@
       "equity_error": 0.047675,
       "equity_error_avg": 0.090462292,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.976737616,
+      "ev_lost_bb_avg": 1.913880025,
       "n": 91,
       "range_read_error": 0.03102040816,
       "range_read_error_avg": 0.06156462999
@@ -1298,7 +1298,7 @@
       "equity_error": 0.1308125,
       "equity_error_avg": 0.090662292,
       "ev_lost_bb": 0.70171008,
-      "ev_lost_bb_avg": 1.990771817,
+      "ev_lost_bb_avg": 1.927914227,
       "n": 92,
       "range_read_error": 0.08755778078,
       "range_read_error_avg": 0.06156462999
@@ -1309,7 +1309,7 @@
       "equity_error": 0.00281475259,
       "equity_error_avg": 0.0905748821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.990771817,
+      "ev_lost_bb_avg": 1.927914227,
       "n": 93,
       "range_read_error": 0.002217995875,
       "range_read_error_avg": 0.06156462999
@@ -1320,7 +1320,7 @@
       "equity_error": 0.0758401344,
       "equity_error_avg": 0.0907748821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.930763868,
+      "ev_lost_bb_avg": 1.866668421,
       "n": 94,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -1331,7 +1331,7 @@
       "equity_error": 0.1576125,
       "equity_error_avg": 0.0909748821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.930763868,
+      "ev_lost_bb_avg": 1.866668421,
       "n": 95,
       "range_read_error": 0.030591133,
       "range_read_error_avg": 0.06156462999
@@ -1341,8 +1341,8 @@
       "created_at": "2026-11-22T11:00:00+00:00",
       "equity_error": 0.0261625,
       "equity_error_avg": 0.0911748821,
-      "ev_lost_bb": 10.10296489,
-      "ev_lost_bb_avg": 2.132823166,
+      "ev_lost_bb": 8.036783185,
+      "ev_lost_bb_avg": 2.027404084,
       "n": 96,
       "range_read_error": 0.08040173724,
       "range_read_error_avg": 0.06156462999
@@ -1353,7 +1353,7 @@
       "equity_error": 0.11465,
       "equity_error_avg": 0.0913748821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 2.132823166,
+      "ev_lost_bb_avg": 2.027404084,
       "n": 97,
       "range_read_error": 0.05987096933,
       "range_read_error_avg": 0.06156462999
@@ -1364,7 +1364,7 @@
       "equity_error": 0.1917746529,
       "equity_error_avg": 0.0915748821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.579921777,
+      "ev_lost_bb_avg": 1.474502696,
       "n": 98,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -1375,7 +1375,7 @@
       "equity_error": 0.06019533493,
       "equity_error_avg": 0.0917748821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.579921777,
+      "ev_lost_bb_avg": 1.474502696,
       "n": 99,
       "range_read_error": 0.0862811447,
       "range_read_error_avg": 0.06156462999
@@ -1386,7 +1386,7 @@
       "equity_error": 0.1406625,
       "equity_error_avg": 0.0919748821,
       "ev_lost_bb": 0.3900625,
-      "ev_lost_bb_avg": 1.587723027,
+      "ev_lost_bb_avg": 1.482303946,
       "n": 100,
       "range_read_error": 0.02123287671,
       "range_read_error_avg": 0.06156462999
@@ -1397,7 +1397,7 @@
       "equity_error": 0.007675,
       "equity_error_avg": 0.0920818821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.587723027,
+      "ev_lost_bb_avg": 1.482303946,
       "n": 101,
       "range_read_error": 0.1189795918,
       "range_read_error_avg": 0.06156462999
@@ -1408,7 +1408,7 @@
       "equity_error": 0.0908125,
       "equity_error_avg": 0.0922818821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.571116295,
+      "ev_lost_bb_avg": 1.465697213,
       "n": 102,
       "range_read_error": 0.007557780783,
       "range_read_error_avg": 0.06156462999
@@ -1419,7 +1419,7 @@
       "equity_error": 0.1728147526,
       "equity_error_avg": 0.0924818821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.571116295,
+      "ev_lost_bb_avg": 1.465697213,
       "n": 103,
       "range_read_error": 0.1022179959,
       "range_read_error_avg": 0.06156462999
@@ -1430,7 +1430,7 @@
       "equity_error": 0.0358401344,
       "equity_error_avg": 0.0926818821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.571116295,
+      "ev_lost_bb_avg": 1.465697213,
       "n": 104,
       "range_read_error": null,
       "range_read_error_avg": 0.06156462999
@@ -1441,7 +1441,7 @@
       "equity_error": 0.1176125,
       "equity_error_avg": 0.0928818821,
       "ev_lost_bb": 0.0,
-      "ev_lost_bb_avg": 1.571116295,
+      "ev_lost_bb_avg": 1.465697213,
       "n": 105,
       "range_read_error": 0.069408867,
       "range_read_error_avg": 0.06156462999

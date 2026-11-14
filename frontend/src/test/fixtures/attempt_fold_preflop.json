@@ -5932,7 +5932,7 @@
       "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
       "label": "LAG",
       "name": "lag",
-      "version": 4
+      "version": 5
     },
     "runout": [
       "3d",

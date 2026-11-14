@@ -1,7 +1,7 @@
 {
   "name": "tight",
   "label": "Tight",
-  "version": 4,
+  "version": 5,
   "description": "Tight and solid: narrow ranges, value-heavy, rarely bluffs.",
   "preflop": {
     "open": "22+, A2+, K2s+, K5o+, Q2s+, Q8o+, J4s+, J8o+, T6s+, T8o+, 95s+, 98o, 85s+, 87o, 74s+, 64s+, 53s+, 43s",
@@ -61,12 +61,21 @@
       "NUTS": {"check": 0.06, "bet_33": 0.22, "bet_75": 0.72}
     }
   },
+  "river_facing": {
+    "facing_bet": {
+      "AIR": {"fold": 0.97, "call": 0.02, "raise": 0.01},
+      "WEAK": {"fold": 0.72, "call": 0.28, "raise": 0.0},
+      "MEDIUM": {"fold": 0.24, "call": 0.76, "raise": 0.0},
+      "STRONG": {"fold": 0.05, "call": 0.935, "raise": 0.015},
+      "NUTS": {"fold": 0.0, "call": 0.35, "raise": 0.65}
+    }
+  },
   "facing": {
     "facing_bet": {
       "AIR": {"fold": 0.93, "call": 0.03, "raise": 0.04},
-      "WEAK_DRAW": {"fold": 0.65, "call": 0.32, "raise": 0.03},
-      "WEAK": {"fold": 0.68, "call": 0.31, "raise": 0.01},
-      "MEDIUM": {"fold": 0.22, "call": 0.75, "raise": 0.03},
+      "WEAK_DRAW": {"fold": 0.68, "call": 0.29, "raise": 0.03},
+      "WEAK": {"fold": 0.75, "call": 0.24, "raise": 0.01},
+      "MEDIUM": {"fold": 0.27, "call": 0.7, "raise": 0.03},
       "STRONG_DRAW": {"fold": 0.08, "call": 0.75, "raise": 0.17},
       "STRONG": {"fold": 0.05, "call": 0.8, "raise": 0.15},
       "NUTS": {"fold": 0.0, "call": 0.55, "raise": 0.45}

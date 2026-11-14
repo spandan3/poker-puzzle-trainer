@@ -50,7 +50,7 @@ describe('RangePanel', () => {
     expect(within(group).queryByRole('radio', { name: 'Check' })).not.toBeInTheDocument()
     expect(screen.getByText('Folds: 34%')).toBeInTheDocument()
     fireEvent.click(within(group).getByRole('radio', { name: 'All-in' }))
-    expect(screen.getByText('Folds: 78%')).toBeInTheDocument()
+    expect(screen.getByText('Folds: 83%')).toBeInTheDocument()
   })
 
   it('has no continues-vs selector when no option has a grid', () => {

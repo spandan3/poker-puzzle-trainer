@@ -61,6 +61,7 @@ def _numbers(res):
 
 
 LAG = "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs."
+STICKY = "Villain is a Sticky player. Competent, but defends wide and calls down lighter than most."
 
 
 def river_call(res):
@@ -182,13 +183,13 @@ def river_check_best_bet_chosen(res):
         ),
         "hand": [
             (
-                "You held 7♦ Q♠ in the big blind, against Villain, a LAG player, on the button. "
+                "You held 5♥ A♥ in the big blind, against Villain, a Sticky player, on the button. "
                 "Pre-flop, Villain opened to 2.5 bb and you called."
             ),
             (
-                "The flop came Q♥ J♦ 9♣: you checked and Villain checked. The turn was the 5♥: "
-                "you checked, Villain bet 4 bb and you called. The river was the T♥. It was "
-                "your turn to act with 13 bb in the pot."
+                "The flop came 3♣ 9♣ 4♥: you bet 1.5 bb and Villain called. The turn was the J♠: "
+                "you checked and Villain checked. The river was the 3♥. It was your turn to act "
+                "with 8 bb in the pot."
             ),
         ],
         "verdict": [
@@ -204,19 +205,19 @@ def river_check_best_bet_chosen(res):
             (
                 f"Bet 75%: Villain folds {_folds(res, 'Bet 75%')} of the time, less than the "
                 f"{n['needs']} a bet this size needs to profit on folds alone "
-                "(10 bb / (13 bb + 10 bb)), so folds alone don't pay for it: it relies on your "
+                "(6 bb / (8 bb + 6 bb)), so folds alone don't pay for it: it relies on your "
                 f"{_eq_continue(res, 'Bet 75%')} equity against the hands that continue."
             ),
             (
                 f"The largest parts of the range are {_cat(res, 'Weak made hand')} "
-                f"and {_cat(res, 'Strong value')}."
+                f"and {_cat(res, 'Air')}."
             ),
         ],
         "villain": [
-            LAG,
+            STICKY,
             (
                 "Villain's range narrowed with each action: Pre-flop: opens to 2.5 bb; Flop: "
-                "checks; Turn: bets 4 bb (80% pot)."
+                "calls; Turn: checks."
             ),
             GRADED_ON_RANGE,
         ],
@@ -246,7 +247,7 @@ GOLDEN = [
     # pre-flop fold, first in on the button (attempt_fold_preflop's spot)
     ((1, "preflop"), {"option": 0}, preflop_fold),
     # river check best with a bet chosen
-    ((4, "river"), {"option": 3, "intent": "bluff"}, river_check_best_bet_chosen),
+    ((63, "river"), {"option": 3, "intent": "bluff"}, river_check_best_bet_chosen),
 ]
 
 
@@ -374,7 +375,7 @@ def test_explain_is_what_the_view_adds():
 
 
 def test_check_best_states_the_check_ev_once():
-    res = result(puzzle(4, "river"), option=3, intent="bluff")  # check best, bet 75% chosen
+    res = result(puzzle(63, "river"), option=3, intent="bluff")  # check best, bet 75% chosen
     check_ev = f"EV {_ev(res, 'Check')}"
     assert text_of(res["explanation"]).count(check_ev) == 1
 
