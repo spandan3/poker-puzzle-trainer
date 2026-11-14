@@ -66,3 +66,18 @@ def test_option_cycle_and_intent():
     assert [p["option"] for p in posts] == [0] * 4 + [3] * 4 + [2] * 4
     assert posts[4]["intent"] == "value"  # option 3 is a bet
     assert posts[8]["intent"] == "value"  # option 2 is a raise
+
+
+def test_a_failed_request_is_a_row_not_an_abort():
+    fetch, _ = make_fetch()
+
+    def flaky(method: str, url: str, body: dict | None, timeout: float) -> Any:
+        if method == "GET" and url.endswith("/api/attempts/102/explanation"):
+            raise TimeoutError("timed out")
+        return fetch(method, url, body, timeout)
+
+    rows = explain_check.run("http://app", 4, flaky)
+    assert [r.source for r in rows] == ["llm", "error", "template", "llm"]
+    assert rows[1].fallback.startswith("TimeoutError")
+    text = explain_check.format_rows(rows)
+    assert "error: 1" in text and "llm: 2" in text

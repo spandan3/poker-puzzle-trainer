@@ -251,14 +251,18 @@ def probe(url: str, model: str, timeout: float = PROBE_TIMEOUT) -> tuple[ProbeSt
     try:
         data = _request_json(urllib.request.Request(_endpoint(url, "/api/version")), timeout)
     except LlmFailure as e:
+        # a reset or a bad reply (LlmError) or an HTTP error means something answered, so the
+        # model check goes on; only silence ends the probe
         if not (isinstance(e, LlmError) or isinstance(e.__cause__, HTTPError)):
             return "unavailable", f"Ollama isn't answering at {url}."
     else:
         raw = data.get("version") if isinstance(data, dict) else None
         version = parse_version(raw) if isinstance(raw, str) else None
         if version is not None and version < MIN_VERSION:
-            shown = ".".join(str(n) for n in version)
-            return "unavailable", f"Ollama {shown} is too old: version 0.5 or newer is needed."
+            return (
+                "unavailable",
+                f"Ollama {raw.strip()} is too old: version 0.5 or newer is needed.",
+            )
     req = urllib.request.Request(_endpoint(url, "/api/tags"), method="GET")
     try:
         names = _model_names(_request_json(req, timeout))
