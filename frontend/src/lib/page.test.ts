@@ -11,12 +11,15 @@ describe('pageFromPath', () => {
     expect(pageFromPath('/')).toBe('puzzles')
     expect(pageFromPath('/progress')).toBe('progress')
     expect(pageFromPath('/progress/')).toBe('progress')
+    expect(pageFromPath('/play')).toBe('play')
+    expect(pageFromPath('/play/')).toBe('play')
     expect(pageFromPath('/elsewhere')).toBe('puzzles')
   })
 
   it('round-trips with pathOf', () => {
     expect(pathOf('puzzles')).toBe('/')
     expect(pathOf('progress')).toBe('/progress')
+    expect(pathOf('play')).toBe('/play')
   })
 })
 

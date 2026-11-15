@@ -24,7 +24,15 @@ from poker_trainer.settings import get_settings
 from poker_trainer.stats.hero import hero_category
 from poker_trainer.villain.features import load_thresholds
 
-TABLES = {"users", "user_settings", "puzzles", "attempts"}
+TABLES = {
+    "users",
+    "user_settings",
+    "puzzles",
+    "attempts",
+    "play_sessions",
+    "play_hands",
+    "play_decisions",
+}
 
 
 def _url(path) -> str:
@@ -40,7 +48,7 @@ def test_migrate_creates_tables(tmp_path):
         head = ScriptDirectory.from_config(alembic_config(url)).get_current_head()
         with engine.connect() as conn:
             assert MigrationContext.configure(conn).get_current_revision() == head
-        assert head == "0003_attempt_stats"
+        assert head == "0004_play"
     finally:
         engine.dispose()
 
@@ -85,7 +93,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "9999_batch_probe"
-down_revision = "0003_attempt_stats"
+down_revision = "0004_play"
 branch_labels = None
 depends_on = None
 
@@ -300,3 +308,31 @@ def test_attempt_stats_downgrade(tmp_path):
         engine.dispose()
     assert not cols & set(_STATS_COLS)
     assert "chosen_label" in cols
+
+
+def test_play_tables_constraints_and_downgrade(tmp_path):
+    """0004 creates the play tables with the one-open-session index and the unique pairs; the
+    downgrade drops them again."""
+    url = _url(tmp_path / "a.db")
+    migrate(url)
+    engine = make_engine(url)
+    try:
+        insp = inspect(engine)
+        idx = {i["name"]: i for i in insp.get_indexes("play_sessions")}
+        open_idx = idx["uq_play_sessions_open_user"]
+        assert open_idx["unique"] and open_idx["column_names"] == ["user_id"]
+        hands_uq = [u["column_names"] for u in insp.get_unique_constraints("play_hands")]
+        assert ["session_id", "hand_no"] in hands_uq
+        dec_uq = [u["column_names"] for u in insp.get_unique_constraints("play_decisions")]
+        assert ["hand_id", "n"] in dec_uq
+    finally:
+        engine.dispose()
+
+    command.downgrade(alembic_config(url), "0003_attempt_stats")
+    engine = make_engine(url)
+    try:
+        names = set(inspect(engine).get_table_names())
+    finally:
+        engine.dispose()
+    assert not names & {"play_sessions", "play_hands", "play_decisions"}
+    assert "attempts" in names

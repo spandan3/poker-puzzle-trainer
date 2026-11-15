@@ -1,6 +1,6 @@
 from sqlalchemy import update
 
-from poker_trainer.db import AttemptRow, PuzzleRow, User
+from poker_trainer.db import AttemptRow, PlayHandRow, PlaySessionRow, PuzzleRow, User
 
 
 def _new(client, **body):
@@ -90,3 +90,28 @@ def test_history_skips_attempts_on_other_users_puzzles(client, sessions):
         db.execute(update(PuzzleRow).values(user_id=2))
         db.commit()
     assert client.get("/api/history").json() == {"items": [], "total": 0}
+
+
+def test_play_isolation(play_client, sessions):
+    """Another user's session and hand are not found, and do not count as mine."""
+    v = play_client.post("/api/play/sessions").json()
+    sid, hid = v["id"], v["hand"]["id"]
+    body = {"expected_actions": v["hand"]["action_count"], "option": 0}
+    with sessions() as db:
+        db.add(User(id=2, name="other"))
+        db.flush()
+        db.execute(update(PlaySessionRow).values(user_id=2))
+        db.execute(update(PlayHandRow).values(user_id=2))
+        db.commit()
+    assert play_client.get("/api/play/sessions/current").status_code == 404
+    assert play_client.get("/api/play/sessions").json() == []
+    assert play_client.get(f"/api/play/sessions/{sid}/hands").status_code == 404
+    assert play_client.get(f"/api/play/hands/{hid}").status_code == 404
+    assert play_client.post(f"/api/play/hands/{hid}/actions", json=body).status_code == 404
+    assert play_client.post(f"/api/play/sessions/{sid}/end").status_code == 404
+    assert (
+        play_client.post(f"/api/play/sessions/{sid}/hands", json={"expected_hands": 0}).status_code
+        == 404
+    )
+    # their open session does not stop me starting mine
+    assert play_client.post("/api/play/sessions").status_code == 201

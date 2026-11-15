@@ -1,0 +1,20 @@
+[
+  {
+    "created_at": "2026-11-14T19:14:00+00:00",
+    "ended_at": null,
+    "hands_played": 0,
+    "id": 2,
+    "net_bb": 0.0,
+    "open": true,
+    "profile_label": "LAG"
+  },
+  {
+    "created_at": "2026-11-14T18:01:00+00:00",
+    "ended_at": "2026-11-14T19:13:00+00:00",
+    "hands_played": 13,
+    "id": 1,
+    "net_bb": -52.5,
+    "open": false,
+    "profile_label": "LAG"
+  }
+]

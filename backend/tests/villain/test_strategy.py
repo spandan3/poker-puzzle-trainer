@@ -668,3 +668,9 @@ def test_river_bluff_catchers_never_raise(name):
         mask = cats == cat
         assert mask.any(), cat
         assert raises[mask].max() == 0.0, cat
+
+
+def test_strategy_version_is_set():
+    from poker_trainer.villain.strategy import STRATEGY_VERSION
+
+    assert STRATEGY_VERSION == 1

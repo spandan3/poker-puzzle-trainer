@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
+  currentPlaySession,
   currentPuzzle,
+  endPlaySession,
   getAttempt,
   getExplanation,
   getHistory,
@@ -9,6 +11,10 @@ import {
   getSettings,
   getStats,
   health,
+  listPlaySessions,
+  nextPlayHand,
+  playAction,
+  startPlaySession,
   newPuzzle,
   patchSettings,
   submitAttempt,
@@ -152,5 +158,44 @@ describe('client', () => {
   it('throws an ApiError for a failed explanation request', async () => {
     fetchMock.mockResolvedValue(reply(404, { detail: 'no such attempt' }))
     await expect(getExplanation(7)).rejects.toMatchObject({ status: 404 })
+  })
+
+  describe('play', () => {
+    it('reads the current session, or null on a 404', async () => {
+      fetchMock.mockResolvedValueOnce(reply(404, { detail: 'none' }))
+      expect(await currentPlaySession()).toBeNull()
+      expect(lastCall().url).toBe('/api/play/sessions/current')
+      fetchMock.mockResolvedValueOnce(reply(200, { id: 3 }))
+      expect(await currentPlaySession()).toEqual({ id: 3 })
+    })
+
+    it('starts, ends and deals', async () => {
+      fetchMock.mockImplementation(async () => reply(201, { id: 3 }))
+      await startPlaySession()
+      expect(lastCall().url).toBe('/api/play/sessions')
+      expect(lastCall().init.method).toBe('POST')
+      await endPlaySession(3)
+      expect(lastCall().url).toBe('/api/play/sessions/3/end')
+      await nextPlayHand(3, { top_up: true, expected_hands: 4 })
+      expect(lastCall().url).toBe('/api/play/sessions/3/hands')
+      expect(lastCall().init.body).toBe(JSON.stringify({ top_up: true, expected_hands: 4 }))
+    })
+
+    it('acts and lists', async () => {
+      fetchMock.mockImplementation(async () => reply(200, { id: 3 }))
+      await playAction(9, { expected_actions: 2, option: 1 })
+      expect(lastCall().url).toBe('/api/play/hands/9/actions')
+      expect(lastCall().init.body).toBe(JSON.stringify({ expected_actions: 2, option: 1 }))
+      fetchMock.mockImplementation(async () => reply(200, []))
+      expect(await listPlaySessions()).toEqual([])
+      expect(lastCall().url).toBe('/api/play/sessions')
+    })
+
+    it('throws an ApiError carrying the status on a 409', async () => {
+      fetchMock.mockResolvedValue(reply(409, { detail: 'stale' }))
+      await expect(playAction(9, { expected_actions: 2, option: 1 })).rejects.toMatchObject({
+        status: 409,
+      })
+    })
   })
 })

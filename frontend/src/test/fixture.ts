@@ -3,7 +3,11 @@
 import type {
   AttemptResult,
   Explanation,
+  HandAnalysis,
   HistoryPage,
+  PlayHandSummary,
+  PlaySessionSummary,
+  PlaySessionView,
   PuzzleView,
   SettingsView,
   StatsView,
@@ -19,6 +23,7 @@ export type FixtureName =
   | 'stats'
   | 'stats_empty'
   | 'history_page'
+  | `play_${string}`
 
 /** Loads `src/test/fixtures/<name>.json`, trusting the caller's type (the files come from the API). */
 export function fixture<T = PuzzleView>(name: FixtureName): T {
@@ -41,3 +46,11 @@ export const statsFixture = (): StatsView => fixture<StatsView>('stats')
 export const statsEmptyFixture = (): StatsView => fixture<StatsView>('stats_empty')
 export const historyFixture = (): HistoryPage => fixture<HistoryPage>('history_page')
 export const explanationLlmFixture = (): Explanation => fixture<Explanation>('explanation_llm')
+
+export const playSessionFixture = (name: 'hero_to_act' | 'hand_over_fold' | 'hand_over_showdown') =>
+  fixture<PlaySessionView>(`play_session_${name}`)
+export const playHandAnalysisFixture = (): HandAnalysis =>
+  fixture<HandAnalysis>('play_hand_analysis')
+export const playSessionsFixture = (): PlaySessionSummary[] =>
+  fixture<PlaySessionSummary[]>('play_sessions')
+export const playHandsFixture = (): PlayHandSummary[] => fixture<PlayHandSummary[]>('play_hands')

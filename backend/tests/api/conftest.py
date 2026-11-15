@@ -1,5 +1,7 @@
 """API fixtures: an app over a tmp-path SQLite file with a cached ``puzzle_factory``."""
 
+import random
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -82,3 +84,18 @@ def sessions(client, db_url):
     engine = make_engine(db_url)
     yield make_sessionmaker(engine)
     engine.dispose()
+
+
+@pytest.fixture
+def play_client(db_url, factory):
+    """An app whose play randomness is one seeded stream (profile, button and decks), so a test
+    deals the same hands every run; analysis solves with 500 samples to stay fast."""
+    rng = random.Random(20261114)
+    app = create_app(
+        AppSettings(_env_file=None, database_url=db_url, **LLM_OFF),
+        puzzle_factory=factory,
+        play_rng=lambda: rng,
+        play_samples=500,
+    )
+    with TestClient(app) as c:
+        yield c

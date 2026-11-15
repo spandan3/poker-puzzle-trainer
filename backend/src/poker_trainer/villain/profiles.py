@@ -137,10 +137,24 @@ def _ranges(raw: Any, where: str) -> PreflopRanges:
     return PreflopRanges(**out)
 
 
-def load_profile(name: str) -> Profile:
+def _check_name(name: str) -> None:
     if name not in PROFILE_NAMES:
         raise ValueError(f"unknown profile {name!r}; expected one of {PROFILE_NAMES}")
+
+
+def load_profile(name: str) -> Profile:
+    _check_name(name)
     return _load(name)
+
+
+def profile_data(name: str) -> dict[str, Any]:
+    """The profile file's parsed JSON, as a fresh dict the caller may keep or change.
+
+    A snapshot for later: ``profile_from_dict(name, profile_data(name))`` rebuilds the profile
+    as it is now, even after the file changes.
+    """
+    _check_name(name)
+    return json.loads(_text(name))
 
 
 def profile_meta(name: str) -> tuple[str, str]:
@@ -157,14 +171,18 @@ def profile_meta(name: str) -> tuple[str, str]:
 
 
 @lru_cache(maxsize=len(PROFILE_NAMES))
-def _load(name: str) -> Profile:
-    text = (files("poker_trainer.villain") / "profiles" / f"{name}.json").read_text(
+def _text(name: str) -> str:
+    return (files("poker_trainer.villain") / "profiles" / f"{name}.json").read_text(
         encoding="utf-8"
     )
-    return _profile_from_dict(name, json.loads(text))
 
 
-def _profile_from_dict(name: str, raw: Any) -> Profile:
+@lru_cache(maxsize=len(PROFILE_NAMES))
+def _load(name: str) -> Profile:
+    return profile_from_dict(name, json.loads(_text(name)))
+
+
+def profile_from_dict(name: str, raw: Any) -> Profile:
     """Build and validate a Profile; every structural problem raises ValueError."""
     try:
         if raw["name"] != name:
@@ -214,3 +232,6 @@ def _profile_from_dict(name: str, raw: Any) -> Profile:
         raise ValueError(f"{name}: missing key {e}") from e
     except TypeError as e:
         raise ValueError(f"{name}: malformed profile data: {e}") from e
+
+
+_profile_from_dict = profile_from_dict  # the pre-M10 name, kept for existing callers

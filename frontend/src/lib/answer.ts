@@ -1,7 +1,7 @@
 // Pure logic for the answer panel: which actions are offered, how sizes are labelled, and the
 // request body for an answer. The UI never builds an `Action`: it sends an option index from
 // `view.options`, or `custom_to` in chips when the puzzle allows custom sizes.
-import type { AttemptIn, Intent, OptionBrief, PuzzleView } from '../api/types'
+import type { ActionView, AttemptIn, Intent, OptionBrief, PlayActionChoice } from '../api/types'
 import { bbToChips, formatBb } from './format'
 
 export type ActionKind = OptionBrief['kind']
@@ -27,7 +27,7 @@ const ACTION_LABELS: Record<ActionKind, string> = {
 }
 
 /** Always five buttons, in a fixed order; a kind absent from `options` is disabled. */
-export function actionButtons(view: PuzzleView): ActionButton[] {
+export function actionButtons(view: ActionView): ActionButton[] {
   const offered = new Set(view.options.map((o) => o.kind))
   return ACTION_KINDS.map((kind) => {
     const enabled = offered.has(kind)
@@ -50,14 +50,14 @@ export interface SizeOption {
 }
 
 /** One size per bet or raise option, in the API's order. */
-export function sizeOptions(view: PuzzleView): SizeOption[] {
+export function sizeOptions(view: ActionView): SizeOption[] {
   return view.options
     .filter((o) => isAggressive(o.kind))
     .map((o) => ({ index: o.index, label: sizeLabel(o) }))
 }
 
 /** Custom size bounds in big blinds, or null when custom sizes are not allowed. */
-export function customBoundsBb(view: PuzzleView): { min: number; max: number } | null {
+export function customBoundsBb(view: ActionView): { min: number; max: number } | null {
   const { allowed, min_to, max_to } = view.custom
   if (!allowed || min_to === null || max_to === null) return null
   return { min: min_to / 2, max: max_to / 2 }
@@ -134,13 +134,67 @@ export function firstError(errors: AnswerErrors): string | undefined {
 }
 
 /**
+ * The action half of an answer: sets `errors` and returns null when it is incomplete, else the
+ * option index or custom size to send. Shared by `validateAnswer` and `validateAction`.
+ */
+function chooseAction(
+  state: AnswerState,
+  view: ActionView,
+  errors: AnswerErrors,
+  customDisabled: boolean,
+): PlayActionChoice | null {
+  const kind = state.action
+  if (kind === null) {
+    errors.action = 'Choose an action'
+  } else if (!view.options.some((o) => o.kind === kind)) {
+    errors.action = `${ACTION_LABELS[kind]} is not an option here`
+  } else if (!isAggressive(kind)) {
+    const option = view.options.find((o) => o.kind === kind)
+    if (option) return { option: option.index }
+  } else if (state.size === null) {
+    errors.size = 'Choose a size'
+  } else if (state.size === 'custom') {
+    const bounds = customBoundsBb(view)
+    if (bounds === null || customDisabled) {
+      errors.custom = 'Custom sizes are not available'
+    } else {
+      const bb = parseCustomBb(state.custom, bounds)
+      if (bb === null) errors.custom = 'Enter a custom size'
+      else if (typeof bb === 'object') errors.custom = bb.error
+      else return { custom_to: bbToChips(bb) }
+    }
+  } else {
+    const index = state.size
+    const option = view.options.find((o) => o.index === index && o.kind === kind)
+    if (option) return { option: option.index }
+    errors.size = 'Choose a size'
+  }
+  return null
+}
+
+/**
+ * Checks a draft against a play decision and builds the request choice: an action, and a size
+ * for a bet or raise. No equity, range read or intent.
+ */
+export function validateAction(
+  state: AnswerState,
+  view: ActionView,
+  opts: { customDisabled?: boolean } = {},
+): { ok: true; body: PlayActionChoice } | { ok: false; errors: AnswerErrors } {
+  const errors: AnswerErrors = {}
+  const choice = chooseAction(state, view, errors, opts.customDisabled ?? false)
+  if (Object.keys(errors).length > 0 || choice === null) return { ok: false, errors }
+  return { ok: true, body: choice }
+}
+
+/**
  * Checks a draft answer against the puzzle and builds the request body: exactly one of
  * `option` / `custom_to`; `range_read_guess` only when asked and set; `intent` only with a bet
  * or raise.
  */
 export function validateAnswer(
   state: AnswerState,
-  view: PuzzleView,
+  view: ActionView,
   opts: { customDisabled?: boolean } = {},
 ): Validation {
   const errors: AnswerErrors = {}
@@ -156,33 +210,8 @@ export function validateAnswer(
     else rangeRead = parsed
   }
 
-  let choice: { option: number } | { custom_to: number } | null = null
+  const choice = chooseAction(state, view, errors, opts.customDisabled ?? false)
   const kind = state.action
-  if (kind === null) {
-    errors.action = 'Choose an action'
-  } else if (!view.options.some((o) => o.kind === kind)) {
-    errors.action = `${ACTION_LABELS[kind]} is not an option here`
-  } else if (!isAggressive(kind)) {
-    const option = view.options.find((o) => o.kind === kind)
-    if (option) choice = { option: option.index }
-  } else if (state.size === null) {
-    errors.size = 'Choose a size'
-  } else if (state.size === 'custom') {
-    const bounds = customBoundsBb(view)
-    if (bounds === null || opts.customDisabled) {
-      errors.custom = 'Custom sizes are not available'
-    } else {
-      const bb = parseCustomBb(state.custom, bounds)
-      if (bb === null) errors.custom = 'Enter a custom size'
-      else if (typeof bb === 'object') errors.custom = bb.error
-      else choice = { custom_to: bbToChips(bb) }
-    }
-  } else {
-    const index = state.size
-    const option = view.options.find((o) => o.index === index && o.kind === kind)
-    if (option) choice = { option: option.index }
-    else errors.size = 'Choose a size'
-  }
 
   if (Object.keys(errors).length > 0 || typeof equity !== 'number' || choice === null) {
     return { ok: false, errors }

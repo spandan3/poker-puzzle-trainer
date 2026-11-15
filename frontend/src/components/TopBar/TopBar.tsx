@@ -8,11 +8,12 @@ import styles from './TopBar.module.css'
 
 const NAV: { page: Page; label: string }[] = [
   { page: 'puzzles', label: 'Puzzles' },
+  { page: 'play', label: 'Play' },
   { page: 'progress', label: 'Progress' },
 ]
 
 export interface TopBarProps {
-  /** the page on show: the puzzle controls appear on Puzzles only */
+  /** the page on show: the puzzle controls appear on Puzzles only, the session controls on Play */
   page: Page
   onNavigate: (page: Page) => void
   /** The street for new puzzles; `null` is "Any street". */
@@ -30,6 +31,9 @@ export interface TopBarProps {
   onShortcutsOn: (on: boolean) => void
   onHelp: () => void
   onNewPuzzle: () => void
+  /** Play: the session's tally (`+12.5 bb · 14 hands`), or null with no open session. */
+  tally: string | null
+  onEndSession: () => void
 }
 
 function isStreet(x: string): x is StreetName {
@@ -38,12 +42,14 @@ function isStreet(x: string): x is StreetName {
 
 export function TopBar(props: TopBarProps) {
   const hintAttrs = (id: 'help' | 'next') =>
-    props.shortcutsOn && props.page === 'puzzles'
+    props.shortcutsOn && props.page !== 'progress'
       ? { 'data-shortcut': id, 'aria-keyshortcuts': shortcut(id).aria }
       : {}
   const streetId = useId()
   const profileId = useId()
   const onPuzzles = props.page === 'puzzles'
+  const onPlay = props.page === 'play'
+  const onProgress = props.page === 'progress'
   return (
     <header className={styles.bar}>
       <h1 className={styles.title}>
@@ -107,17 +113,30 @@ export function TopBar(props: TopBarProps) {
                 ))}
               </select>
             </div>
-
-            <div className={styles.toggles}>
-              <Toggle label="Pot odds" on={props.showPotOdds} onChange={props.onShowPotOdds} />
-              <Toggle label="Show profile" on={props.showProfile} onChange={props.onShowProfile} />
-              <Toggle label="Shortcuts" on={props.shortcutsOn} onChange={props.onShortcutsOn} />
-            </div>
           </>
         )}
 
+        {onPlay && props.tally !== null && (
+          <>
+            <span className={styles.tally} aria-label="Session tally">
+              {props.tally}
+            </span>
+            <button type="button" className={styles.secondary} onClick={props.onEndSession}>
+              End session
+            </button>
+          </>
+        )}
+
+        {!onProgress && (
+          <div className={styles.toggles}>
+            <Toggle label="Pot odds" on={props.showPotOdds} onChange={props.onShowPotOdds} />
+            <Toggle label="Show profile" on={props.showProfile} onChange={props.onShowProfile} />
+            <Toggle label="Shortcuts" on={props.shortcutsOn} onChange={props.onShortcutsOn} />
+          </div>
+        )}
+
         {/* shortcuts are off on Progress, so there is nothing to show help for */}
-        {onPuzzles && (
+        {!onProgress && (
           <button
             type="button"
             className={styles.help}

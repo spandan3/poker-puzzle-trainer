@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PuzzleView } from '../api/types'
-import { fixtureNames, puzzleFixture } from '../test/fixture'
+import { fixtureNames, playSessionFixture, puzzleFixture } from '../test/fixture'
 import type { AnswerState } from './answer'
 import {
   EMPTY_ANSWER,
@@ -9,6 +9,7 @@ import {
   firstError,
   sizeLabel,
   sizeOptions,
+  validateAction,
   validateAnswer,
 } from './answer'
 
@@ -243,5 +244,44 @@ describe('validateAnswer: errors', () => {
 
   it('orders the first error: equity, then action, then size', () => {
     expect(firstError(errors(answer({}), view))).toMatch(/equity/i)
+  })
+})
+
+describe('validateAction', () => {
+  const hand = playSessionFixture('hero_to_act').hand!
+  const view = { ...hand.table, options: hand.options, custom: hand.custom }
+
+  it('needs an action, and a size for a bet or raise', () => {
+    const none = validateAction(answer({}), view)
+    expect(none.ok).toBe(false)
+    if (!none.ok) expect(none.errors).toHaveProperty('action')
+    const noSize = validateAction(answer({ action: 'bet' }), view)
+    expect(noSize.ok).toBe(false)
+    if (!noSize.ok) expect(noSize.errors).toHaveProperty('size')
+  })
+
+  it('does not ask for an equity estimate', () => {
+    const r = validateAction(answer({ action: 'check' }), view)
+    expect(r).toEqual({ ok: true, body: { option: 0 } })
+  })
+
+  it('returns the option index for a listed size and chips for a custom one', () => {
+    expect(validateAction(answer({ action: 'bet', size: 2 }), view)).toEqual({
+      ok: true,
+      body: { option: 2 },
+    })
+    expect(validateAction(answer({ action: 'bet', size: 'custom', custom: '2.5' }), view)).toEqual({
+      ok: true,
+      body: { custom_to: 5 },
+    })
+  })
+
+  it('rejects a custom size outside the bounds and a custom size when not allowed', () => {
+    const r = validateAction(answer({ action: 'bet', size: 'custom', custom: '200' }), view)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.custom).toMatch(/Between/)
+    const closed = { ...view, custom: { allowed: false, min_to: null, max_to: null } }
+    const c = validateAction(answer({ action: 'bet', size: 'custom', custom: '3' }), closed)
+    expect(c.ok).toBe(false)
   })
 })

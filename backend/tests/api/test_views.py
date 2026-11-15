@@ -1,6 +1,8 @@
 import json
+import math
 import random
 from dataclasses import replace
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -169,6 +171,64 @@ def _result(p, idx=0, **kw):
     return views.attempt_result(
         attempt=_attempt_dict(p, g, option_index=idx, **kw), puzzle=p, chosen=g.chosen
     ), g
+
+
+# attempt_result's output for one listed-option answer per street and one custom-size answer
+# per post-flop street, saved from the code before the shared decision core was split out
+REGRESSION_DATA = Path(__file__).parent / "data" / "attempt_results.json"
+REGRESSION_KEYS = ("pre_first_in", "flop", "turn", "river")
+
+
+def _regression_cases(puzzles):
+    """``(name, result)`` for each saved case: the last listed option (a stated value bet when it is a
+    bet or raise, so the intent fields are set) and, post-flop, the smallest custom size that is
+    not a listed option."""
+    out = []
+    for key in REGRESSION_KEYS:
+        p = puzzles[key]
+        idx = len(p.solution.options) - 1
+        action = p.solution.options[idx].option.action
+        intent = "value" if action.kind in (ActionKind.BET, ActionKind.RAISE) else None
+        g = grade(p, Answer(action, 0.4, 0.5, intent))
+        att = _attempt_dict(p, g, option_index=idx, intent=intent)
+        out.append((f"{key}:listed", views.attempt_result(attempt=att, puzzle=p, chosen=g.chosen)))
+        lo, hi = views.custom_bounds(p)
+        if lo is None or hi is None:
+            continue
+        listed = {o.option.action.to for o in p.solution.options}
+        to = next(t for t in range(lo, hi + 1) if t not in listed)
+        g = grade(p, Answer(custom_action(p.spot.state, to), 0.4, 0.5))
+        chosen = option_ev_from_dict(option_ev_to_dict(g.chosen))  # as the service stores it
+        att = _attempt_dict(p, g, custom_to=to)
+        out.append((f"{key}:custom", views.attempt_result(attempt=att, puzzle=p, chosen=chosen)))
+    return out
+
+
+def _assert_same(got, want, path="$"):
+    """Equal values with the same key order; floats equal to 1e-9 relative (a last-digit
+    difference between OSes in the Monte Carlo must not fail this)."""
+    if isinstance(want, float) and not isinstance(got, bool):
+        assert isinstance(got, (int, float)), path
+        assert math.isclose(got, want, rel_tol=1e-9, abs_tol=1e-12), (path, got, want)
+    elif isinstance(want, dict):
+        assert isinstance(got, dict) and list(got) == list(want), (path, list(got), list(want))
+        for k in want:
+            _assert_same(got[k], want[k], f"{path}.{k}")
+    elif isinstance(want, list):
+        assert isinstance(got, (list, tuple)) and len(got) == len(want), path
+        for i, (g, w) in enumerate(zip(got, want, strict=True)):
+            _assert_same(g, w, f"{path}[{i}]")
+    else:
+        assert type(got) is type(want) and got == want, (path, got, want)
+
+
+def test_attempt_result_matches_saved_output(puzzles):
+    """The shared decision core must not change a puzzle result in any way."""
+    saved = json.loads(REGRESSION_DATA.read_text(encoding="utf-8"))
+    cases = _regression_cases(puzzles)
+    assert [name for name, _ in cases] == list(saved)
+    for name, res in cases:
+        _assert_same(json.loads(json.dumps(res, allow_nan=False)), saved[name], name)
 
 
 def test_puzzle_view_hides_villain(puzzles):
@@ -489,3 +549,29 @@ def test_known_river_result_reveal():
     assert res["reveal"]["villain_cards"] == ["As", "Kd"]
     assert res["reveal"]["showdown"]["winner"] == "villain"
     assert np.isfinite(res["grade"]["equity"])
+
+
+def test_action_log_uses_start_stacks():
+    s = new_hand(0, (120, 340))  # the button has the short stack
+    s = apply(s, Action(0, ActionKind.RAISE, Street.PREFLOP, 6))
+    s = apply(s, Action(1, ActionKind.RAISE, Street.PREFLOP, 20))
+    s = apply(s, Action(0, ActionKind.RAISE, Street.PREFLOP, 120))  # all in for 120
+    spot = Spot(
+        seed=0,
+        attempt=0,
+        state=s,
+        hero_seat=1,
+        hero=HERO,
+        villain_hole=parse_cards("2c2d"),
+        runout=(),
+        profile="tag",
+        profile_version=load_profile("tag").version,
+        categories_version=load_thresholds().version,
+        config_version=load_config().version,
+        steps=(),
+        start_stacks=(120, 340),
+    )
+    log = views.action_log(spot)
+    assert [e["amount"] for e in log] == [5, 18, 114]
+    assert [e["all_in"] for e in log] == [False, False, True]
+    assert [e["pot_before"] for e in log] == [3, 8, 26]
