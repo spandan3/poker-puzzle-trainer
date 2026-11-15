@@ -489,3 +489,29 @@ def test_known_river_result_reveal():
     assert res["reveal"]["villain_cards"] == ["As", "Kd"]
     assert res["reveal"]["showdown"]["winner"] == "villain"
     assert np.isfinite(res["grade"]["equity"])
+
+
+def test_action_log_uses_start_stacks():
+    s = new_hand(0, (120, 340))  # the button has the short stack
+    s = apply(s, Action(0, ActionKind.RAISE, Street.PREFLOP, 6))
+    s = apply(s, Action(1, ActionKind.RAISE, Street.PREFLOP, 20))
+    s = apply(s, Action(0, ActionKind.RAISE, Street.PREFLOP, 120))  # all in for 120
+    spot = Spot(
+        seed=0,
+        attempt=0,
+        state=s,
+        hero_seat=1,
+        hero=HERO,
+        villain_hole=parse_cards("2c2d"),
+        runout=(),
+        profile="tag",
+        profile_version=load_profile("tag").version,
+        categories_version=load_thresholds().version,
+        config_version=load_config().version,
+        steps=(),
+        start_stacks=(120, 340),
+    )
+    log = views.action_log(spot)
+    assert [e["amount"] for e in log] == [5, 18, 114]
+    assert [e["all_in"] for e in log] == [False, False, True]
+    assert [e["pot_before"] for e in log] == [3, 8, 26]

@@ -89,7 +89,7 @@ def _opt_bb(x: float | None) -> float | None:
 def _replay(spot: Spot) -> tuple[list[dict[str, Any]], HandState]:
     """Rebuild the hand from ``spot.state.history``, dealing board cards from ``spot.runout``."""
     target = len(spot.state.board)
-    s = new_hand(spot.state.button)
+    s = new_hand(spot.state.button, spot.start_stacks)
 
     def deal_pending(st: HandState) -> HandState:
         while needs_board(st) and len(st.board) < target:

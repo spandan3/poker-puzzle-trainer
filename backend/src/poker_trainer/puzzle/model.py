@@ -17,7 +17,7 @@ import numpy as np
 
 from poker_trainer.engine.equity import ComboEquity
 from poker_trainer.engine.ranges import Range, remove_blocked
-from poker_trainer.game.state import Action, ActionKind, HandState, Street
+from poker_trainer.game.state import START_STACK, Action, ActionKind, HandState, Street
 
 FORMAT = 1
 
@@ -180,6 +180,8 @@ class Spot:
     categories_version: int
     config_version: int
     steps: tuple[RangeView, ...]
+    # Both seats' stacks before the blinds; ``state.history`` replays from ``new_hand`` with these.
+    start_stacks: tuple[int, int] = (START_STACK, START_STACK)
 
     @property
     def range(self) -> Range:
@@ -314,8 +316,11 @@ def _state_from_dict(d: dict[str, Any]) -> HandState:
     )
 
 
+_DEFAULT_START_STACKS = (START_STACK, START_STACK)
+
+
 def _spot_to_dict(sp: Spot) -> dict[str, Any]:
-    return {
+    d = {
         "seed": int(sp.seed),
         "attempt": int(sp.attempt),
         "state": _state_to_dict(sp.state),
@@ -331,13 +336,24 @@ def _spot_to_dict(sp: Spot) -> dict[str, Any]:
             {"label": v.label, "street": int(v.street), "range": _arr(v.range)} for v in sp.steps
         ],
     }
+    start = (int(sp.start_stacks[0]), int(sp.start_stacks[1]))
+    if start != _DEFAULT_START_STACKS:  # written only when set, so puzzle blobs stay unchanged
+        d["start_stacks"] = list(start)
+    return d
 
 
 def _spot_from_dict(d: dict[str, Any]) -> Spot:
+    raw_start = d.get("start_stacks", _DEFAULT_START_STACKS)
+    start = (int(raw_start[0]), int(raw_start[1]))
+    state = _state_from_dict(d["state"])
+    if sum(start) != state.total_chips:
+        raise ValueError(
+            f"start_stacks {list(start)} do not add up to the state's {state.total_chips} chips"
+        )
     return Spot(
         seed=d["seed"],
         attempt=d["attempt"],
-        state=_state_from_dict(d["state"]),
+        state=state,
         hero_seat=d["hero_seat"],
         hero=(d["hero"][0], d["hero"][1]),
         villain_hole=(d["villain_hole"][0], d["villain_hole"][1]),
@@ -349,6 +365,7 @@ def _spot_from_dict(d: dict[str, Any]) -> Spot:
         steps=tuple(
             RangeView(v["label"], Street(v["street"]), _ro(v["range"])) for v in d["steps"]
         ),
+        start_stacks=start,
     )
 
 

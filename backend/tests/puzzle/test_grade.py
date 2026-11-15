@@ -426,3 +426,56 @@ def test_listed_best_chosen_sets_best_is_chosen():
     )
     assert grade(p, Answer(p.solution.options[1].option.action, 0.5)).best_is_chosen
     assert not grade(p, Answer(p.solution.options[0].option.action, 0.5)).best_is_chosen
+
+
+def _same_action_grade(ag, g):
+    from poker_trainer.puzzle.model import option_ev_to_dict
+
+    assert ag.verdict == g.verdict
+    assert ag.ev_loss_chips == g.ev_loss_chips
+    assert ag.ev_loss_bb == g.ev_loss_bb
+    assert option_ev_to_dict(ag.chosen) == option_ev_to_dict(g.chosen)
+    assert option_ev_to_dict(ag.best) == option_ev_to_dict(g.best)
+    assert ag.intent_truth == g.intent_truth
+    assert ag.intent_flag == g.intent_flag
+    assert ag.bluff_check == g.bluff_check
+    assert ag.best_is_chosen == g.best_is_chosen
+
+
+def test_grade_action_matches_grade_for_listed_option():
+    from poker_trainer.puzzle.grade import grade_action
+
+    p, _ = _verdict_puzzle(1.0)
+    bet = p.solution.options[1].option.action
+    g = grade(p, Answer(bet, 0.5, intent="bluff"))
+    ag = grade_action(p, bet, intent="bluff")
+    _same_action_grade(ag, g)
+    assert ag.chosen is p.solution.options[1]
+
+
+def test_grade_action_matches_grade_for_custom_size():
+    from poker_trainer.puzzle.grade import grade_action
+
+    p, me = _puzzle()
+    custom = Action(me, ActionKind.BET, Street.RIVER, 7)
+    respond = facing_respond(arr(jt=1), arr(ak=1))
+    g = grade(p, Answer(custom, 0.5, intent="value"), respond=respond)
+    ag = grade_action(p, custom, intent="value", respond=respond)
+    _same_action_grade(ag, g)
+    assert ag.chosen.put == 7
+    assert ag.bluff_check == pytest.approx((7 / 17, 0.5))
+
+
+def test_custom_size_refused_when_config_changed():
+    from poker_trainer.puzzle.grade import grade_action
+
+    p, me = _puzzle()
+    p = Puzzle(replace(p.spot, config_version=load_config().version + 1), p.solution)
+    custom = Action(me, ActionKind.BET, Street.RIVER, 7)
+    with pytest.raises(ValueError, match="config changed since this puzzle was generated"):
+        grade_action(p, custom)
+    with pytest.raises(ValueError, match="config changed since this puzzle was generated"):
+        grade(p, Answer(custom, 0.5))
+    # An injected respond owns the version checks.
+    respond = facing_respond(arr(jt=1), arr(ak=1))
+    assert grade_action(p, custom, respond=respond).chosen.put == 7

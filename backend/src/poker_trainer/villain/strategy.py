@@ -46,6 +46,9 @@ OPEN_MULT = 2.5
 THREEBET_MULT = 3.0
 RAISE_MULT = 3.0
 HERO_PROFILE = "tag"
+# Version of the policy's behaviour (sizing, curves, sampling), stored with each played hand.
+# Bump it by hand whenever a change here makes the same profile act differently.
+STRATEGY_VERSION = 1
 
 N_COMBOS = 1326
 _AGGRESSIVE = (ActionKind.BET, ActionKind.RAISE)

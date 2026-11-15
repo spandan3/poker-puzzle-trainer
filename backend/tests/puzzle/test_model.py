@@ -221,3 +221,61 @@ def test_numpy_scalars_serialise():
     assert q.solution.options[1].put == 4 and type(q.solution.options[1].put) is int
     assert q.solution.equity_exact is False
     assert q.solution.options[1].ev_chips == 1.5
+
+
+def test_default_start_stacks_are_not_serialised():
+    p = _puzzle()
+    assert p.spot.start_stacks == (200, 200)
+    d = puzzle_to_dict(p)
+    assert "start_stacks" not in d["spot"]
+    assert list(d["spot"]) == [
+        "seed",
+        "attempt",
+        "state",
+        "hero_seat",
+        "hero",
+        "villain_hole",
+        "runout",
+        "profile",
+        "profile_version",
+        "categories_version",
+        "config_version",
+        "steps",
+    ]
+
+
+def _uneven_puzzle():
+    p = _puzzle()
+    s = new_hand(0, (120, 340))
+    s = apply(s, Action(0, ActionKind.RAISE, Street.PREFLOP, 5))
+    s = apply(s, Action(1, ActionKind.CALL, Street.PREFLOP, 5))
+    s = deal(s, (4, 9, 20))
+    spot = dataclasses.replace(p.spot, state=s, start_stacks=(120, 340))
+    return Puzzle(spot, p.solution)
+
+
+def test_start_stacks_round_trip():
+    p = _uneven_puzzle()
+    d = puzzle_to_dict(p)
+    assert d["spot"]["start_stacks"] == [120, 340]
+    q = puzzle_from_dict(json.loads(json.dumps(d)))
+    assert q.spot.start_stacks == (120, 340)
+    assert type(q.spot.start_stacks) is tuple
+    _same(p, q)
+
+
+def test_missing_start_stacks_decode_to_default():
+    d = json.loads(json.dumps(puzzle_to_dict(_puzzle())))
+    assert "start_stacks" not in d["spot"]
+    assert puzzle_from_dict(d).spot.start_stacks == (200, 200)
+
+
+def test_start_stacks_must_match_total_chips():
+    d = json.loads(json.dumps(puzzle_to_dict(_uneven_puzzle())))
+    d["spot"]["start_stacks"] = [200, 200]
+    with pytest.raises(ValueError, match="start_stacks"):
+        puzzle_from_dict(d)
+    d = json.loads(json.dumps(puzzle_to_dict(_puzzle())))
+    d["spot"]["start_stacks"] = [120, 340]
+    with pytest.raises(ValueError, match="start_stacks"):
+        puzzle_from_dict(d)
