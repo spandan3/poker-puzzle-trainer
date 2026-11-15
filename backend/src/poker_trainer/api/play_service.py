@@ -292,6 +292,16 @@ def next_hand(
     if last is not None and last.status != _COMPLETE:
         raise ConcurrentSubmit("the current hand is still being played")
     hero, bot, bought = next_stacks(sess.hero_stack, sess.bot_stack, top_up=top_up)
+    # the session write is conditional: another tab may have ended it since it was loaded
+    res = db.execute(
+        update(PlaySessionRow)
+        .where(PlaySessionRow.id == sess.id, PlaySessionRow.ended_at.is_(None))
+        .values(hero_stack=hero, bot_stack=bot)
+        .execution_options(synchronize_session=False)
+    )
+    if res.rowcount != 1:  # type: ignore[attr-defined]
+        db.rollback()
+        raise ConcurrentSubmit("the session has ended")
     sess.hero_stack, sess.bot_stack = hero, bot
     sess.hero_bought_chips += bought
     hand_no = 1 if last is None else last.hand_no + 1
@@ -549,7 +559,11 @@ def _total_if_done(db: Session, user_id: int, hand_id: int, count: int) -> None:
     total = sum(float(r.ev_loss_chips or 0.0) for r in rows if r.status == play_views.GRADED)
     db.execute(
         update(PlayHandRow)
-        .where(PlayHandRow.id == hand_id, PlayHandRow.ev_loss_chips.is_(None))
+        .where(
+            PlayHandRow.id == hand_id,
+            PlayHandRow.user_id == user_id,
+            PlayHandRow.ev_loss_chips.is_(None),
+        )
         .values(ev_loss_chips=total)
         .execution_options(synchronize_session=False)
     )
@@ -560,7 +574,12 @@ def hand_analysis(db: Session, user_id: int, hand_id: int) -> dict[str, Any]:
     """What is stored of a finished hand's analysis; 409 while the hand is running."""
     row, record, profile = _finished_hand(db, user_id, hand_id)
     by_n = {r.n: r for r in _stored_decisions(db, user_id, hand_id)}
-    rows = [by_n.get(n) for n in range(len(hero_decisions(record)))]
+    count = len(hero_decisions(record))
+    rows = [by_n.get(n) for n in range(count)]
+    if row.ev_loss_chips is None and all(r is not None for r in rows):
+        # every decision is stored but the total is not: a crash between the two; repair it
+        _total_if_done(db, user_id, hand_id, count)
+        db.refresh(row)
     return play_views.hand_analysis(
         row.id, record, profile, rows, model_changed=_model_changed(row)
     )

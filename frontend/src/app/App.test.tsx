@@ -242,6 +242,19 @@ describe('App', () => {
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Range read' })).toBeNull())
   })
 
+  it('Escape on Play does not cancel a pending Puzzles skip', async () => {
+    fakeServer({ playSession: playSessionFixture('hero_to_act') })
+    const { user } = setup()
+    await screen.findByRole('textbox', { name: 'Equity' })
+    await user.keyboard('n')
+    expect(screen.getByText(/Skip this puzzle\?/)).toBeVisible()
+    await user.click(screen.getByRole('link', { name: 'Play' }))
+    await screen.findByRole('form', { name: 'Your answer' })
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+    expect(await screen.findByText(/Skip this puzzle\?/)).toBeVisible()
+  })
+
   it('with shortcuts off, N and ? do nothing', async () => {
     fakeServer()
     const { user } = setup()

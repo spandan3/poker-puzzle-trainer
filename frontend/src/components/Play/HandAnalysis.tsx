@@ -123,7 +123,9 @@ function Finished({
         <p className={styles.muted}>
           {summary?.worst_index != null && reviews[summary.worst_index]
             ? `Worst decision: ${stepTitle(reviews[summary.worst_index]!)}`
-            : 'No decision lost EV.'}
+            : reviews.some(isGraded)
+              ? 'No decision lost EV.'
+              : 'No decision could be graded.'}
         </p>
         <p className={styles.muted}>{analysis.judged_on_range_note}</p>
       </section>

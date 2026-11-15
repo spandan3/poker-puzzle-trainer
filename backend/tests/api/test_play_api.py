@@ -1,9 +1,9 @@
 """Play vs Bots over HTTP: sessions, hands, the stale-click rules and the stack rules."""
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 
-from poker_trainer.api import service
+from poker_trainer.api import play_service, service
 from poker_trainer.db import make_engine, make_sessionmaker
 from poker_trainer.db.models import PlayHandRow, PlaySessionRow
 from poker_trainer.play.hand import outcome
@@ -434,3 +434,26 @@ def test_compare_and_set_refuses_a_racing_write(play_client, play_db, monkeypatc
             len(row.actions) == v["hand"]["action_count"]
         )  # the racing write changed nothing else
         assert db.get(PlaySessionRow, v["id"]).hands_played == 0
+
+
+def test_next_hand_refuses_a_session_ended_between_its_read_and_write(
+    play_client, play_db, monkeypatch
+):
+    """Another tab ends the session after this request loaded it: 409 and no new hand."""
+    v = _finish(play_client, _start(play_client))
+    real = play_service._latest_hand
+
+    def ending(db, user_id, session_id):
+        found = real(db, user_id, session_id)
+        with play_db() as other:
+            other.execute(update(PlaySessionRow).values(ended_at=service.utcnow()))
+            other.commit()
+        return found
+
+    monkeypatch.setattr(play_service, "_latest_hand", ending)
+    assert _deal(play_client, v).status_code == 409
+    monkeypatch.undo()
+    with play_db() as db:
+        assert db.scalar(select(func.count()).select_from(PlayHandRow)) == 1
+        sess = db.scalars(select(PlaySessionRow)).one()
+        assert sess.ended_at is not None

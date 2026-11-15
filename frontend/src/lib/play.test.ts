@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PlayOutcome } from '../api/types'
-import { playSessionFixture } from '../test/fixture'
-import { resultLine, shownTally, tableAt, tallyText, toActAt } from './play'
+import { playHandAnalysisFixture, playSessionFixture } from '../test/fixture'
+import { resultLine, revealShowdownLine, shownTally, tableAt, tallyText, toActAt } from './play'
 
 function outcome(over: Partial<PlayOutcome>): PlayOutcome {
   return {
@@ -112,16 +112,30 @@ describe('tableAt and toActAt', () => {
     expect(flop.history).toHaveLength(2)
   })
 
-  it('works out what Hero owes in a frame', () => {
+  it('a partial frame never works out what Hero owes: the API does, at the full count', () => {
     const t = tableAt(hand, 0)
-    // Hero (button) has posted 1 chip, the big blind 2
-    expect(t.to_call).toBe(1)
-    expect(t.pot_odds).toBeCloseTo(1 / 4)
+    expect(t.to_call).toBe(0)
+    expect(t.pot_odds).toBeNull()
+    const last = tableAt(hand, hand.table.history.length)
+    expect(last.to_call).toBe(hand.table.to_call)
+    expect(last.pot_odds).toBe(hand.table.pot_odds)
   })
 
   it('says who acts at a frame', () => {
     expect(toActAt(hand, 1)).toBe('villain')
     expect(toActAt(hand, 0)).toBe('hero')
     expect(toActAt(hand, hand.table.history.length)).toBeNull()
+  })
+})
+
+describe('revealShowdownLine', () => {
+  const reveal = playHandAnalysisFixture().reveal
+
+  it('says there was no showdown, without saying why', () => {
+    expect(revealShowdownLine({ ...reveal, showdown: null })).toBe('No showdown.')
+  })
+
+  it('says who won', () => {
+    expect(revealShowdownLine(reveal)).toBe('Villain wins: High card vs Pair')
   })
 })

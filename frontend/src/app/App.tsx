@@ -111,7 +111,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
         setHelpOpen((open) => !open)
         return true
       case 'escape': {
-        if (skipPending) {
+        if (skipPending && onPuzzles) {
           flow.cancelSkip()
           return true
         }

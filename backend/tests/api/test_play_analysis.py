@@ -373,3 +373,31 @@ def test_template_explanations_pass_the_guardrail(play_client, play_db):
                 checked += 1
         v = _deal(play_client, v)
     assert checked >= 10
+
+
+def test_a_crash_before_the_hand_total_is_repaired_by_the_next_get(play_client, play_db):
+    """Every decision stored but the hand's total never written: GET fills it in."""
+    v = _showdown_hand(play_client)
+    hand = v["hand"]
+    reviews = _analyse_all(play_client, hand)
+    with play_db() as db:
+        db.execute(
+            update(PlayHandRow).where(PlayHandRow.id == hand["id"]).values(ev_loss_chips=None)
+        )
+        db.commit()
+    sid = hand["session_id"]
+
+    def listed():
+        (row,) = [
+            h
+            for h in play_client.get(f"/api/play/sessions/{sid}/hands").json()
+            if h["id"] == hand["id"]
+        ]
+        return row
+
+    assert listed()["analysed"] is False
+    a = _analysis(play_client, hand["id"])
+    row = listed()
+    assert row["analysed"] is True
+    assert row["ev_loss_bb"] == pytest.approx(sum(d["grade"]["ev_loss_bb"] for d in reviews))
+    assert a["summary"]["ev_loss_bb"] == pytest.approx(row["ev_loss_bb"])

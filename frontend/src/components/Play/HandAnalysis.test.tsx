@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Mock } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -163,6 +163,34 @@ describe('HandAnalysis', () => {
     expect(
       screen.getAllByText('Not graded: the range tracker lost the thread').length,
     ).toBeGreaterThan(0)
+  })
+
+  it('says so when nothing was graded, and when nothing lost EV', async () => {
+    const notGraded = (d: DecisionReview): DecisionReview => ({
+      ...d,
+      status: 'not_graded',
+      reason: 'no range',
+      grade: null,
+      options: [],
+      simplifications: [],
+      categories: null,
+      range_steps: [],
+      chosen_label: null,
+      explanation: null,
+    })
+    setup({
+      ...FULL,
+      summary: { ev_loss_bb: 0, worst_index: null },
+      decisions: FULL.decisions.map((d) => notGraded(d as DecisionReview)),
+    })
+    await screen.findByRole('region', { name: 'Summary' })
+    expect(screen.getByText('No decision could be graded.')).toBeInTheDocument()
+    expect(screen.queryByText('No decision lost EV.')).toBeNull()
+    cleanup()
+    setup({ ...FULL, summary: { ev_loss_bb: 0, worst_index: null } })
+    await screen.findByRole('region', { name: 'Summary' })
+    expect(screen.getByText('No decision lost EV.')).toBeInTheDocument()
+    expect(screen.queryByText('No decision could be graded.')).toBeNull()
   })
 
   it('says when the Villain model has changed', async () => {

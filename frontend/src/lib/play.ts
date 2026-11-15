@@ -64,16 +64,15 @@ export function toActAt(hand: PlayHandView, shownCount: number): 'hero' | 'villa
 
 /**
  * The table after the first `shownCount` history entries. Stacks, bets, pot and the board length
- * come from `frames[shownCount]`; the history is cut to the entries shown. At or past the full
- * count it is the response's own table (for a finished hand: the settled one).
+ * come from `frames[shownCount]` (to call and pot odds are left out: they are the API's numbers);
+ * the history is cut to the entries shown. At or past the full count it is the response's own
+ * table (for a finished hand: the settled one).
  */
 export function tableAt(hand: PlayHandView, shownCount: number): TableView {
   const full = hand.table
   if (shownCount >= full.history.length) return full
   const frame = hand.frames[shownCount]
   if (!frame) return full
-  const toCall = Math.max(...frame.street_bets) - (frame.street_bets[full.hero_seat] ?? 0)
-  const heroActs = frame.to_act === 'hero' && toCall > 0
   return {
     ...full,
     street: STREET_BY_BOARD_LEN[frame.board_len] ?? full.street,
@@ -82,15 +81,17 @@ export function tableAt(hand: PlayHandView, shownCount: number): TableView {
     stacks: frame.stacks,
     street_bets: frame.street_bets,
     pot: frame.pot,
-    to_call: heroActs ? toCall : 0,
-    pot_odds: heroActs ? toCall / (frame.pot + toCall) : null,
+    // the amount to call and the pot odds are the API's numbers (capped by Hero's stack): a
+    // frame before the end is never Hero's turn to answer, so it shows none
+    to_call: 0,
+    pot_odds: null,
   }
 }
 
-/** The showdown of a played hand as the Hand tab says it; a hand that ended in a fold has none. */
+/** The showdown of a played hand as the Hand tab says it; a hand without one says so. */
 export function revealShowdownLine(reveal: PlayReveal): string {
   const { showdown } = reveal
-  if (showdown === null) return 'No showdown: the hand ended with a fold.'
+  if (showdown === null) return 'No showdown.'
   const hands = `${showdown.hero_hand} vs ${showdown.villain_hand}`
   if (showdown.winner === 'split') return `Split pot: ${hands}`
   return `${showdown.winner === 'hero' ? 'Hero' : 'Villain'} wins: ${hands}`
