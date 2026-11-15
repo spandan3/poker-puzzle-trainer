@@ -2,12 +2,14 @@ import { StrictMode } from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AttemptResult, PuzzleView } from '../api/types'
+import type { AttemptResult, PlaySessionView, PuzzleView } from '../api/types'
 import { cardName } from '../lib/cards'
 import { SHORTCUTS } from '../lib/shortcuts'
 import {
   attemptFixture,
   historyFixture,
+  playSessionFixture,
+  playSessionsFixture,
   puzzleFixture,
   settingsFixture,
   statsFixture,
@@ -30,6 +32,8 @@ function fakeServer(
     attempt?: AttemptResult
     /** the answer to `GET /api/stats?tz=…` (default: the stats fixture) */
     stats?: (tz: string) => { status: number; body: unknown }
+    /** the open play session (default: none) */
+    playSession?: PlaySessionView | null
   } = {},
 ) {
   const calls: Call[] = []
@@ -58,6 +62,17 @@ function fakeServer(
       return json(answer.status, answer.body)
     }
     if (url.startsWith('/api/history')) return json(200, historyFixture())
+    if (url === '/api/play/sessions/current') {
+      return opts.playSession
+        ? json(200, opts.playSession)
+        : json(404, { detail: 'no open session' })
+    }
+    if (url === '/api/play/sessions' && method === 'GET') return json(200, playSessionsFixture())
+    if (/^\/api\/play\/sessions\/\d+\/end$/.test(url)) {
+      return json(200, { ...opts.playSession, open: false })
+    }
+    if (/^\/api\/play\/sessions\/\d+\/hands$/.test(url))
+      return json(201, playSessionFixture('hero_to_act'))
     const stored = /^\/api\/puzzles\/(\d+)$/.exec(url)
     if (stored && method === 'GET') {
       // a stored puzzle that has been answered before: a replay
@@ -383,6 +398,101 @@ describe('App', () => {
       await user.click(screen.getByRole('link', { name: 'Progress' }))
       await screen.findByTestId('progress-totals')
       expect(screen.queryByRole('button', { name: 'Keyboard shortcuts help' })).toBeNull()
+    })
+
+    describe('Play', () => {
+      const playPosts = (calls: Call[]) =>
+        calls.filter((c) => c.method === 'POST' && c.url.startsWith('/api/play'))
+
+      it('/play shows the Play page: the start panel, its title and no puzzle call', async () => {
+        window.history.replaceState(null, '', '/play')
+        const { calls } = fakeServer()
+        setup()
+        expect(await screen.findByRole('button', { name: 'Start session' })).toBeVisible()
+        expect(document.title).toBe('Play · Poker Puzzle Trainer')
+        expect(screen.getByRole('link', { name: 'Play' })).toHaveAttribute('aria-current', 'page')
+        // landing on Play generates no puzzle, as landing on Progress does not
+        expect(calls.filter((c) => c.url.startsWith('/api/puzzles'))).toEqual([])
+        // no tally or End session without a session
+        expect(screen.queryByRole('button', { name: 'End session' })).toBeNull()
+      })
+
+      it('a half-entered puzzle answer survives a visit to Play', async () => {
+        const { calls } = fakeServer()
+        const { user } = setup()
+        const equity = await screen.findByRole('textbox', { name: 'Equity' })
+        await user.type(equity, '37')
+        await user.click(screen.getByRole('link', { name: 'Play' }))
+        expect(await screen.findByRole('button', { name: 'Start session' })).toBeVisible()
+        expect(window.location.pathname).toBe('/play')
+        expect(screen.queryByRole('textbox', { name: 'Equity' })).toBeNull()
+        await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+        expect(screen.getByRole('textbox', { name: 'Equity' })).toHaveValue('37')
+        expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/puzzles')).toHaveLength(1)
+      })
+
+      it('the top bar shows the tally and End session, and End session ends it', async () => {
+        window.history.replaceState(null, '', '/play')
+        const { calls } = fakeServer({ playSession: playSessionFixture('hand_over_fold') })
+        const { user } = setup()
+        expect(await screen.findByText('−52.5 bb · 13 hands')).toBeVisible()
+        expect(screen.queryByRole('combobox', { name: 'Street' })).toBeNull()
+        await user.click(screen.getByRole('button', { name: 'End session' }))
+        expect(await screen.findByRole('button', { name: 'Start session' })).toBeVisible()
+        expect(playPosts(calls).map((c) => c.url)).toEqual(['/api/play/sessions/1/end'])
+        expect(screen.queryByText('−52.5 bb · 13 hands')).toBeNull()
+      })
+
+      it('puzzle shortcuts do not fire on Play; the play panel has its own', async () => {
+        window.history.replaceState(null, '', '/play')
+        const { calls } = fakeServer({ playSession: playSessionFixture('hero_to_act') })
+        const { user } = setup()
+        await screen.findByRole('form', { name: 'Your answer' })
+        await user.keyboard('{Escape}')
+        ;(document.activeElement as HTMLElement | null)?.blur()
+        await user.keyboard('x')
+        expect(screen.getByRole('button', { name: /^Check/ })).toHaveAttribute(
+          'aria-pressed',
+          'true',
+        )
+        // N is the next hand, and there is no next hand while one is running; no skip banner
+        await user.keyboard('n')
+        expect(screen.queryByText(/Skip this puzzle\?/)).toBeNull()
+        expect(playPosts(calls)).toEqual([])
+        // the Puzzles panel never saw the keys
+        await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+        expect(await screen.findByRole('textbox', { name: 'Equity' })).toBeVisible()
+        expect(screen.getByRole('button', { name: /^Check/ })).toHaveAttribute(
+          'aria-pressed',
+          'false',
+        )
+        expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/puzzles')).toHaveLength(1)
+      })
+
+      it('N deals the next hand when a hand is over', async () => {
+        window.history.replaceState(null, '', '/play')
+        const { calls } = fakeServer({ playSession: playSessionFixture('hand_over_fold') })
+        const { user } = setup()
+        await screen.findByRole('button', { name: /^Next hand/ })
+        await user.keyboard('n')
+        await waitFor(() => expect(playPosts(calls)).toHaveLength(1))
+        expect(playPosts(calls)[0]).toMatchObject({
+          url: '/api/play/sessions/1/hands',
+          body: { top_up: false, expected_hands: 13 },
+        })
+        expect(await screen.findByText('Hero to act')).toBeVisible()
+      })
+
+      it('help on Play lists Next hand and no guess shortcuts', async () => {
+        window.history.replaceState(null, '', '/play')
+        fakeServer()
+        const { user } = setup()
+        await screen.findByRole('button', { name: 'Start session' })
+        await user.click(screen.getByRole('button', { name: 'Keyboard shortcuts help' }))
+        const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
+        expect(within(dialog).getByText('Next hand')).toBeVisible()
+        expect(within(dialog).queryByText('Equity estimate')).toBeNull()
+      })
     })
 
     it('a page switch scrolls to the top, sets the title, and focuses the Progress heading', async () => {

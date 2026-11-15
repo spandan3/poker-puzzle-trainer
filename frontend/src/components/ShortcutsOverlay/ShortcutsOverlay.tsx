@@ -1,11 +1,14 @@
 import { useEffect, useId, useRef } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
+import type { Page } from '../../lib/page'
 import type { ShortcutGroup } from '../../lib/shortcuts'
-import { SHORTCUTS, keyToCommand } from '../../lib/shortcuts'
+import { SHORTCUTS, describeShortcut, isOnPage, keyToCommand } from '../../lib/shortcuts'
 import styles from './ShortcutsOverlay.module.css'
 
 export interface ShortcutsOverlayProps {
   open: boolean
+  /** The page the keys act on (default Puzzles): Play lists no guess shortcuts. */
+  page?: Page
   onClose: () => void
 }
 
@@ -16,7 +19,7 @@ const GROUPS: ShortcutGroup[] = ['Answer', 'Action', 'Size', 'Intent', 'Puzzle']
  * `<dialog>.showModal`: Escape, the close button or a click outside closes it, focus moves to
  * the close button on open and returns where it was on close.
  */
-export function ShortcutsOverlay({ open, onClose }: ShortcutsOverlayProps) {
+export function ShortcutsOverlay({ open, page = 'puzzles', onClose }: ShortcutsOverlayProps) {
   const titleId = useId()
   const closeRef = useRef<HTMLButtonElement>(null)
   const onCloseRef = useRef(onClose)
@@ -85,30 +88,34 @@ export function ShortcutsOverlay({ open, onClose }: ShortcutsOverlayProps) {
           </button>
         </header>
         <div className={styles.groups}>
-          {GROUPS.map((group) => (
-            <section key={group} className={styles.group} aria-label={group}>
-              <h3 className={styles.groupTitle}>{group}</h3>
-              <dl className={styles.list}>
-                {SHORTCUTS.filter((s) => s.group === group).map((s) => (
-                  <div key={s.id} className={styles.row} data-shortcut-row={s.id}>
-                    <dt className={styles.keys}>
-                      {s.keysLabel ? (
-                        <kbd className={styles.kbd}>{s.keysLabel}</kbd>
-                      ) : (
-                        s.keys.map((k, i) => (
-                          <span key={k} className={styles.alt}>
-                            {i > 0 && <span className={styles.or}>or</span>}
-                            <kbd className={styles.kbd}>{k}</kbd>
-                          </span>
-                        ))
-                      )}
-                    </dt>
-                    <dd className={styles.description}>{s.description}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ))}
+          {GROUPS.map((group) => {
+            const rows = SHORTCUTS.filter((s) => s.group === group && isOnPage(s.id, page))
+            if (rows.length === 0) return null
+            return (
+              <section key={group} className={styles.group} aria-label={group}>
+                <h3 className={styles.groupTitle}>{group}</h3>
+                <dl className={styles.list}>
+                  {rows.map((s) => (
+                    <div key={s.id} className={styles.row} data-shortcut-row={s.id}>
+                      <dt className={styles.keys}>
+                        {s.keysLabel ? (
+                          <kbd className={styles.kbd}>{s.keysLabel}</kbd>
+                        ) : (
+                          s.keys.map((k, i) => (
+                            <span key={k} className={styles.alt}>
+                              {i > 0 && <span className={styles.or}>or</span>}
+                              <kbd className={styles.kbd}>{k}</kbd>
+                            </span>
+                          ))
+                        )}
+                      </dt>
+                      <dd className={styles.description}>{describeShortcut(s.id, page)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )
+          })}
         </div>
         <p className={styles.footnote}>
           Shortcuts pause while you type in a box; press Esc to leave it. Turn them off with the

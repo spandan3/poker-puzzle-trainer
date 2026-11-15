@@ -7,6 +7,16 @@ import { AnswerPanel } from '../AnswerPanel/AnswerPanel'
 import { ShortcutsOverlay } from './ShortcutsOverlay'
 
 describe('ShortcutsOverlay', () => {
+  it('on Play lists no guess shortcuts, and N is Next hand', () => {
+    render(<ShortcutsOverlay open page="play" onClose={() => {}} />)
+    const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
+    expect(dialog.querySelector('[data-shortcut-row="focusEquity"]')).toBeNull()
+    expect(dialog.querySelector('[data-shortcut-row="value"]')).toBeNull()
+    const next = dialog.querySelector('[data-shortcut-row="next"]') as HTMLElement
+    expect(within(next).getByText('Next hand')).toBeInTheDocument()
+    expect(dialog.querySelector('[data-shortcut-row="fold"]')).not.toBeNull()
+  })
+
   it('renders nothing when closed', () => {
     render(<ShortcutsOverlay open={false} onClose={() => {}} />)
     expect(screen.queryByRole('dialog')).toBeNull()
