@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { answerEntry } from '../../lib/result'
-import { attemptFixture, puzzleFixture } from '../../test/fixture'
+import { attemptFixture, playSessionFixture, puzzleFixture } from '../../test/fixture'
 import { HistoryPanel } from './HistoryPanel'
 
 describe('HistoryPanel', () => {
@@ -91,5 +91,22 @@ describe('HistoryPanel', () => {
     expect(screen.getByText('bets 1.5 bb (30% pot)')).toBeVisible()
     expect(screen.getByText('your answer')).toBeVisible()
     expect(screen.queryByText('No action yet')).toBeNull()
+  })
+})
+
+describe('HistoryPanel with a play table', () => {
+  const table = playSessionFixture('hero_to_act').hand!.table
+
+  it('renders a play table and says Hero to act by default', () => {
+    render(<HistoryPanel view={table} />)
+    expect(screen.getByText('Hero to act')).toBeInTheDocument()
+  })
+
+  it('says Villain to act, or nothing when the hand is over', () => {
+    const { rerender } = render(<HistoryPanel view={table} toAct="villain" />)
+    expect(screen.getByText('Villain to act')).toBeInTheDocument()
+    expect(screen.queryByText('Hero to act')).toBeNull()
+    rerender(<HistoryPanel view={table} toAct={null} />)
+    expect(screen.queryByText(/to act/)).toBeNull()
   })
 })

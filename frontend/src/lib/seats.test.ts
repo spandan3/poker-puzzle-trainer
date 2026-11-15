@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { puzzleFixture } from '../test/fixture'
+import { playSessionFixture, puzzleFixture } from '../test/fixture'
 import { seatsFromView } from './seats'
 
 describe('seatsFromView', () => {
@@ -65,5 +65,16 @@ describe('seatsFromView', () => {
     const [hero, villain] = seatsFromView(puzzleFixture('facing_all_in'), { showProfile: true })
     expect(hero).toMatchObject({ stackChips: 84, betChips: 0 })
     expect(villain).toMatchObject({ stackChips: 0, betChips: 84 })
+  })
+})
+
+describe('seatsFromView with a play table', () => {
+  it('reads a played hand’s table', () => {
+    const table = playSessionFixture('hero_to_act').hand!.table
+    const seats = seatsFromView(table, { showProfile: true })
+    expect(seats.map((s) => s.name)).toEqual(['Hero', 'Villain'])
+    expect(seats[0]!.cards).toEqual(table.hero_cards)
+    expect(seats[1]!.faceDown).toBe(true)
+    expect(seats[1]!.profile?.label).toBe(table.villain_profile.label)
   })
 })

@@ -156,7 +156,13 @@ export function App({ api, progressApi = client }: AppProps = {}) {
     else flow.newPuzzle()
   }
 
-  const explained = useExplanation(result, settings)
+  const attemptId = result?.attempt.id ?? null
+  const explained = useExplanation(
+    attemptId,
+    result?.explanation ?? null,
+    (signal) => client.getExplanation(attemptId!, signal),
+    settings,
+  )
   const showPotOdds = settings?.show_pot_odds ?? true
   const showProfile = settings?.show_profile ?? true
 

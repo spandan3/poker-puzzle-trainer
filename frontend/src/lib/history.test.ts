@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ActionLogEntry, PuzzleView, StreetName } from '../api/types'
-import { fixtureNames, puzzleFixture } from '../test/fixture'
+import { fixtureNames, playSessionFixture, puzzleFixture } from '../test/fixture'
 import { entryTexts, groupHistory } from './history'
 
 function entry(over: Partial<ActionLogEntry>): ActionLogEntry {
@@ -178,5 +178,23 @@ describe('groupHistory', () => {
     expect(last.toAct).toBeUndefined()
     expect(last.answer).toEqual({ actor: 'hero', position: view.hero_position, text: 'checks' })
     expect(sections.flatMap((s) => s.entries)).toHaveLength(view.history.length)
+  })
+})
+
+describe('groupHistory toAct', () => {
+  const table = playSessionFixture('hero_to_act').hand!.table
+
+  it("ends with Villain to act for 'villain'", () => {
+    const last = groupHistory(table, undefined, 'villain').at(-1)!
+    expect(last.toAct).toBe('villain')
+  })
+
+  it('ends with no to-act line for null', () => {
+    const sections = groupHistory(table, undefined, null)
+    expect(sections.every((s) => s.toAct === undefined)).toBe(true)
+  })
+
+  it("defaults to 'hero' and accepts a play table", () => {
+    expect(groupHistory(table).at(-1)!.toAct).toBe('hero')
   })
 })
