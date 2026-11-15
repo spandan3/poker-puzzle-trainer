@@ -23,6 +23,7 @@ from poker_trainer.engine.evaluator import evaluate, hand_class
 from poker_trainer.engine.ranges import Range
 from poker_trainer.explain.template import explain
 from poker_trainer.game.state import (
+    Action,
     ActionKind,
     HandState,
     Street,
@@ -86,26 +87,32 @@ def _opt_bb(x: float | None) -> float | None:
 # ---------------------------------------------------------------------------
 
 
-def _replay(spot: Spot) -> tuple[list[dict[str, Any]], HandState]:
-    """Rebuild the hand from ``spot.state.history``, dealing board cards from ``spot.runout``."""
-    target = len(spot.state.board)
-    s = new_hand(spot.state.button, spot.start_stacks)
+def replay_log(
+    button: int,
+    start_stacks: tuple[int, int],
+    history: Sequence[Action],
+    runout: Sequence[int],
+    hero_seat: int,
+    board_len: int,
+) -> tuple[list[dict[str, Any]], HandState]:
+    """Rebuild a hand from its actions, dealing board cards from ``runout`` up to ``board_len``."""
+    s = new_hand(button, start_stacks)
 
     def deal_pending(st: HandState) -> HandState:
-        while needs_board(st) and len(st.board) < target:
+        while needs_board(st) and len(st.board) < board_len:
             n = 3 if st.street == Street.PREFLOP else 1
             k = len(st.board)
-            st = deal(st, tuple(spot.runout[k : k + n]))
+            st = deal(st, tuple(runout[k : k + n]))
         return st
 
     log: list[dict[str, Any]] = []
-    for a in spot.state.history:
+    for a in history:
         s = deal_pending(s)
         after = apply(s, a)
         log.append(
             {
                 "street": _street_name(a.street),
-                "actor": "hero" if a.seat == spot.hero_seat else "villain",
+                "actor": "hero" if a.seat == hero_seat else "villain",
                 "kind": a.kind.value,
                 "to": int(a.to),
                 "text": describe(a, s),
@@ -116,6 +123,18 @@ def _replay(spot: Spot) -> tuple[list[dict[str, Any]], HandState]:
         )
         s = after
     return log, deal_pending(s)
+
+
+def _replay(spot: Spot) -> tuple[list[dict[str, Any]], HandState]:
+    """Rebuild the hand from ``spot.state.history``, dealing board cards from ``spot.runout``."""
+    return replay_log(
+        spot.state.button,
+        spot.start_stacks,
+        spot.state.history,
+        spot.runout,
+        spot.hero_seat,
+        len(spot.state.board),
+    )
 
 
 def action_log(spot: Spot) -> list[dict[str, Any]]:
@@ -163,18 +182,25 @@ def _dead(p: Puzzle) -> tuple[int, ...]:
 # ---------------------------------------------------------------------------
 
 
-def showdown(spot: Spot) -> dict[str, str]:
-    """Hand classes and winner from the frozen hole cards and the full 5-card run-out."""
-    if len(spot.runout) != 5:
+def showdown_of(
+    hero: Sequence[int], villain: Sequence[int], runout: Sequence[int]
+) -> dict[str, str]:
+    """Hand classes and winner for two hole-card pairs and a full 5-card board."""
+    if len(runout) != 5:
         raise ValueError("showdown needs the full 5-card run-out")
-    hero = evaluate((*spot.hero, *spot.runout))
-    villain = evaluate((*spot.villain_hole, *spot.runout))
-    winner = "hero" if hero < villain else "villain" if villain < hero else "split"
+    h = evaluate((*hero, *runout))
+    v = evaluate((*villain, *runout))
+    winner = "hero" if h < v else "villain" if v < h else "split"
     return {
-        "hero_hand": HAND_CLASS_NAMES[hand_class(hero)],
-        "villain_hand": HAND_CLASS_NAMES[hand_class(villain)],
+        "hero_hand": HAND_CLASS_NAMES[hand_class(h)],
+        "villain_hand": HAND_CLASS_NAMES[hand_class(v)],
         "winner": winner,
     }
+
+
+def showdown(spot: Spot) -> dict[str, str]:
+    """Hand classes and winner from the frozen hole cards and the full 5-card run-out."""
+    return showdown_of(spot.hero, spot.villain_hole, spot.runout)
 
 
 # ---------------------------------------------------------------------------
