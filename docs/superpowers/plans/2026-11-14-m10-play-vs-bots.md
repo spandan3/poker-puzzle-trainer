@@ -337,3 +337,71 @@ Final whole-branch review (Opus), one fix wave, scoped re-review. Run every chec
 - Per-session EV-lost statistics beyond the hand list; play stats on the Progress page.
 - Hero choosing the bot's profile; limps and small 4-bets (a Villain-model task).
 - The M9 open items not listed under "Villain and grader prep" (explainer fact pair for "X beats Y", guardrail rejection reasons, the Villain tuning list, code minors).
+
+## Follow-up after the final M10 review
+
+The final whole-branch review (Opus) found nothing Critical or Important. It checked the spec's anti-goals and the five Review Focus items end to end, and probed abandoned hands. The fix wave (commit "fix(play): final review fixes") did these:
+
+- `tableAt` no longer computes `to_call` and `pot_odds` in the browser for a partial frame (0 and null; the server's table at the full count), so no shown number can disagree with the API.
+- Escape on Play no longer cancels a skip that is pending on Puzzles.
+- `next_hand` writes the session only while it is still open (`WHERE ended_at IS NULL`), so a "Next hand" racing "End session" in two tabs answers 409 instead of leaving a running hand in an ended session.
+- The analysis' Hand tab says "No showdown." (it said "ended with a fold" for an abandoned hand too).
+- The analysis summary says "No decision could be graded." when nothing was graded, instead of "No decision lost EV."
+- The hand's EV-lost total is repaired on the next GET if a crash came between storing the last decision and writing the total; its UPDATE also filters by `user_id`.
+
+Rulings made during M10, with what each costs if wrong:
+
+1. Branch `adarsh`, commits authored as the configured git user (Adarsh) with no trailers: the user's ruling, against CLAUDE.md's milestone branch and spandan3 author. Cost if wrong: history authorship.
+2. Frames describe the table during play: a finished hand's last frame is the pre-award table, while `table` holds the settled stacks. Cost if wrong: a small view change.
+3. The property tests are in `tests/play/test_play_properties.py`, because `tests/puzzle/test_properties.py` owns the basename. Cost: none.
+4. `advance()` on a finished hand returns it unchanged and raises only on an abandoned hand. Cost: none; callers check `outcome()`.
+5. `abandon()` on a finished hand raises; on an abandoned hand it returns it unchanged. Cost: small.
+6. The decision index `n` is 0-based in the API and 1-based only in UI copy. Cost: none.
+7. A custom size in an analysis is graded at the config's sample count, not the adapter's override (the grader's existing behaviour). Cost: test speed only.
+8. `NextHandIn` gained `expected_hands`; `POST hands` answers 409 when it differs from the session's `hands_played`. It was needed for "never two hands" when a hand ends at the deal. Cost: one request field.
+9. `act` refuses with 409 once the session has ended, and the 30-hand tally test forces a rebuy. Cost: none.
+10. `DecisionGrade` has no `intent` and no `intent_flag` (no intent in play), and a `not_graded` review still carries its table `view`. Cost: none.
+11. `validateAction`'s signature is `(state, view, opts)`, matching `validateAnswer`. Cost: none.
+12. `shownTally`: the top-bar tally counts a finished hand only once its reveal is done, so it never gives away the result early. Cost: none.
+13. "End session" has no confirmation in M10 (polish for M11). Cost: a misclick abandons a hand.
+14. `PlayPage` owns the open analysis; the planned `onAnalyse` prop was dropped. Cost: none.
+15. The final fix wave also took four cheap items beyond the two marked "fix now". Cost: a slightly larger fix wave.
+16. Every other deferred minor became an open item below. Cost: follow-up work in M11/M12.
+
+## Open items for M11 and later
+
+- **UI (M11):**
+  - "End session" has no confirmation, and it is silently ignored while a request is in flight.
+  - The shortcuts overlay files "Next hand" under the group "Puzzle".
+  - The options table scrolls sideways inside its panel at 1024.
+  - The analysis sits under the table, so the page scrolls at 1280×800.
+  - A finished hand's table shows the settled stacks plus the awarded pot; show pot 0 or "won X".
+  - The past-session hand list goes stale after analysing a hand; give StartPanel a `refreshKey`.
+  - Analysis retry gives no feedback while it reloads.
+  - The hand list's load error has no retry.
+  - StartPanel converts `net_bb` back to chips to format it.
+  - The dev gallery's Play entries nest `<main>`.
+- **Explainer:** play explanations say "the range this puzzle was graded on"; thread a "hand" noun through the facts and template, keeping the guardrail checks.
+- **Backend:**
+  - `end` racing `act` answers 409 rather than an idempotent 200.
+  - `start_session` flushes before dealing.
+  - `list_sessions` computes `net_bb` inline and builds a `Profile` per row just for its label.
+  - The `IntegrityError` path in `analyse` asserts its re-read.
+  - `play_service` calls `service._check_finite`, and `play_views` calls `views._street_name` and `_cards`; make them public.
+  - `models.py` has `hero_bought_chips` default `200` as a literal.
+  - `frames` replays each prefix (O(n²)).
+- **Engine:**
+  - The showdown winner comes from the sign of Hero's delta; assert the equal-contribution invariant.
+  - `Grade` repeats `ActionGrade`'s fields; add a field-subset test.
+  - `Spot.start_stacks`' sum check runs only when a spot is decoded from a dict.
+- **Types:** `AnswerPanel`'s `onSubmit` and `onAct` are optional with no type link to `guesses`, and a missing callback locks the panel. The HistoryPanel doc comment is stale.
+- **Tests:**
+  - The migration test doesn't assert that the open-session index is partial.
+  - `attempt_results.json` has no non-best custom case and no `bluff_check: null` case.
+  - The abandoned-hand analysis test branch depends on the seed.
+  - The custom-size picker in `test_analyse` can raise `StopIteration`.
+  - A SessionHands test name claims a failure case it doesn't test.
+  - `HandAnalysis.test` has dead setup.
+  - `test_contract`'s forbid list omits `ProfileInfo`, `OptionBrief` and `CustomSizes` (covered by exact keys).
+- **M12 (5-max):** `HERO_SEAT`/`BOT_SEAT`, two-element stacks, `1 - seat` and `TableFrame` are heads-up only; the record, the frames and the views need generalising.
+- Still open from M9: the items under "Open items for M10 and later" in `2026-11-13-m9-signoff.md`, except the grader's `config_version` check, which M10 did.

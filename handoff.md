@@ -84,9 +84,10 @@ M3 calls these names. Their signatures and meaning must not change:
 action_distribution(profile: Profile, s: HandState) -> dict[Action, np.ndarray]
 sample_action(profile, s, hole: tuple[int, int], rng) -> Action
 bet_to(s, frac) -> Action;  raise_to(s, mult) -> Action;  allin(s) -> Action   # Hero sizing uses these too
-role(s) -> str;  UnsupportedSpot;  HERO_PROFILE = "tag"
+role(s) -> str;  UnsupportedSpot;  HERO_PROFILE = "tag";  STRATEGY_VERSION  # M10: bump by hand when behaviour changes
 # villain/profiles.py
 load_profile(name) -> Profile;  PROFILE_NAMES;  Profile.version
+profile_data(name) -> dict;  profile_from_dict(name, raw) -> Profile   # M10: Play sessions snapshot a profile
 # villain/features.py
 HandCategory;  range_features(board);  categorize(features, thresholds);  load_thresholds() (.version)
 # villain/narrowing.py
@@ -117,7 +118,7 @@ M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (A
 
 Roadmap (2026-11-13, M1–M9 done): M10 Play vs Bots heads-up → M11 UI polish → M12 Play vs Bots 5-max (play) → M13 5-max analysis. See `docs/superpowers/plans/2026-11-10-roadmap.md`.
 
-**Play vs Bots (M10) matters for Villain work:** the bot in that mode *is* the Villain policy (`action_distribution`, sampled for the bot's real cards), so every tuning change shows up in live play too (spec: `docs/superpowers/specs/2026-11-12-play-vs-bots-design.md`). M10 will add `STRATEGY_VERSION` to `strategy.py`: once it exists, bump it by hand whenever the policy's behaviour changes, as you already do for profile and `categories.json` versions. Play mode only offers the supported pre-flop tree (no limps, no small 4-bets); widening that tree is a welcome future Villain task, listed under "Later" in the roadmap.
+**Play vs Bots (M10) matters for Villain work:** the bot in that mode *is* the Villain policy (`action_distribution`, sampled for the bot's real cards), so every tuning change shows up in live play too (spec: `docs/superpowers/specs/2026-11-12-play-vs-bots-design.md`). M10 added `STRATEGY_VERSION` (now 1) to `strategy.py`: bump it by hand whenever the policy's behaviour changes, as you already do for profile and `categories.json` versions. Each played hand stores it, and its analysis is labelled "Villain model has changed since this hand" when it differs. A Play session stores a snapshot of its profile's data (`profile_data`) and keeps playing and analysing with it, so a profile change does not affect sessions already started. Play mode only offers the supported pre-flop tree (no limps, no small 4-bets); widening that tree is a welcome future Villain task, listed under "Later" in the roadmap.
 
 M4 note for Villain work: custom bet sizes on a stored puzzle are refused (409) once its profile or `categories.json` version changes, so version bumps are still the right way to change data.
 
