@@ -55,6 +55,7 @@ __all__ = [
     "attempt_result",
     "custom_allowed",
     "custom_bounds",
+    "decision_core",
     "option_ev_from_dict",
     "option_ev_to_dict",
     "option_view",
@@ -346,12 +347,108 @@ def _action_view(stored: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+# ``decision_core``'s grade keys before and after the guess fields an attempt adds
+_GRADE_HEAD = (
+    "verdict",
+    "ev_loss_chips",
+    "ev_loss_bb",
+    "chosen_label",
+    "best_label",
+    "equity",
+    "equity_std_error",
+    "equity_exact",
+)
+_GRADE_TAIL = ("intent", "intent_truth", "intent_flag", "bluff_check", "pot_odds")
+
+
 def _range_step(v: RangeView, dead: Collection[int]) -> dict[str, Any]:
     return {
         "label": v.label,
         "street": _street_name(v.street),
         "grid": range_grid(v.range, dead),
         "combos": range_combos(v.range),
+    }
+
+
+def _category_view(r: Any) -> dict[str, Any]:
+    return {
+        "category": r.category,
+        "name": CATEGORY_NAMES[r.category],
+        "share": float(r.share),
+        "ahead": float(r.ahead),
+        "equity": float(r.equity),
+        "win": float(r.win),
+        "tie": float(r.tie),
+        "lose": float(r.lose),
+    }
+
+
+def decision_core(
+    puzzle: Puzzle,
+    chosen: OptionEV,
+    *,
+    verdict: str,
+    ev_loss_chips: float,
+    best_label: str,
+    best_ev_chips: float,
+    intent: str | None,
+    intent_truth: str | None,
+    intent_flag: str | None,
+    bluff: tuple[float, float] | None,
+) -> dict[str, Any]:
+    """The part of a result shared by a puzzle attempt and a played decision.
+
+    Keys: ``grade`` (every grade field except the guesses, in ``GradeView`` order), ``options``,
+    ``simplifications``, ``categories`` and ``range_steps``. Nothing is regraded: the verdict,
+    loss, best label and best EV are the stored grade's. ``bluff`` is ``(required, actual)``.
+
+    A custom size graded best (its EV beat the best listed option) is the one best row.
+    """
+    sol = puzzle.solution
+    dead = _dead(puzzle)
+
+    stored = list(sol.options)
+    chosen_action = chosen.option.action
+    chosen_idx = next((i for i, o in enumerate(stored) if o.option.action == chosen_action), None)
+    best_ev = float(best_ev_chips)
+    custom_best = (
+        chosen_idx is None
+        and best_ev == float(chosen.ev_chips)
+        and best_ev > stored[sol.best].ev_chips + BEST_EPS
+    )
+    options = [
+        option_view(o, best=i == sol.best and not custom_best, chosen=i == chosen_idx, dead=dead)
+        for i, o in enumerate(stored)
+    ]
+    if chosen_idx is None:
+        options.append(option_view(chosen, best=custom_best, chosen=True, dead=dead))
+
+    codes = list(dict.fromkeys([*sol.simplifications, *chosen.simplifications]))
+    rows = sol.category_breakdown
+    ev_loss = float(ev_loss_chips)
+    return {
+        "grade": {
+            "verdict": verdict,
+            "ev_loss_chips": ev_loss,
+            "ev_loss_bb": ev_loss / 2,
+            "chosen_label": chosen.option.label,
+            "best_label": best_label,
+            "equity": float(sol.equity),
+            "equity_std_error": float(sol.equity_std_error),
+            "equity_exact": bool(sol.equity_exact),
+            "ahead_now": _opt_float(sol.ahead_now),
+            "intent": intent,
+            "intent_truth": intent_truth,
+            "intent_flag": intent_flag,
+            "bluff_check": None
+            if bluff is None
+            else {"required": float(bluff[0]), "actual": float(bluff[1])},
+            "pot_odds": _pot_odds(puzzle),
+        },
+        "options": options,
+        "simplifications": [{"code": c, "text": simplification_text(c)} for c in codes],
+        "categories": None if rows is None else [_category_view(r) for r in rows],
+        "range_steps": [_range_step(v, dead) for v in puzzle.spot.steps],
     }
 
 
@@ -367,35 +464,26 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
     ``explanation`` is the template explanation, written last from the rest of the result.
     """
     a = attempt
-    sp, sol = puzzle.spot, puzzle.solution
-    dead = _dead(puzzle)
-
-    stored = list(sol.options)
-    chosen_action = chosen.option.action
-    chosen_idx = next((i for i, o in enumerate(stored) if o.option.action == chosen_action), None)
-    # a custom size graded best (its EV beat the best listed option) is the one best row
-    best_ev = float(a["best_ev_chips"])
-    custom_best = (
-        chosen_idx is None
-        and best_ev == float(chosen.ev_chips)
-        and best_ev > stored[sol.best].ev_chips + BEST_EPS
-    )
-    options = [
-        option_view(o, best=i == sol.best and not custom_best, chosen=i == chosen_idx, dead=dead)
-        for i, o in enumerate(stored)
-    ]
-    if chosen_idx is None:
-        options.append(option_view(chosen, best=custom_best, chosen=True, dead=dead))
-
-    codes = list(dict.fromkeys([*sol.simplifications, *chosen.simplifications]))
-    rows = sol.category_breakdown
+    sp = puzzle.spot
     bluff = (
         None
         if a["bluff_required"] is None or a["bluff_actual"] is None
-        else {"required": float(a["bluff_required"]), "actual": float(a["bluff_actual"])}
+        else (float(a["bluff_required"]), float(a["bluff_actual"]))
     )
+    core = decision_core(
+        puzzle,
+        chosen,
+        verdict=a["verdict"],
+        ev_loss_chips=a["ev_loss_chips"],
+        best_label=a["best_label"],
+        best_ev_chips=a["best_ev_chips"],
+        intent=a["intent"],
+        intent_truth=a["intent_truth"],
+        intent_flag=a["intent_flag"],
+        bluff=bluff,
+    )
+    g = core["grade"]
     label, description = profile_meta(sp.profile)
-    ev_loss = float(a["ev_loss_chips"])
     result: dict[str, Any] = {
         "attempt": {
             "id": a["id"],
@@ -413,46 +501,21 @@ def attempt_result(*, attempt: dict[str, Any], puzzle: Puzzle, chosen: OptionEV)
             "intent": a["intent"],
             "chosen_label": chosen.option.label,
         },
-        "grade": {
-            "verdict": a["verdict"],
-            "ev_loss_chips": ev_loss,
-            "ev_loss_bb": ev_loss / 2,
-            "chosen_label": chosen.option.label,
-            "best_label": a["best_label"],
-            "equity": float(sol.equity),
-            "equity_std_error": float(sol.equity_std_error),
-            "equity_exact": bool(sol.equity_exact),
+        "grade": {  # the core's fields with the guesses in between, in ``GradeView`` order
+            **{k: g[k] for k in _GRADE_HEAD},
             "equity_guess": float(a["equity_guess"]),
             "equity_error": float(a["equity_error"]),
             "equity_score": a["equity_score"],
-            "ahead_now": _opt_float(sol.ahead_now),
+            "ahead_now": g["ahead_now"],
             "range_read_guess": _opt_float(a["range_read_guess"]),
             "range_read_error": _opt_float(a["range_read_error"]),
             "range_read_score": a["range_read_score"],
-            "intent": a["intent"],
-            "intent_truth": a["intent_truth"],
-            "intent_flag": a["intent_flag"],
-            "bluff_check": bluff,
-            "pot_odds": _pot_odds(puzzle),
+            **{k: g[k] for k in _GRADE_TAIL},
         },
-        "options": options,
-        "simplifications": [{"code": c, "text": simplification_text(c)} for c in codes],
-        "categories": None
-        if rows is None
-        else [
-            {
-                "category": r.category,
-                "name": CATEGORY_NAMES[r.category],
-                "share": float(r.share),
-                "ahead": float(r.ahead),
-                "equity": float(r.equity),
-                "win": float(r.win),
-                "tie": float(r.tie),
-                "lose": float(r.lose),
-            }
-            for r in rows
-        ],
-        "range_steps": [_range_step(v, dead) for v in sp.steps],
+        "options": core["options"],
+        "simplifications": core["simplifications"],
+        "categories": core["categories"],
+        "range_steps": core["range_steps"],
         "reveal": {
             "villain_cards": _cards(sp.villain_hole),
             "runout": _cards(sp.runout),

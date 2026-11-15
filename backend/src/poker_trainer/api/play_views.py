@@ -8,10 +8,15 @@ undealt board never appear at all.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 from typing import Any
 
 from poker_trainer.api import views
+from poker_trainer.api.text import JUDGED_ON_RANGE
+from poker_trainer.db.blob import decode_puzzle
+from poker_trainer.db.models import PlayDecisionRow
+from poker_trainer.explain.template import explain
 from poker_trainer.game.state import (
     HandState,
     Street,
@@ -21,6 +26,7 @@ from poker_trainer.game.state import (
     pot_odds,
     total_pot,
 )
+from poker_trainer.play.analyse import hero_decisions
 from poker_trainer.play.hand import (
     HERO_SEAT,
     HandOutcome,
@@ -31,10 +37,20 @@ from poker_trainer.play.hand import (
     replay,
 )
 from poker_trainer.play.session import START, must_rebuy
+from poker_trainer.puzzle.model import Puzzle
 from poker_trainer.puzzle.options import hero_options
 from poker_trainer.villain.profiles import Profile
 
-__all__ = ["frames", "hand_view", "session_view", "table_view"]
+__all__ = [
+    "decision_review",
+    "decision_table",
+    "explanation_result",
+    "frames",
+    "hand_analysis",
+    "hand_view",
+    "session_view",
+    "table_view",
+]
 
 _NO_CUSTOM = {"allowed": False, "min_to": None, "max_to": None}
 
@@ -191,4 +207,155 @@ def session_view(session: dict[str, Any], hand: dict[str, Any] | None) -> dict[s
         "must_rebuy": rebuy,
         "can_top_up": between_hands and not rebuy and hero < START,
         "hand": hand,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Hand analysis
+# ---------------------------------------------------------------------------
+
+GRADED = "graded"
+NOT_GRADED = "not_graded"
+# in play Hero states no intent, so the grade has none and no flag about one
+_NO_GUESS = ("intent", "intent_flag")
+
+
+def decision_table(record: HandRecord, profile: Profile, n: int) -> dict[str, Any]:
+    """The table as it stood when Hero made decision ``n`` (0-based)."""
+    i = hero_decisions(record)[n]
+    return table_view(replace(record, actions=record.actions[:i], abandoned=False), profile)
+
+
+def _graded(
+    row: PlayDecisionRow, record: HandRecord, profile: Profile
+) -> tuple[Puzzle, dict[str, Any], dict[str, Any]]:
+    """``(puzzle, core, result)`` of a graded decision: ``views.decision_core`` from the stored
+    row, and the result dict ``explain`` and ``build_facts`` read."""
+    assert row.puzzle is not None and row.chosen is not None
+    puzzle = decode_puzzle(row.puzzle)
+    chosen = views.option_ev_from_dict(row.chosen)
+    bluff = (
+        None
+        if row.bluff_required is None or row.bluff_actual is None
+        else (float(row.bluff_required), float(row.bluff_actual))
+    )
+    assert row.verdict is not None and row.ev_loss_chips is not None
+    assert row.best_label is not None and row.best_ev_chips is not None
+    core = views.decision_core(
+        puzzle,
+        chosen,
+        verdict=row.verdict,
+        ev_loss_chips=row.ev_loss_chips,
+        best_label=row.best_label,
+        best_ev_chips=row.best_ev_chips,
+        intent=None,
+        intent_truth=row.intent_truth,
+        intent_flag=None,
+        bluff=bluff,
+    )
+    core["grade"] = {k: v for k, v in core["grade"].items() if k not in _NO_GUESS}
+    action = record.actions[hero_decisions(record)[row.n]]
+    result = {
+        "grade": core["grade"],
+        "options": core["options"],
+        "categories": core["categories"],
+        "range_steps": core["range_steps"],
+        "answer": {
+            "custom_to": row.custom_to,
+            "action": {"kind": action.kind.value, "to": int(action.to)},
+            "chosen_label": chosen.option.label,
+        },
+        "reveal": {"profile": {"label": profile.label, "description": profile.description}},
+    }
+    return puzzle, core, result
+
+
+def explanation_result(
+    row: PlayDecisionRow, record: HandRecord, profile: Profile
+) -> tuple[dict[str, Any], Puzzle]:
+    """The result dict of a graded decision with exactly the keys ``explain`` and
+    ``build_facts`` read, and its puzzle. The profile's label and description are the session's
+    snapshot."""
+    puzzle, _, result = _graded(row, record, profile)
+    return result, puzzle
+
+
+def decision_review(row: PlayDecisionRow, record: HandRecord, profile: Profile) -> dict[str, Any]:
+    """A stored decision as the results view shows it. Nothing is regraded."""
+    base = {
+        "index": int(row.n),
+        "status": row.status,
+        "reason": row.reason,
+        "view": decision_table(record, profile, row.n),
+    }
+    if row.status != GRADED:
+        return {
+            **base,
+            "grade": None,
+            "options": [],
+            "simplifications": [],
+            "categories": None,
+            "range_steps": [],
+            "chosen_label": None,
+            "explanation": None,
+        }
+    puzzle, core, result = _graded(row, record, profile)
+    return {
+        **base,
+        "grade": core["grade"],
+        "options": core["options"],
+        "simplifications": core["simplifications"],
+        "categories": core["categories"],
+        "range_steps": core["range_steps"],
+        "chosen_label": core["grade"]["chosen_label"],
+        "explanation": explain(result, puzzle, views.action_log(puzzle.spot)),
+    }
+
+
+def _summary(rows: Sequence[PlayDecisionRow]) -> dict[str, Any]:
+    graded = [(r.n, float(r.ev_loss_chips or 0.0)) for r in rows if r.status == GRADED]
+    worst = max(graded, key=lambda g: (g[1], -g[0]), default=None)
+    return {
+        "ev_loss_bb": sum(loss for _, loss in graded) / 2,
+        "worst_index": None if worst is None or worst[1] <= 0 else int(worst[0]),
+    }
+
+
+def _reveal(record: HandRecord, profile: Profile) -> dict[str, Any]:
+    out = outcome(record)
+    board = replay(record).board
+    shown = out is not None and out.ended_by == "showdown"
+    return {
+        "villain_cards": views._cards(bot_cards(record)),
+        "board": views._cards(board),
+        "profile": {
+            "name": profile.name,
+            "label": profile.label,
+            "description": profile.description,
+            "version": int(profile.version),
+        },
+        "showdown": views.showdown_of(hero_cards(record), bot_cards(record), board)
+        if shown
+        else None,
+    }
+
+
+def hand_analysis(
+    hand_id: int,
+    record: HandRecord,
+    profile: Profile,
+    rows: Sequence[PlayDecisionRow | None],
+    *,
+    model_changed: bool,
+) -> dict[str, Any]:
+    """A finished hand's analysis so far: ``rows[n]`` is decision ``n``'s stored row or None.
+    The summary appears once every decision is stored."""
+    done = [r for r in rows if r is not None]
+    return {
+        "hand_id": int(hand_id),
+        "decisions": [None if r is None else decision_review(r, record, profile) for r in rows],
+        "summary": _summary(done) if rows and len(done) == len(rows) else None,
+        "reveal": _reveal(record, profile),
+        "model_changed": bool(model_changed),
+        "judged_on_range_note": JUDGED_ON_RANGE,
     }

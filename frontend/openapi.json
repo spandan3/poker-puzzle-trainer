@@ -67,6 +67,32 @@
         "title": "ActionLogEntry",
         "type": "object"
       },
+      "AnalysisSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "ev_loss_bb": {
+            "title": "Ev Loss Bb",
+            "type": "number"
+          },
+          "worst_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Index"
+          }
+        },
+        "required": [
+          "ev_loss_bb",
+          "worst_index"
+        ],
+        "title": "AnalysisSummary",
+        "type": "object"
+      },
       "AnswerView": {
         "additionalProperties": false,
         "properties": {
@@ -661,6 +687,234 @@
         "title": "DayCount",
         "type": "object"
       },
+      "DecisionGrade": {
+        "additionalProperties": false,
+        "description": "``GradeView`` without the guesses: in play Hero states no equity, range read or intent.",
+        "properties": {
+          "ahead_now": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ahead Now"
+          },
+          "best_label": {
+            "title": "Best Label",
+            "type": "string"
+          },
+          "bluff_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BluffCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chosen_label": {
+            "title": "Chosen Label",
+            "type": "string"
+          },
+          "equity": {
+            "title": "Equity",
+            "type": "number"
+          },
+          "equity_exact": {
+            "title": "Equity Exact",
+            "type": "boolean"
+          },
+          "equity_std_error": {
+            "title": "Equity Std Error",
+            "type": "number"
+          },
+          "ev_loss_bb": {
+            "title": "Ev Loss Bb",
+            "type": "number"
+          },
+          "ev_loss_chips": {
+            "title": "Ev Loss Chips",
+            "type": "number"
+          },
+          "intent_truth": {
+            "anyOf": [
+              {
+                "enum": [
+                  "value",
+                  "bluff",
+                  "semi_bluff"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intent Truth"
+          },
+          "pot_odds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pot Odds"
+          },
+          "verdict": {
+            "enum": [
+              "best",
+              "fine",
+              "mistake",
+              "blunder"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "ev_loss_chips",
+          "ev_loss_bb",
+          "chosen_label",
+          "best_label",
+          "equity",
+          "equity_std_error",
+          "equity_exact",
+          "ahead_now",
+          "intent_truth",
+          "bluff_check",
+          "pot_odds"
+        ],
+        "title": "DecisionGrade",
+        "type": "object"
+      },
+      "DecisionReview": {
+        "additionalProperties": false,
+        "description": "One analysed Hero decision. ``not_graded`` carries the reason and the table only.",
+        "properties": {
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CategoryView"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories"
+          },
+          "chosen_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen Label"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Explanation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "grade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecisionGrade"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OptionResult"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "range_steps": {
+            "items": {
+              "$ref": "#/components/schemas/RangeStep"
+            },
+            "title": "Range Steps",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "simplifications": {
+            "items": {
+              "$ref": "#/components/schemas/Simplification"
+            },
+            "title": "Simplifications",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "graded",
+              "not_graded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TableView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "index",
+          "status",
+          "reason",
+          "view",
+          "grade",
+          "options",
+          "simplifications",
+          "categories",
+          "range_steps",
+          "chosen_label",
+          "explanation"
+        ],
+        "title": "DecisionReview",
+        "type": "object"
+      },
       "Explanation": {
         "additionalProperties": false,
         "description": "Plain-English explanation of a result. Every number in it was computed by the grader and\nformatted by code; a language model may only reword it (``source == \"llm\"``).",
@@ -965,6 +1219,61 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HandAnalysis": {
+        "additionalProperties": false,
+        "description": "What is stored so far: one entry per Hero decision, null until it is analysed.",
+        "properties": {
+          "decisions": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DecisionReview"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Decisions",
+            "type": "array"
+          },
+          "hand_id": {
+            "title": "Hand Id",
+            "type": "integer"
+          },
+          "judged_on_range_note": {
+            "title": "Judged On Range Note",
+            "type": "string"
+          },
+          "model_changed": {
+            "title": "Model Changed",
+            "type": "boolean"
+          },
+          "reveal": {
+            "$ref": "#/components/schemas/PlayReveal"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "hand_id",
+          "decisions",
+          "summary",
+          "reveal",
+          "model_changed",
+          "judged_on_range_note"
+        ],
+        "title": "HandAnalysis",
         "type": "object"
       },
       "Health": {
@@ -1586,6 +1895,47 @@
           "showdown"
         ],
         "title": "PlayOutcome",
+        "type": "object"
+      },
+      "PlayReveal": {
+        "additionalProperties": false,
+        "description": "The bot's cards and the board as far as it was dealt (no undealt card).",
+        "properties": {
+          "board": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Board",
+            "type": "array"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/RevealProfile"
+          },
+          "showdown": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Showdown"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "villain_cards": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Villain Cards",
+            "type": "array"
+          }
+        },
+        "required": [
+          "villain_cards",
+          "board",
+          "profile",
+          "showdown"
+        ],
+        "title": "PlayReveal",
         "type": "object"
       },
       "PlaySessionSummary": {
@@ -3057,6 +3407,143 @@
           }
         },
         "summary": "Play Action"
+      }
+    },
+    "/api/play/hands/{hand_id}/analysis": {
+      "get": {
+        "operationId": "play_hand_analysis_api_play_hands__hand_id__analysis_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hand_id",
+            "required": true,
+            "schema": {
+              "title": "Hand Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandAnalysis"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Play Hand Analysis"
+      }
+    },
+    "/api/play/hands/{hand_id}/analysis/{n}": {
+      "post": {
+        "description": "Analyse Hero's decision ``n`` (0-based) once and store it; later calls return it.",
+        "operationId": "analyse_play_decision_api_play_hands__hand_id__analysis__n__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hand_id",
+            "required": true,
+            "schema": {
+              "title": "Hand Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "n",
+            "required": true,
+            "schema": {
+              "title": "N",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionReview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analyse Play Decision"
+      }
+    },
+    "/api/play/hands/{hand_id}/analysis/{n}/explanation": {
+      "get": {
+        "description": "As ``GET /attempts/{id}/explanation``, for a stored, graded decision. The database\nsession is closed before the model is asked.",
+        "operationId": "play_decision_explanation_api_play_hands__hand_id__analysis__n__explanation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hand_id",
+            "required": true,
+            "schema": {
+              "title": "Hand Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "n",
+            "required": true,
+            "schema": {
+              "title": "N",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Explanation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Play Decision Explanation"
       }
     },
     "/api/play/sessions": {

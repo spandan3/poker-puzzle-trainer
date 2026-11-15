@@ -1,0 +1,280 @@
+{
+  "bot_stack": 205,
+  "can_top_up": true,
+  "hand": {
+    "action_count": 8,
+    "custom": {
+      "allowed": false,
+      "max_to": null,
+      "min_to": null
+    },
+    "decision_count": 4,
+    "frames": [
+      {
+        "board_len": 0,
+        "pot": 3,
+        "stacks": [
+          199,
+          198
+        ],
+        "street_bets": [
+          1,
+          2
+        ],
+        "to_act": "hero"
+      },
+      {
+        "board_len": 0,
+        "pot": 7,
+        "stacks": [
+          195,
+          198
+        ],
+        "street_bets": [
+          5,
+          2
+        ],
+        "to_act": "villain"
+      },
+      {
+        "board_len": 3,
+        "pot": 10,
+        "stacks": [
+          195,
+          195
+        ],
+        "street_bets": [
+          0,
+          0
+        ],
+        "to_act": "villain"
+      },
+      {
+        "board_len": 3,
+        "pot": 10,
+        "stacks": [
+          195,
+          195
+        ],
+        "street_bets": [
+          0,
+          0
+        ],
+        "to_act": "hero"
+      },
+      {
+        "board_len": 4,
+        "pot": 10,
+        "stacks": [
+          195,
+          195
+        ],
+        "street_bets": [
+          0,
+          0
+        ],
+        "to_act": "villain"
+      },
+      {
+        "board_len": 4,
+        "pot": 10,
+        "stacks": [
+          195,
+          195
+        ],
+        "street_bets": [
+          0,
+          0
+        ],
+        "to_act": "hero"
+      },
+      {
+        "board_len": 5,
+        "pot": 10,
+        "stacks": [
+          195,
+          195
+        ],
+        "street_bets": [
+          0,
+          0
+        ],
+        "to_act": "villain"
+      },
+      {
+        "board_len": 5,
+        "pot": 10,
+        "stacks": [
+          195,
+          195
+        ],
+        "street_bets": [
+          0,
+          0
+        ],
+        "to_act": "hero"
+      },
+      {
+        "board_len": 5,
+        "pot": 10,
+        "stacks": [
+          195,
+          195
+        ],
+        "street_bets": [
+          0,
+          0
+        ],
+        "to_act": null
+      }
+    ],
+    "hand_no": 1,
+    "id": 1,
+    "options": [],
+    "outcome": {
+      "ended_by": "showdown",
+      "hero_delta_bb": -2.5,
+      "hero_delta_chips": -5,
+      "showdown": {
+        "hero_hand": "High card",
+        "villain_hand": "Pair",
+        "winner": "villain"
+      },
+      "villain_cards": [
+        "7h",
+        "4d"
+      ],
+      "winner": "villain"
+    },
+    "session_id": 1,
+    "status": "complete",
+    "table": {
+      "board": [
+        "2h",
+        "3d",
+        "Jh",
+        "Kd",
+        "7s"
+      ],
+      "hero_cards": [
+        "8d",
+        "4c"
+      ],
+      "hero_position": "BTN",
+      "hero_seat": 0,
+      "history": [
+        {
+          "actor": "hero",
+          "all_in": false,
+          "amount": 4,
+          "kind": "raise",
+          "pot_before": 3,
+          "street": "preflop",
+          "text": "Pre-flop: opens to 5",
+          "to": 5
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 3,
+          "kind": "call",
+          "pot_before": 7,
+          "street": "preflop",
+          "text": "Pre-flop: calls",
+          "to": 5
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 0,
+          "kind": "check",
+          "pot_before": 10,
+          "street": "flop",
+          "text": "Flop: checks",
+          "to": 0
+        },
+        {
+          "actor": "hero",
+          "all_in": false,
+          "amount": 0,
+          "kind": "check",
+          "pot_before": 10,
+          "street": "flop",
+          "text": "Flop: checks",
+          "to": 0
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 0,
+          "kind": "check",
+          "pot_before": 10,
+          "street": "turn",
+          "text": "Turn: checks",
+          "to": 0
+        },
+        {
+          "actor": "hero",
+          "all_in": false,
+          "amount": 0,
+          "kind": "check",
+          "pot_before": 10,
+          "street": "turn",
+          "text": "Turn: checks",
+          "to": 0
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 0,
+          "kind": "check",
+          "pot_before": 10,
+          "street": "river",
+          "text": "River: checks",
+          "to": 0
+        },
+        {
+          "actor": "hero",
+          "all_in": false,
+          "amount": 0,
+          "kind": "check",
+          "pot_before": 10,
+          "street": "river",
+          "text": "River: checks",
+          "to": 0
+        }
+      ],
+      "pot": 10,
+      "pot_odds": null,
+      "stacks": [
+        195,
+        205
+      ],
+      "street": "river",
+      "street_bets": [
+        0,
+        0
+      ],
+      "to_call": 0,
+      "villain_position": "BB",
+      "villain_profile": {
+        "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+        "label": "LAG",
+        "name": "lag"
+      }
+    }
+  },
+  "hands_played": 1,
+  "hero_bought_chips": 200,
+  "hero_stack": 195,
+  "id": 1,
+  "must_rebuy": false,
+  "net_bb": -2.5,
+  "net_chips": -5,
+  "open": true,
+  "profile": {
+    "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+    "label": "LAG",
+    "name": "lag"
+  }
+}

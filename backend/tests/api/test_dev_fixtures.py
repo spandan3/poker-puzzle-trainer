@@ -1,13 +1,23 @@
 import json
+from pathlib import Path
 
 import pytest
+from pydantic import TypeAdapter
 
+from poker_trainer.api import service
 from poker_trainer.api.dev_fixtures import (
     _dump,
     find_never_continues,
     search,
     write_fixtures,
     write_llm_fixture,
+    write_play_fixtures,
+)
+from poker_trainer.api.schemas import (
+    HandAnalysis,
+    PlayHandSummary,
+    PlaySessionSummary,
+    PlaySessionView,
 )
 from poker_trainer.explain.guardrail import unknown_numbers
 from poker_trainer.explain.service import Explainer
@@ -64,3 +74,56 @@ def test_write_llm_fixture(client, tmp_path):
         [template["headline"], *(p for s in template["sections"] for p in s["paragraphs"])]
     )
     assert unknown_numbers(text, template_text) == set()
+
+
+PLAY_FILES = {
+    "play_session_hero_to_act.json": PlaySessionView,
+    "play_session_hand_over_fold.json": PlaySessionView,
+    "play_session_hand_over_showdown.json": PlaySessionView,
+    "play_hand_analysis.json": HandAnalysis,
+    "play_sessions.json": TypeAdapter(list[PlaySessionSummary]),
+    "play_hands.json": TypeAdapter(list[PlayHandSummary]),
+}
+FIXTURES_DIR = Path(__file__).resolve().parents[3] / "frontend" / "src" / "test" / "fixtures"
+
+
+def _validate(model, data):
+    if isinstance(model, TypeAdapter):
+        return model.validate_python(data)
+    return model.model_validate(data)
+
+
+def _check_play_fixtures(out):
+    """Each file is LF-only, valid for its response model, and covers what the UI needs."""
+    data = {}
+    for name, model in PLAY_FILES.items():
+        raw = (out / name).read_bytes()
+        assert raw.endswith(b"\n") and b"\r" not in raw, name
+        data[name] = json.loads(raw)
+        _validate(model, data[name])
+    to_act = data["play_session_hero_to_act.json"]["hand"]
+    assert to_act["status"] == "in_progress" and to_act["options"]
+    fold = data["play_session_hand_over_fold.json"]["hand"]
+    assert fold["outcome"]["ended_by"] == "fold" and fold["decision_count"] >= 1
+    showdown = data["play_session_hand_over_showdown.json"]["hand"]
+    assert showdown["outcome"]["ended_by"] == "showdown" and showdown["decision_count"] >= 2
+    analysis = data["play_hand_analysis.json"]
+    graded = [d for d in analysis["decisions"] if d is not None and d["status"] == "graded"]
+    assert None not in analysis["decisions"] and len(graded) >= 2
+    assert analysis["summary"] is not None
+    assert any(h["analysed"] for h in data["play_hands.json"])
+    return data
+
+
+def test_write_play_fixtures_deterministic(tmp_path):
+    real_clock = service.utcnow
+    write_play_fixtures(tmp_path / "a", samples=500)
+    write_play_fixtures(tmp_path / "b", samples=500)
+    assert service.utcnow is real_clock  # the scripted clock is put back
+    for name in PLAY_FILES:
+        assert (tmp_path / "a" / name).read_bytes() == (tmp_path / "b" / name).read_bytes(), name
+    _check_play_fixtures(tmp_path / "a")
+
+
+def test_committed_play_fixtures_match_the_models():
+    _check_play_fixtures(FIXTURES_DIR)

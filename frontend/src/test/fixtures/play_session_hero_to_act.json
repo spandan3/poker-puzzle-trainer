@@ -1,0 +1,186 @@
+{
+  "bot_stack": 200,
+  "can_top_up": false,
+  "hand": {
+    "action_count": 3,
+    "custom": {
+      "allowed": true,
+      "max_to": 195,
+      "min_to": 2
+    },
+    "decision_count": 1,
+    "frames": [
+      {
+        "board_len": 0,
+        "pot": 3,
+        "stacks": [
+          199,
+          198
+        ],
+        "street_bets": [
+          1,
+          2
+        ],
+        "to_act": "hero"
+      },
+      {
+        "board_len": 0,
+        "pot": 7,
+        "stacks": [
+          195,
+          198
+        ],
+        "street_bets": [
+          5,
+          2
+        ],
+        "to_act": "villain"
+      },
+      {
+        "board_len": 3,
+        "pot": 10,
+        "stacks": [
+          195,
+          195
+        ],
+        "street_bets": [
+          0,
+          0
+        ],
+        "to_act": "villain"
+      },
+      {
+        "board_len": 3,
+        "pot": 10,
+        "stacks": [
+          195,
+          195
+        ],
+        "street_bets": [
+          0,
+          0
+        ],
+        "to_act": "hero"
+      }
+    ],
+    "hand_no": 1,
+    "id": 1,
+    "options": [
+      {
+        "index": 0,
+        "kind": "check",
+        "label": "check",
+        "to": 0
+      },
+      {
+        "index": 1,
+        "kind": "bet",
+        "label": "bet 33%",
+        "to": 3
+      },
+      {
+        "index": 2,
+        "kind": "bet",
+        "label": "bet 50%",
+        "to": 5
+      },
+      {
+        "index": 3,
+        "kind": "bet",
+        "label": "bet 75%",
+        "to": 8
+      },
+      {
+        "index": 4,
+        "kind": "bet",
+        "label": "bet 100%",
+        "to": 10
+      },
+      {
+        "index": 5,
+        "kind": "bet",
+        "label": "all-in",
+        "to": 195
+      }
+    ],
+    "outcome": null,
+    "session_id": 1,
+    "status": "in_progress",
+    "table": {
+      "board": [
+        "2h",
+        "3d",
+        "Jh"
+      ],
+      "hero_cards": [
+        "8d",
+        "4c"
+      ],
+      "hero_position": "BTN",
+      "hero_seat": 0,
+      "history": [
+        {
+          "actor": "hero",
+          "all_in": false,
+          "amount": 4,
+          "kind": "raise",
+          "pot_before": 3,
+          "street": "preflop",
+          "text": "Pre-flop: opens to 5",
+          "to": 5
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 3,
+          "kind": "call",
+          "pot_before": 7,
+          "street": "preflop",
+          "text": "Pre-flop: calls",
+          "to": 5
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 0,
+          "kind": "check",
+          "pot_before": 10,
+          "street": "flop",
+          "text": "Flop: checks",
+          "to": 0
+        }
+      ],
+      "pot": 10,
+      "pot_odds": null,
+      "stacks": [
+        195,
+        195
+      ],
+      "street": "flop",
+      "street_bets": [
+        0,
+        0
+      ],
+      "to_call": 0,
+      "villain_position": "BB",
+      "villain_profile": {
+        "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+        "label": "LAG",
+        "name": "lag"
+      }
+    }
+  },
+  "hands_played": 0,
+  "hero_bought_chips": 200,
+  "hero_stack": 200,
+  "id": 1,
+  "must_rebuy": false,
+  "net_bb": 0.0,
+  "net_chips": 0,
+  "open": true,
+  "profile": {
+    "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+    "label": "LAG",
+    "name": "lag"
+  }
+}

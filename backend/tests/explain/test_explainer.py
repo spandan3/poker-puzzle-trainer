@@ -239,6 +239,30 @@ def test_cache_key_includes_the_model(case):
     assert ex.explanation_for(1, template, f)["model"] == "mistral"
 
 
+def test_tuple_key_caches_and_logs_like_an_int_one(case, caplog):
+    """A played decision's key ``("play", hand_id, n)`` is cached and logged like an attempt id,
+    and never shares an entry with an attempt id or another decision."""
+    template, f = case
+    gen = FakeGenerate()
+    ex = Explainer(_settings(), generate=gen)
+    out = ex.explanation_for(("play", 4, 1), template, f)
+    assert out["source"] == "llm"
+    assert ex.explanation_for(("play", 4, 1), template, f) == out
+    assert len(gen.calls) == 1
+    ex.explanation_for(("play", 4, 0), template, f)
+    ex.explanation_for(4, template, f)
+    assert len(gen.calls) == 3
+    bad = json.dumps({"headline": "Fine.", "hand": "You had 99.9% equity.", "verdict": "Good."})
+    ex = Explainer(_settings(), generate=FakeGenerate(bad))
+    with caplog.at_level(logging.INFO, logger="poker_trainer.explain.service"):
+        assert ex.explanation_for(("play", 4, 1), template, f)["fallback"] == "guardrail"
+    assert "explanation ('play', 4, 1): guardrail rejected numbers" in caplog.text
+    ex = Explainer(_settings(), generate=FakeGenerate(ollama.LlmTimeout("slow")))
+    with caplog.at_level(logging.INFO, logger="poker_trainer.explain.service"):
+        ex.explanation_for(("play", 9, 2), template, f)
+    assert "explanation ('play', 9, 2): timeout" in caplog.text
+
+
 class _CountingEvent(threading.Event):
     """An event that counts the threads that called ``wait`` on it."""
 

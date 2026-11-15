@@ -13,11 +13,18 @@ LF line endings, fixed timestamps.
 ``write_stats_fixtures`` answers a scripted series of puzzles on its own database, with the
 service clock replaced, for the Progress page's ``stats.json``, ``stats_empty.json`` and
 ``history_page.json``.
+
+``write_play_fixtures`` plays a scripted session against the bot on its own database, with a
+seeded ``play_rng`` and the service clock replaced, for the Play page's ``play_*.json``. Only
+those files are written with ``--play-only``::
+
+    uv run python -m poker_trainer.api.dev_fixtures ../frontend/src/test/fixtures --play-only
 """
 
 from __future__ import annotations
 
 import json
+import random
 import sys
 import tempfile
 import time
@@ -304,6 +311,115 @@ def write_stats_fixtures(
             log("wrote history_page.json")
 
 
+# play fixtures: the seeded session and the clock it runs on (one minute per request)
+PLAY_SEED = 1
+PLAY_START = datetime(2026, 11, 14, 18, 0, tzinfo=UTC)
+PLAY_STEP = timedelta(minutes=1)
+PLAY_MAX_HANDS = 40  # the script stops (and reports) when a wanted hand is not dealt by then
+
+
+def _play_pick(options: list[dict[str, Any]]) -> int:
+    """Hero's scripted choice: check, else call, else the smallest bet or raise (so hands reach
+    the flop and the bot sometimes folds to Hero), else option 0."""
+    for kind in ("check", "call"):
+        for o in options:
+            if o["kind"] == kind:
+                return int(o["index"])
+    aggressive = [o for o in options if o["kind"] in ("bet", "raise")]
+    if aggressive:
+        return int(min(aggressive, key=lambda o: o["to"])["index"])
+    return int(options[0]["index"])
+
+
+def write_play_fixtures(
+    out: Path, *, samples: int | None = None, log: Callable[[str], None] = lambda _m: None
+) -> None:
+    """Write the six ``play_*.json`` files: a seeded session played by ``_play_pick`` on a scripted clock.
+
+    - ``play_session_hero_to_act.json``: the first post-flop spot with Hero to act;
+    - ``play_session_hand_over_fold.json``: the first hand that ended in a fold after a Hero
+      decision;
+    - ``play_session_hand_over_showdown.json``: the first showdown with two or more Hero
+      decisions;
+    - ``play_hand_analysis.json``: that showdown hand, every decision analysed;
+    - ``play_hands.json``: the session's hands (the showdown hand analysed);
+    - ``play_sessions.json``: that session (ended) and a new open one.
+
+    ``samples`` is the analysis' equity samples (None: the config's). Deterministic: the same
+    ``samples`` give the same bytes.
+    """
+    out.mkdir(parents=True, exist_ok=True)
+    rng = random.Random(PLAY_SEED)
+    found: dict[str, dict[str, Any]] = {}
+
+    with tempfile.TemporaryDirectory() as tmp, _scripted_clock(PLAY_START) as now:
+        url = f"sqlite:///{(Path(tmp) / 'play.db').as_posix()}"
+        app = create_app(
+            AppSettings(_env_file=None, database_url=url, llm_provider="none"),
+            play_rng=lambda: rng,
+            play_samples=samples,
+        )
+
+        def call(method: str, path: str, status: int = 200, **kw: Any) -> Any:
+            now[0] += PLAY_STEP
+            res = client.request(method, path, **kw)
+            if res.status_code != status:
+                raise RuntimeError(f"{method} {path}: {res.text}")
+            return res.json()
+
+        with TestClient(app) as client:
+            v = call("POST", "/api/play/sessions", 201)
+            for _ in range(PLAY_MAX_HANDS):
+                while v["hand"]["status"] == "in_progress":
+                    hand = v["hand"]
+                    if "hero_to_act" not in found and hand["table"]["board"]:
+                        found["hero_to_act"] = v
+                    body = {
+                        "expected_actions": hand["action_count"],
+                        "option": _play_pick(hand["options"]),
+                    }
+                    v = call("POST", f"/api/play/hands/{hand['id']}/actions", json=body)
+                hand = v["hand"]
+                ended_by = hand["outcome"]["ended_by"]
+                if "fold" not in found and ended_by == "fold" and hand["decision_count"] >= 1:
+                    found["fold"] = v
+                if (
+                    "showdown" not in found
+                    and ended_by == "showdown"
+                    and hand["decision_count"] >= 2
+                ):
+                    found["showdown"] = v
+                if len(found) == 3:
+                    break
+                body = {"expected_hands": v["hands_played"], "top_up": True}
+                v = call("POST", f"/api/play/sessions/{v['id']}/hands", 201, json=body)
+            else:
+                missing = {"hero_to_act", "fold", "showdown"} - set(found)
+                raise RuntimeError(f"no {sorted(missing)} within {PLAY_MAX_HANDS} hands")
+
+            for name in ("hero_to_act", "hand_over_fold", "hand_over_showdown"):
+                _dump(out / f"play_session_{name}.json", found[name.removeprefix("hand_over_")])
+                log(f"wrote play_session_{name}.json")
+
+            showdown = found["showdown"]["hand"]
+            for n in range(showdown["decision_count"]):
+                call("POST", f"/api/play/hands/{showdown['id']}/analysis/{n}")
+            analysis = call("GET", f"/api/play/hands/{showdown['id']}/analysis")
+            graded = [d for d in analysis["decisions"] if d and d["status"] == "graded"]
+            if len(graded) < 2:
+                raise RuntimeError("the showdown hand has fewer than two graded decisions")
+            _dump(out / "play_hand_analysis.json", analysis)
+            log("wrote play_hand_analysis.json")
+
+            sid = v["id"]
+            _dump(out / "play_hands.json", call("GET", f"/api/play/sessions/{sid}/hands"))
+            log("wrote play_hands.json")
+            call("POST", f"/api/play/sessions/{sid}/end")
+            call("POST", "/api/play/sessions", 201)
+            _dump(out / "play_sessions.json", call("GET", "/api/play/sessions"))
+            log("wrote play_sessions.json")
+
+
 def reword(_url: str, _model: str, _system: str, prompt: str, *_rest: Any) -> str:
     """A fake model for ``explanation_llm.json``: the template's own text, visibly reworded
     ("In short: ", the hand in one paragraph, the verdict's first two paragraphs joined) and
@@ -472,10 +588,17 @@ def write_fixtures(
 
 
 def main(argv: list[str] | None = None) -> None:
-    args = sys.argv[1:] if argv is None else argv
+    args = list(sys.argv[1:] if argv is None else argv)
+    play_only = "--play-only" in args
+    if play_only:
+        args.remove("--play-only")
     if len(args) != 1:
-        raise SystemExit("usage: python -m poker_trainer.api.dev_fixtures OUT_DIR")
+        raise SystemExit("usage: python -m poker_trainer.api.dev_fixtures OUT_DIR [--play-only]")
     start = time.perf_counter()
+    if play_only:
+        write_play_fixtures(Path(args[0]), log=print)
+        print(f"total {time.perf_counter() - start:.1f}s")
+        return
     found = search(log=print)
     print(f"search took {time.perf_counter() - start:.1f}s")
     never: tuple[int, str, int] | None
@@ -485,6 +608,7 @@ def main(argv: list[str] | None = None) -> None:
         print(e)
         never = None
     write_fixtures(Path(args[0]), found, log=print, never_continues=never)
+    write_play_fixtures(Path(args[0]), log=print)
     print(f"total {time.perf_counter() - start:.1f}s")
 
 

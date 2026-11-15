@@ -111,6 +111,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/play/hands/{hand_id}/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Play Hand Analysis */
+        get: operations["play_hand_analysis_api_play_hands__hand_id__analysis_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/play/hands/{hand_id}/analysis/{n}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyse Play Decision
+         * @description Analyse Hero's decision ``n`` (0-based) once and store it; later calls return it.
+         */
+        post: operations["analyse_play_decision_api_play_hands__hand_id__analysis__n__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/play/hands/{hand_id}/analysis/{n}/explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Play Decision Explanation
+         * @description As ``GET /attempts/{id}/explanation``, for a stored, graded decision. The database
+         *     session is closed before the model is asked.
+         */
+        get: operations["play_decision_explanation_api_play_hands__hand_id__analysis__n__explanation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/play/sessions": {
         parameters: {
             query?: never;
@@ -317,6 +375,13 @@ export interface components {
             /** To */
             to: number;
         };
+        /** AnalysisSummary */
+        AnalysisSummary: {
+            /** Ev Loss Bb */
+            ev_loss_bb: number;
+            /** Worst Index */
+            worst_index: number | null;
+        };
         /** AnswerView */
         AnswerView: {
             action: components["schemas"]["StoredAction"];
@@ -505,6 +570,66 @@ export interface components {
             date: string;
         };
         /**
+         * DecisionGrade
+         * @description ``GradeView`` without the guesses: in play Hero states no equity, range read or intent.
+         */
+        DecisionGrade: {
+            /** Ahead Now */
+            ahead_now: number | null;
+            /** Best Label */
+            best_label: string;
+            bluff_check: components["schemas"]["BluffCheck"] | null;
+            /** Chosen Label */
+            chosen_label: string;
+            /** Equity */
+            equity: number;
+            /** Equity Exact */
+            equity_exact: boolean;
+            /** Equity Std Error */
+            equity_std_error: number;
+            /** Ev Loss Bb */
+            ev_loss_bb: number;
+            /** Ev Loss Chips */
+            ev_loss_chips: number;
+            /** Intent Truth */
+            intent_truth: ("value" | "bluff" | "semi_bluff") | null;
+            /** Pot Odds */
+            pot_odds: number | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "best" | "fine" | "mistake" | "blunder";
+        };
+        /**
+         * DecisionReview
+         * @description One analysed Hero decision. ``not_graded`` carries the reason and the table only.
+         */
+        DecisionReview: {
+            /** Categories */
+            categories: components["schemas"]["CategoryView"][] | null;
+            /** Chosen Label */
+            chosen_label: string | null;
+            explanation: components["schemas"]["Explanation"] | null;
+            grade: components["schemas"]["DecisionGrade"] | null;
+            /** Index */
+            index: number;
+            /** Options */
+            options: components["schemas"]["OptionResult"][];
+            /** Range Steps */
+            range_steps: components["schemas"]["RangeStep"][];
+            /** Reason */
+            reason: string | null;
+            /** Simplifications */
+            simplifications: components["schemas"]["Simplification"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "graded" | "not_graded";
+            view: components["schemas"]["TableView"] | null;
+        };
+        /**
          * Explanation
          * @description Plain-English explanation of a result. Every number in it was computed by the grader and
          *     formatted by code; a language model may only reword it (``source == "llm"``).
@@ -588,6 +713,22 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HandAnalysis
+         * @description What is stored so far: one entry per Hero decision, null until it is analysed.
+         */
+        HandAnalysis: {
+            /** Decisions */
+            decisions: (components["schemas"]["DecisionReview"] | null)[];
+            /** Hand Id */
+            hand_id: number;
+            /** Judged On Range Note */
+            judged_on_range_note: string;
+            /** Model Changed */
+            model_changed: boolean;
+            reveal: components["schemas"]["PlayReveal"];
+            summary: components["schemas"]["AnalysisSummary"] | null;
         };
         /** Health */
         Health: {
@@ -785,6 +926,18 @@ export interface components {
              * @enum {string}
              */
             winner: "hero" | "villain" | "split";
+        };
+        /**
+         * PlayReveal
+         * @description The bot's cards and the board as far as it was dealt (no undealt card).
+         */
+        PlayReveal: {
+            /** Board */
+            board: string[];
+            profile: components["schemas"]["RevealProfile"];
+            showdown: components["schemas"]["Showdown"] | null;
+            /** Villain Cards */
+            villain_cards: string[];
         };
         /** PlaySessionSummary */
         PlaySessionSummary: {
@@ -1349,6 +1502,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlaySessionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    play_hand_analysis_api_play_hands__hand_id__analysis_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hand_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandAnalysis"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyse_play_decision_api_play_hands__hand_id__analysis__n__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hand_id: number;
+                n: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionReview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    play_decision_explanation_api_play_hands__hand_id__analysis__n__explanation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hand_id: number;
+                n: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Explanation"];
                 };
             };
             /** @description Validation Error */

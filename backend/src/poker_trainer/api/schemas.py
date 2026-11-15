@@ -571,3 +571,66 @@ class PlayHandSummary(_Out):
     decision_count: int
     analysed: bool
     ev_loss_bb: float | None
+
+
+# ---------------------------------------------------------------------------
+# Hand analysis: each Hero decision graded like a puzzle, against the bot's narrowed range
+# ---------------------------------------------------------------------------
+
+
+class DecisionGrade(_Out):
+    """``GradeView`` without the guesses: in play Hero states no equity, range read or intent."""
+
+    verdict: VerdictName
+    ev_loss_chips: float
+    ev_loss_bb: float
+    chosen_label: str
+    best_label: str
+    equity: float
+    equity_std_error: float
+    equity_exact: bool
+    ahead_now: float | None
+    intent_truth: IntentName | None
+    bluff_check: BluffCheck | None
+    pot_odds: float | None
+
+
+class DecisionReview(_Out):
+    """One analysed Hero decision. ``not_graded`` carries the reason and the table only."""
+
+    index: int  # 0-based among Hero's decisions in the hand
+    status: Literal["graded", "not_graded"]
+    reason: str | None
+    view: TableView | None  # the table as it stood when Hero acted
+    grade: DecisionGrade | None
+    options: list[OptionResult]
+    simplifications: list[Simplification]
+    categories: list[CategoryView] | None
+    range_steps: list[RangeStep]
+    chosen_label: str | None  # the server's label; a custom size is relabelled in bb by the UI
+    explanation: Explanation | None  # always the template (source "template")
+
+
+class PlayReveal(_Out):
+    """The bot's cards and the board as far as it was dealt (no undealt card)."""
+
+    villain_cards: list[str]
+    board: list[str]
+    profile: RevealProfile  # the session's snapshot
+    showdown: Showdown | None  # only when the hand ended in a showdown
+
+
+class AnalysisSummary(_Out):
+    ev_loss_bb: float  # over the graded decisions
+    worst_index: int | None  # null when nothing was graded or nothing lost EV
+
+
+class HandAnalysis(_Out):
+    """What is stored so far: one entry per Hero decision, null until it is analysed."""
+
+    hand_id: int
+    decisions: list[DecisionReview | None]
+    summary: AnalysisSummary | None  # once every decision is analysed
+    reveal: PlayReveal
+    model_changed: bool  # the Villain model has changed since the hand was played
+    judged_on_range_note: str

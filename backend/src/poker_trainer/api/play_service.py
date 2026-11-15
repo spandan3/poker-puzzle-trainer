@@ -19,9 +19,13 @@ from sqlalchemy.orm import Session
 
 from poker_trainer.api import play_views, service
 from poker_trainer.api.service import MAX_ID, ConcurrentSubmit, InvalidAnswer, NotFound
-from poker_trainer.db.models import PlayHandRow, PlaySessionRow
+from poker_trainer.api.views import action_log, option_ev_to_dict
+from poker_trainer.db.blob import encode_puzzle
+from poker_trainer.db.models import PlayDecisionRow, PlayHandRow, PlaySessionRow
+from poker_trainer.explain.facts import Facts, build_facts
+from poker_trainer.explain.template import explain
 from poker_trainer.game.state import Action, ActionKind, Street, new_hand, position_name
-from poker_trainer.play.analyse import hero_decisions
+from poker_trainer.play.analyse import DecisionAnalysis, analyse_decision, hero_decisions
 from poker_trainer.play.hand import (
     HERO_SEAT,
     HandOutcome,
@@ -35,6 +39,7 @@ from poker_trainer.play.hand import (
 from poker_trainer.play.session import START, new_record, next_stacks
 from poker_trainer.puzzle.model import load_config
 from poker_trainer.puzzle.options import custom_action, hero_options
+from poker_trainer.villain import strategy
 from poker_trainer.villain.features import load_thresholds
 from poker_trainer.villain.profiles import PROFILE_NAMES, Profile, profile_data, profile_from_dict
 from poker_trainer.villain.strategy import STRATEGY_VERSION
@@ -456,12 +461,167 @@ def list_hands(db: Session, user_id: int, session_id: int) -> list[dict[str, Any
     ]
 
 
+# ---------------------------------------------------------------------------
+# Hand analysis
+# ---------------------------------------------------------------------------
+
+
+def _finished_hand(
+    db: Session, user_id: int, hand_id: int
+) -> tuple[PlayHandRow, HandRecord, Profile]:
+    row, _, record, profile = load_hand(db, user_id, hand_id)
+    if row.status != _COMPLETE:
+        raise ConcurrentSubmit("the hand is still being played")
+    return row, record, profile
+
+
+def _check_decision(record: HandRecord, n: int) -> None:
+    if not 0 <= n < len(hero_decisions(record)):
+        raise NotFound("decision not found")
+
+
+def _stored_decision(db: Session, user_id: int, hand_id: int, n: int) -> PlayDecisionRow | None:
+    return db.scalar(
+        select(PlayDecisionRow).where(
+            PlayDecisionRow.hand_id == hand_id,
+            PlayDecisionRow.n == n,
+            PlayDecisionRow.user_id == user_id,
+        )
+    )
+
+
+def _stored_decisions(db: Session, user_id: int, hand_id: int) -> list[PlayDecisionRow]:
+    return list(
+        db.scalars(
+            select(PlayDecisionRow)
+            .where(PlayDecisionRow.hand_id == hand_id, PlayDecisionRow.user_id == user_id)
+            .order_by(PlayDecisionRow.n)
+        ).all()
+    )
+
+
+def _model_changed(row: PlayHandRow) -> bool:
+    """True when the Villain model the hand was played with is not today's (looked up now)."""
+    return (
+        row.strategy_version != strategy.STRATEGY_VERSION
+        or row.categories_version != load_thresholds().version
+        or row.config_version != load_config().version
+    )
+
+
+def _decision_fields(a: DecisionAnalysis) -> dict[str, Any]:
+    """The stored columns of an analysed decision (live model versions included)."""
+    fields: dict[str, Any] = {
+        "strategy_version": strategy.STRATEGY_VERSION,
+        "categories_version": load_thresholds().version,
+        "config_version": load_config().version,
+    }
+    if a.puzzle is None or a.grade is None:
+        return {**fields, "status": play_views.NOT_GRADED, "reason": a.not_graded}
+    g = a.grade
+    action = g.chosen.option.action
+    listed = any(o.option.action == action for o in a.puzzle.solution.options)
+    graded = {
+        "status": play_views.GRADED,
+        "puzzle": encode_puzzle(a.puzzle),
+        "chosen": option_ev_to_dict(g.chosen),
+        "custom_to": None if listed else int(action.to),
+        "verdict": g.verdict,
+        "ev_loss_chips": float(g.ev_loss_chips),
+        "best_label": g.best.option.label,
+        "best_ev_chips": float(g.best.ev_chips),
+        "intent_truth": g.intent_truth,
+        "bluff_required": None if g.bluff_check is None else float(g.bluff_check[0]),
+        "bluff_actual": None if g.bluff_check is None else float(g.bluff_check[1]),
+    }
+    service._check_finite({k: v for k, v in graded.items() if k != "puzzle"}, "decision")
+    return {**fields, **graded}
+
+
+def _total_if_done(db: Session, user_id: int, hand_id: int, count: int) -> None:
+    """Once every decision is stored, set the hand's total EV lost over the graded ones.
+
+    Runs after each insert has committed, so of two requests storing the last decisions at once
+    the later one sees both rows; the update only fills a total that is not set yet."""
+    rows = _stored_decisions(db, user_id, hand_id)
+    if len(rows) != count:
+        return
+    total = sum(float(r.ev_loss_chips or 0.0) for r in rows if r.status == play_views.GRADED)
+    db.execute(
+        update(PlayHandRow)
+        .where(PlayHandRow.id == hand_id, PlayHandRow.ev_loss_chips.is_(None))
+        .values(ev_loss_chips=total)
+        .execution_options(synchronize_session=False)
+    )
+    db.commit()
+
+
+def hand_analysis(db: Session, user_id: int, hand_id: int) -> dict[str, Any]:
+    """What is stored of a finished hand's analysis; 409 while the hand is running."""
+    row, record, profile = _finished_hand(db, user_id, hand_id)
+    by_n = {r.n: r for r in _stored_decisions(db, user_id, hand_id)}
+    rows = [by_n.get(n) for n in range(len(hero_decisions(record)))]
+    return play_views.hand_analysis(
+        row.id, record, profile, rows, model_changed=_model_changed(row)
+    )
+
+
+def analyse(
+    db: Session, user_id: int, hand_id: int, n: int, *, samples: int | None
+) -> dict[str, Any]:
+    """Decision ``n`` of a finished hand, analysed and stored on the first request.
+
+    The database transaction is released while solving. A decision stored meanwhile by another
+    request (the unique ``(hand_id, n)`` constraint) is returned instead of this one's."""
+    _, record, profile = _finished_hand(db, user_id, hand_id)
+    _check_decision(record, n)
+    stored = _stored_decision(db, user_id, hand_id, n)
+    if stored is None:
+        db.rollback()  # don't hold a transaction open during the CPU-bound solve
+        a = analyse_decision(record, profile, n, samples=samples)
+        new = PlayDecisionRow(
+            user_id=user_id,
+            hand_id=hand_id,
+            n=n,
+            created_at=service.utcnow(),
+            **_decision_fields(a),
+        )
+        db.add(new)
+        try:
+            db.commit()
+            stored = new
+        except IntegrityError:
+            db.rollback()
+            stored = _stored_decision(db, user_id, hand_id, n)
+            assert stored is not None
+        _total_if_done(db, user_id, hand_id, len(hero_decisions(record)))
+    return play_views.decision_review(stored, record, profile)
+
+
+def decision_explanation_inputs(
+    db: Session, user_id: int, hand_id: int, n: int
+) -> tuple[dict[str, Any], Facts]:
+    """A stored, graded decision's template explanation and the facts it was written from
+    (404 for a decision that is not analysed or not graded)."""
+    _, _, record, profile = load_hand(db, user_id, hand_id)
+    _check_decision(record, n)
+    row = _stored_decision(db, user_id, hand_id, n)
+    if row is None or row.status != play_views.GRADED:
+        raise NotFound("decision not analysed")
+    result, puzzle = play_views.explanation_result(row, record, profile)
+    log = action_log(puzzle.spot)
+    return explain(result, puzzle, log), build_facts(result, puzzle, log)
+
+
 __all__ = [
     "PlayRng",
     "act",
+    "analyse",
     "current_session",
+    "decision_explanation_inputs",
     "end_session",
     "get_hand",
+    "hand_analysis",
     "list_hands",
     "list_sessions",
     "load_hand",

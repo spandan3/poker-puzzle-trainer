@@ -33,7 +33,9 @@ from poker_trainer.api.schemas import (
     AttemptIn,
     AttemptResult,
     AttemptSummary,
+    DecisionReview,
     Explanation,
+    HandAnalysis,
     Health,
     HistoryPage,
     NewPuzzleIn,
@@ -278,6 +280,30 @@ def play_action(hand_id: int, body: PlayActionIn, db: Db, user_id: UserId) -> di
         option=body.option,
         custom_to=body.custom_to,
     )
+
+
+@router.get("/play/hands/{hand_id}/analysis", response_model=HandAnalysis)
+def play_hand_analysis(hand_id: int, db: Db, user_id: UserId) -> dict[str, Any]:
+    return play_service.hand_analysis(db, user_id, hand_id)
+
+
+@router.post("/play/hands/{hand_id}/analysis/{n}", response_model=DecisionReview)
+def analyse_play_decision(
+    hand_id: int, n: int, request: Request, db: Db, user_id: UserId
+) -> dict[str, Any]:
+    """Analyse Hero's decision ``n`` (0-based) once and store it; later calls return it."""
+    return play_service.analyse(db, user_id, hand_id, n, samples=request.app.state.play_samples)
+
+
+@router.get("/play/hands/{hand_id}/analysis/{n}/explanation", response_model=Explanation)
+def play_decision_explanation(
+    hand_id: int, n: int, request: Request, user_id: UserId
+) -> dict[str, Any]:
+    """As ``GET /attempts/{id}/explanation``, for a stored, graded decision. The database
+    session is closed before the model is asked."""
+    with request.app.state.sessionmaker() as db:
+        template, facts = play_service.decision_explanation_inputs(db, user_id, hand_id, n)
+    return request.app.state.explainer.explanation_for(("play", hand_id, n), template, facts)
 
 
 # ---------------------------------------------------------------------------

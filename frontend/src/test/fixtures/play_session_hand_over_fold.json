@@ -1,0 +1,129 @@
+{
+  "bot_stack": 198,
+  "can_top_up": false,
+  "hand": {
+    "action_count": 2,
+    "custom": {
+      "allowed": false,
+      "max_to": null,
+      "min_to": null
+    },
+    "decision_count": 1,
+    "frames": [
+      {
+        "board_len": 0,
+        "pot": 3,
+        "stacks": [
+          199,
+          198
+        ],
+        "street_bets": [
+          1,
+          2
+        ],
+        "to_act": "hero"
+      },
+      {
+        "board_len": 0,
+        "pot": 7,
+        "stacks": [
+          195,
+          198
+        ],
+        "street_bets": [
+          5,
+          2
+        ],
+        "to_act": "villain"
+      },
+      {
+        "board_len": 0,
+        "pot": 7,
+        "stacks": [
+          195,
+          198
+        ],
+        "street_bets": [
+          5,
+          2
+        ],
+        "to_act": null
+      }
+    ],
+    "hand_no": 13,
+    "id": 13,
+    "options": [],
+    "outcome": {
+      "ended_by": "fold",
+      "hero_delta_bb": 1.0,
+      "hero_delta_chips": 2,
+      "showdown": null,
+      "villain_cards": null,
+      "winner": "hero"
+    },
+    "session_id": 1,
+    "status": "complete",
+    "table": {
+      "board": [],
+      "hero_cards": [
+        "7s",
+        "6s"
+      ],
+      "hero_position": "BTN",
+      "hero_seat": 0,
+      "history": [
+        {
+          "actor": "hero",
+          "all_in": false,
+          "amount": 4,
+          "kind": "raise",
+          "pot_before": 3,
+          "street": "preflop",
+          "text": "Pre-flop: opens to 5",
+          "to": 5
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 0,
+          "kind": "fold",
+          "pot_before": 7,
+          "street": "preflop",
+          "text": "Pre-flop: folds",
+          "to": 0
+        }
+      ],
+      "pot": 7,
+      "pot_odds": null,
+      "stacks": [
+        202,
+        198
+      ],
+      "street": "preflop",
+      "street_bets": [
+        0,
+        0
+      ],
+      "to_call": 0,
+      "villain_position": "BB",
+      "villain_profile": {
+        "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+        "label": "LAG",
+        "name": "lag"
+      }
+    }
+  },
+  "hands_played": 13,
+  "hero_bought_chips": 307,
+  "hero_stack": 202,
+  "id": 1,
+  "must_rebuy": false,
+  "net_bb": -52.5,
+  "net_chips": -105,
+  "open": true,
+  "profile": {
+    "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+    "label": "LAG",
+    "name": "lag"
+  }
+}
