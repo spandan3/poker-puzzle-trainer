@@ -10,8 +10,10 @@ from __future__ import annotations
 import json
 import math
 import mimetypes
+import random
+import secrets
 import sys
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
@@ -25,7 +27,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from poker_trainer import __version__
-from poker_trainer.api import service, views
+from poker_trainer.api import play_service, service, views
 from poker_trainer.api.schemas import (
     ActionKindName,
     AttemptIn,
@@ -35,6 +37,12 @@ from poker_trainer.api.schemas import (
     Health,
     HistoryPage,
     NewPuzzleIn,
+    NextHandIn,
+    PlayActionIn,
+    PlayHandSummary,
+    PlayHandView,
+    PlaySessionSummary,
+    PlaySessionView,
     PuzzleView,
     SettingsPatch,
     SettingsView,
@@ -72,9 +80,14 @@ def get_factory(request: Request) -> PuzzleFactory:
     return request.app.state.puzzle_factory
 
 
+def get_play_rng(request: Request) -> Callable[[], random.Random]:
+    return request.app.state.play_rng
+
+
 Db = Annotated[Session, Depends(get_db)]
 UserId = Annotated[int, Depends(current_user)]
 Factory = Annotated[PuzzleFactory, Depends(get_factory)]
+PlayRng = Annotated[Callable[[], random.Random], Depends(get_play_rng)]
 
 # ---------------------------------------------------------------------------
 # Routes
@@ -207,6 +220,61 @@ def patch_user_settings(
 
 
 # ---------------------------------------------------------------------------
+# Play vs Bots
+# ---------------------------------------------------------------------------
+
+
+@router.post("/play/sessions", status_code=201, response_model=PlaySessionView)
+def start_play_session(db: Db, user_id: UserId, play_rng: PlayRng) -> dict[str, Any]:
+    return play_service.start_session(db, user_id, play_rng)
+
+
+@router.get("/play/sessions/current", response_model=PlaySessionView)  # before {session_id}
+def current_play_session(db: Db, user_id: UserId) -> dict[str, Any]:
+    return play_service.current_session(db, user_id)
+
+
+@router.get("/play/sessions", response_model=list[PlaySessionSummary])
+def play_sessions(db: Db, user_id: UserId) -> list[dict[str, Any]]:
+    return play_service.list_sessions(db, user_id)
+
+
+@router.post("/play/sessions/{session_id}/end", response_model=PlaySessionView)
+def end_play_session(session_id: int, db: Db, user_id: UserId) -> dict[str, Any]:
+    return play_service.end_session(db, user_id, session_id)
+
+
+@router.post("/play/sessions/{session_id}/hands", status_code=201, response_model=PlaySessionView)
+def next_play_hand(
+    session_id: int, db: Db, user_id: UserId, play_rng: PlayRng, body: NextHandIn | None = None
+) -> dict[str, Any]:
+    body = body or NextHandIn()
+    return play_service.next_hand(db, user_id, session_id, top_up=body.top_up, play_rng=play_rng)
+
+
+@router.get("/play/sessions/{session_id}/hands", response_model=list[PlayHandSummary])
+def play_session_hands(session_id: int, db: Db, user_id: UserId) -> list[dict[str, Any]]:
+    return play_service.list_hands(db, user_id, session_id)
+
+
+@router.get("/play/hands/{hand_id}", response_model=PlayHandView)
+def get_play_hand(hand_id: int, db: Db, user_id: UserId) -> dict[str, Any]:
+    return play_service.get_hand(db, user_id, hand_id)
+
+
+@router.post("/play/hands/{hand_id}/actions", response_model=PlaySessionView)
+def play_action(hand_id: int, body: PlayActionIn, db: Db, user_id: UserId) -> dict[str, Any]:
+    return play_service.act(
+        db,
+        user_id,
+        hand_id,
+        expected_actions=body.expected_actions,
+        option=body.option,
+        custom_to=body.custom_to,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Static frontend
 # ---------------------------------------------------------------------------
 
@@ -281,6 +349,8 @@ def create_app(
     *,
     puzzle_factory: PuzzleFactory | None = None,
     explainer: Explainer | None = None,
+    play_rng: Callable[[], random.Random] | None = None,
+    play_samples: int | None = None,
 ) -> FastAPI:
     settings = settings if settings is not None else get_settings()
 
@@ -301,6 +371,9 @@ def create_app(
     app.state.settings = settings
     app.state.puzzle_factory = puzzle_factory or service.default_factory
     app.state.explainer = explainer if explainer is not None else Explainer(settings)
+    # Profile draw, first button and every deck come from here; tests seed it.
+    app.state.play_rng = play_rng or (lambda: random.Random(secrets.randbits(64)))
+    app.state.play_samples = play_samples  # None: the config's (used by the analysis routes)
     # Results are about 75 KB of very repetitive JSON (grids, combo lists): gzip shrinks them a lot.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_exception_handler(ServiceError, _service_error)

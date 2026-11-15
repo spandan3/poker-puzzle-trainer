@@ -77,6 +77,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/play/hands/{hand_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Play Hand */
+        get: operations["get_play_hand_api_play_hands__hand_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/play/hands/{hand_id}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Play Action */
+        post: operations["play_action_api_play_hands__hand_id__actions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/play/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Play Sessions */
+        get: operations["play_sessions_api_play_sessions_get"];
+        put?: never;
+        /** Start Play Session */
+        post: operations["start_play_session_api_play_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/play/sessions/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current Play Session */
+        get: operations["current_play_session_api_play_sessions_current_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/play/sessions/{session_id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End Play Session */
+        post: operations["end_play_session_api_play_sessions__session_id__end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/play/sessions/{session_id}/hands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Play Session Hands */
+        get: operations["play_session_hands_api_play_sessions__session_id__hands_get"];
+        put?: never;
+        /** Next Play Hand */
+        post: operations["next_play_hand_api_play_sessions__session_id__hands_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/puzzles": {
         parameters: {
             query?: never;
@@ -535,6 +639,14 @@ export interface components {
             /** Street */
             street?: ("preflop" | "flop" | "turn" | "river") | null;
         };
+        /** NextHandIn */
+        NextHandIn: {
+            /**
+             * Top Up
+             * @default false
+             */
+            top_up?: boolean;
+        };
         /** OptionBrief */
         OptionBrief: {
             /** Index */
@@ -588,6 +700,127 @@ export interface components {
             simplifications: string[];
             /** To */
             to: number;
+        };
+        /**
+         * PlayActionIn
+         * @description Hero's move in a played hand: exactly one of ``option`` or ``custom_to``.
+         *
+         *     ``expected_actions`` is the hand's ``action_count`` the client saw, so a stale or doubled
+         *     click is refused instead of acting on a table Hero has not seen.
+         */
+        PlayActionIn: {
+            /** Custom To */
+            custom_to?: number | null;
+            /** Expected Actions */
+            expected_actions: number;
+            /** Option */
+            option?: number | null;
+        };
+        /** PlayHandSummary */
+        PlayHandSummary: {
+            /** Analysed */
+            analysed: boolean;
+            /** Decision Count */
+            decision_count: number;
+            /** Ended By */
+            ended_by: ("fold" | "showdown" | "abandoned") | null;
+            /** Ev Loss Bb */
+            ev_loss_bb: number | null;
+            /** Hand No */
+            hand_no: number;
+            /** Hero Position */
+            hero_position: string;
+            /** Id */
+            id: number;
+            /** Result Bb */
+            result_bb: number | null;
+        };
+        /** PlayHandView */
+        PlayHandView: {
+            /** Action Count */
+            action_count: number;
+            custom: components["schemas"]["CustomSizes"];
+            /** Decision Count */
+            decision_count: number;
+            /** Frames */
+            frames: components["schemas"]["TableFrame"][];
+            /** Hand No */
+            hand_no: number;
+            /** Id */
+            id: number;
+            /** Options */
+            options: components["schemas"]["OptionBrief"][];
+            outcome: components["schemas"]["PlayOutcome"] | null;
+            /** Session Id */
+            session_id: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "in_progress" | "complete";
+            table: components["schemas"]["TableView"];
+        };
+        /** PlayOutcome */
+        PlayOutcome: {
+            /**
+             * Ended By
+             * @enum {string}
+             */
+            ended_by: "fold" | "showdown" | "abandoned";
+            /** Hero Delta Bb */
+            hero_delta_bb: number;
+            /** Hero Delta Chips */
+            hero_delta_chips: number;
+            showdown: components["schemas"]["Showdown"] | null;
+            /** Villain Cards */
+            villain_cards: string[] | null;
+            /**
+             * Winner
+             * @enum {string}
+             */
+            winner: "hero" | "villain" | "split";
+        };
+        /** PlaySessionSummary */
+        PlaySessionSummary: {
+            /** Created At */
+            created_at: string;
+            /** Ended At */
+            ended_at: string | null;
+            /** Hands Played */
+            hands_played: number;
+            /** Id */
+            id: number;
+            /** Net Bb */
+            net_bb: number;
+            /** Open */
+            open: boolean;
+            /** Profile Label */
+            profile_label: string;
+        };
+        /** PlaySessionView */
+        PlaySessionView: {
+            /** Bot Stack */
+            bot_stack: number;
+            /** Can Top Up */
+            can_top_up: boolean;
+            hand: components["schemas"]["PlayHandView"] | null;
+            /** Hands Played */
+            hands_played: number;
+            /** Hero Bought Chips */
+            hero_bought_chips: number;
+            /** Hero Stack */
+            hero_stack: number;
+            /** Id */
+            id: number;
+            /** Must Rebuy */
+            must_rebuy: boolean;
+            /** Net Bb */
+            net_bb: number;
+            /** Net Chips */
+            net_chips: number;
+            /** Open */
+            open: boolean;
+            profile: components["schemas"]["ProfileInfo"];
         };
         /** ProfileInfo */
         ProfileInfo: {
@@ -829,6 +1062,59 @@ export interface components {
             to: number;
         };
         /**
+         * TableFrame
+         * @description The table after the first ``k`` history entries, before any pot award.
+         */
+        TableFrame: {
+            /** Board Len */
+            board_len: number;
+            /** Pot */
+            pot: number;
+            /** Stacks */
+            stacks: number[];
+            /** Street Bets */
+            street_bets: number[];
+            /** To Act */
+            to_act: ("hero" | "villain") | null;
+        };
+        /**
+         * TableView
+         * @description The table in a played hand: ``PuzzleView`` without the answer-form fields.
+         *
+         *     In a finished hand ``stacks`` are the settled stacks, ``street_bets`` are zero and ``pot``
+         *     is the pot that was awarded.
+         */
+        TableView: {
+            /** Board */
+            board: string[];
+            /** Hero Cards */
+            hero_cards: string[];
+            /** Hero Position */
+            hero_position: string;
+            /** Hero Seat */
+            hero_seat: number;
+            /** History */
+            history: components["schemas"]["ActionLogEntry"][];
+            /** Pot */
+            pot: number;
+            /** Pot Odds */
+            pot_odds: number | null;
+            /** Stacks */
+            stacks: number[];
+            /**
+             * Street
+             * @enum {string}
+             */
+            street: "preflop" | "flop" | "turn" | "river";
+            /** Street Bets */
+            street_bets: number[];
+            /** To Call */
+            to_call: number;
+            /** Villain Position */
+            villain_position: string;
+            villain_profile: components["schemas"]["ProfileInfo"];
+        };
+        /**
          * TrendPoint
          * @description One first attempt with rolling means over the last 50 first attempts ending at it.
          */
@@ -991,6 +1277,229 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoryPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_play_hand_api_play_hands__hand_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hand_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayHandView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    play_action_api_play_hands__hand_id__actions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hand_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlayActionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaySessionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    play_sessions_api_play_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaySessionSummary"][];
+                };
+            };
+        };
+    };
+    start_play_session_api_play_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaySessionView"];
+                };
+            };
+        };
+    };
+    current_play_session_api_play_sessions_current_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaySessionView"];
+                };
+            };
+        };
+    };
+    end_play_session_api_play_sessions__session_id__end_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaySessionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    play_session_hands_api_play_sessions__session_id__hands_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayHandSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    next_play_hand_api_play_sessions__session_id__hands_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["NextHandIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaySessionView"];
                 };
             };
             /** @description Validation Error */

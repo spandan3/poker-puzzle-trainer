@@ -1111,6 +1111,18 @@
         "title": "NewPuzzleIn",
         "type": "object"
       },
+      "NextHandIn": {
+        "additionalProperties": false,
+        "properties": {
+          "top_up": {
+            "default": false,
+            "title": "Top Up",
+            "type": "boolean"
+          }
+        },
+        "title": "NextHandIn",
+        "type": "object"
+      },
       "OptionBrief": {
         "additionalProperties": false,
         "properties": {
@@ -1307,6 +1319,389 @@
           "is_chosen"
         ],
         "title": "OptionResult",
+        "type": "object"
+      },
+      "PlayActionIn": {
+        "additionalProperties": false,
+        "description": "Hero's move in a played hand: exactly one of ``option`` or ``custom_to``.\n\n``expected_actions`` is the hand's ``action_count`` the client saw, so a stale or doubled\nclick is refused instead of acting on a table Hero has not seen.",
+        "properties": {
+          "custom_to": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom To"
+          },
+          "expected_actions": {
+            "minimum": 0.0,
+            "title": "Expected Actions",
+            "type": "integer"
+          },
+          "option": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option"
+          }
+        },
+        "required": [
+          "expected_actions"
+        ],
+        "title": "PlayActionIn",
+        "type": "object"
+      },
+      "PlayHandSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "analysed": {
+            "title": "Analysed",
+            "type": "boolean"
+          },
+          "decision_count": {
+            "title": "Decision Count",
+            "type": "integer"
+          },
+          "ended_by": {
+            "anyOf": [
+              {
+                "enum": [
+                  "fold",
+                  "showdown",
+                  "abandoned"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended By"
+          },
+          "ev_loss_bb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ev Loss Bb"
+          },
+          "hand_no": {
+            "title": "Hand No",
+            "type": "integer"
+          },
+          "hero_position": {
+            "title": "Hero Position",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "result_bb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Bb"
+          }
+        },
+        "required": [
+          "id",
+          "hand_no",
+          "hero_position",
+          "result_bb",
+          "ended_by",
+          "decision_count",
+          "analysed",
+          "ev_loss_bb"
+        ],
+        "title": "PlayHandSummary",
+        "type": "object"
+      },
+      "PlayHandView": {
+        "additionalProperties": false,
+        "properties": {
+          "action_count": {
+            "title": "Action Count",
+            "type": "integer"
+          },
+          "custom": {
+            "$ref": "#/components/schemas/CustomSizes"
+          },
+          "decision_count": {
+            "title": "Decision Count",
+            "type": "integer"
+          },
+          "frames": {
+            "items": {
+              "$ref": "#/components/schemas/TableFrame"
+            },
+            "title": "Frames",
+            "type": "array"
+          },
+          "hand_no": {
+            "title": "Hand No",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OptionBrief"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlayOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "in_progress",
+              "complete"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "table": {
+            "$ref": "#/components/schemas/TableView"
+          }
+        },
+        "required": [
+          "id",
+          "hand_no",
+          "session_id",
+          "status",
+          "action_count",
+          "decision_count",
+          "table",
+          "frames",
+          "options",
+          "custom",
+          "outcome"
+        ],
+        "title": "PlayHandView",
+        "type": "object"
+      },
+      "PlayOutcome": {
+        "additionalProperties": false,
+        "properties": {
+          "ended_by": {
+            "enum": [
+              "fold",
+              "showdown",
+              "abandoned"
+            ],
+            "title": "Ended By",
+            "type": "string"
+          },
+          "hero_delta_bb": {
+            "title": "Hero Delta Bb",
+            "type": "number"
+          },
+          "hero_delta_chips": {
+            "title": "Hero Delta Chips",
+            "type": "integer"
+          },
+          "showdown": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Showdown"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "villain_cards": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Villain Cards"
+          },
+          "winner": {
+            "enum": [
+              "hero",
+              "villain",
+              "split"
+            ],
+            "title": "Winner",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ended_by",
+          "winner",
+          "hero_delta_chips",
+          "hero_delta_bb",
+          "villain_cards",
+          "showdown"
+        ],
+        "title": "PlayOutcome",
+        "type": "object"
+      },
+      "PlaySessionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "hands_played": {
+            "title": "Hands Played",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "net_bb": {
+            "title": "Net Bb",
+            "type": "number"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          },
+          "profile_label": {
+            "title": "Profile Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "ended_at",
+          "profile_label",
+          "hands_played",
+          "net_bb",
+          "open"
+        ],
+        "title": "PlaySessionSummary",
+        "type": "object"
+      },
+      "PlaySessionView": {
+        "additionalProperties": false,
+        "properties": {
+          "bot_stack": {
+            "title": "Bot Stack",
+            "type": "integer"
+          },
+          "can_top_up": {
+            "title": "Can Top Up",
+            "type": "boolean"
+          },
+          "hand": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlayHandView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hands_played": {
+            "title": "Hands Played",
+            "type": "integer"
+          },
+          "hero_bought_chips": {
+            "title": "Hero Bought Chips",
+            "type": "integer"
+          },
+          "hero_stack": {
+            "title": "Hero Stack",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "must_rebuy": {
+            "title": "Must Rebuy",
+            "type": "boolean"
+          },
+          "net_bb": {
+            "title": "Net Bb",
+            "type": "number"
+          },
+          "net_chips": {
+            "title": "Net Chips",
+            "type": "integer"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/ProfileInfo"
+          }
+        },
+        "required": [
+          "id",
+          "open",
+          "profile",
+          "hero_stack",
+          "bot_stack",
+          "hero_bought_chips",
+          "net_chips",
+          "net_bb",
+          "hands_played",
+          "must_rebuy",
+          "can_top_up",
+          "hand"
+        ],
+        "title": "PlaySessionView",
         "type": "object"
       },
       "ProfileInfo": {
@@ -2022,6 +2417,160 @@
         "title": "StoredAction",
         "type": "object"
       },
+      "TableFrame": {
+        "additionalProperties": false,
+        "description": "The table after the first ``k`` history entries, before any pot award.",
+        "properties": {
+          "board_len": {
+            "title": "Board Len",
+            "type": "integer"
+          },
+          "pot": {
+            "title": "Pot",
+            "type": "integer"
+          },
+          "stacks": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Stacks",
+            "type": "array"
+          },
+          "street_bets": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Street Bets",
+            "type": "array"
+          },
+          "to_act": {
+            "anyOf": [
+              {
+                "enum": [
+                  "hero",
+                  "villain"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Act"
+          }
+        },
+        "required": [
+          "stacks",
+          "street_bets",
+          "pot",
+          "board_len",
+          "to_act"
+        ],
+        "title": "TableFrame",
+        "type": "object"
+      },
+      "TableView": {
+        "additionalProperties": false,
+        "description": "The table in a played hand: ``PuzzleView`` without the answer-form fields.\n\nIn a finished hand ``stacks`` are the settled stacks, ``street_bets`` are zero and ``pot``\nis the pot that was awarded.",
+        "properties": {
+          "board": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Board",
+            "type": "array"
+          },
+          "hero_cards": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Hero Cards",
+            "type": "array"
+          },
+          "hero_position": {
+            "title": "Hero Position",
+            "type": "string"
+          },
+          "hero_seat": {
+            "title": "Hero Seat",
+            "type": "integer"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ActionLogEntry"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "pot": {
+            "title": "Pot",
+            "type": "integer"
+          },
+          "pot_odds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pot Odds"
+          },
+          "stacks": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Stacks",
+            "type": "array"
+          },
+          "street": {
+            "enum": [
+              "preflop",
+              "flop",
+              "turn",
+              "river"
+            ],
+            "title": "Street",
+            "type": "string"
+          },
+          "street_bets": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Street Bets",
+            "type": "array"
+          },
+          "to_call": {
+            "title": "To Call",
+            "type": "integer"
+          },
+          "villain_position": {
+            "title": "Villain Position",
+            "type": "string"
+          },
+          "villain_profile": {
+            "$ref": "#/components/schemas/ProfileInfo"
+          }
+        },
+        "required": [
+          "street",
+          "hero_seat",
+          "hero_position",
+          "villain_position",
+          "hero_cards",
+          "board",
+          "stacks",
+          "street_bets",
+          "pot",
+          "to_call",
+          "pot_odds",
+          "history",
+          "villain_profile"
+        ],
+        "title": "TableView",
+        "type": "object"
+      },
       "TrendPoint": {
         "additionalProperties": false,
         "description": "One first attempt with rolling means over the last 50 first attempts ending at it.",
@@ -2411,6 +2960,286 @@
           }
         },
         "summary": "History"
+      }
+    },
+    "/api/play/hands/{hand_id}": {
+      "get": {
+        "operationId": "get_play_hand_api_play_hands__hand_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hand_id",
+            "required": true,
+            "schema": {
+              "title": "Hand Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayHandView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Play Hand"
+      }
+    },
+    "/api/play/hands/{hand_id}/actions": {
+      "post": {
+        "operationId": "play_action_api_play_hands__hand_id__actions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hand_id",
+            "required": true,
+            "schema": {
+              "title": "Hand Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayActionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaySessionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Play Action"
+      }
+    },
+    "/api/play/sessions": {
+      "get": {
+        "operationId": "play_sessions_api_play_sessions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlaySessionSummary"
+                  },
+                  "title": "Response Play Sessions Api Play Sessions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Play Sessions"
+      },
+      "post": {
+        "operationId": "start_play_session_api_play_sessions_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaySessionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start Play Session"
+      }
+    },
+    "/api/play/sessions/current": {
+      "get": {
+        "operationId": "current_play_session_api_play_sessions_current_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaySessionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Current Play Session"
+      }
+    },
+    "/api/play/sessions/{session_id}/end": {
+      "post": {
+        "operationId": "end_play_session_api_play_sessions__session_id__end_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaySessionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "End Play Session"
+      }
+    },
+    "/api/play/sessions/{session_id}/hands": {
+      "get": {
+        "operationId": "play_session_hands_api_play_sessions__session_id__hands_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlayHandSummary"
+                  },
+                  "title": "Response Play Session Hands Api Play Sessions  Session Id  Hands Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Play Session Hands"
+      },
+      "post": {
+        "operationId": "next_play_hand_api_play_sessions__session_id__hands_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/NextHandIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaySessionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Next Play Hand"
       }
     },
     "/api/puzzles": {
