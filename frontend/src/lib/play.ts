@@ -3,6 +3,7 @@
 import type {
   PlayHandView,
   PlayOutcome,
+  PlayReveal,
   PlaySessionView,
   StreetName,
   TableView,
@@ -84,4 +85,13 @@ export function tableAt(hand: PlayHandView, shownCount: number): TableView {
     to_call: heroActs ? toCall : 0,
     pot_odds: heroActs ? toCall / (frame.pot + toCall) : null,
   }
+}
+
+/** The showdown of a played hand as the Hand tab says it; a hand that ended in a fold has none. */
+export function revealShowdownLine(reveal: PlayReveal): string {
+  const { showdown } = reveal
+  if (showdown === null) return 'No showdown: the hand ended with a fold.'
+  const hands = `${showdown.hero_hand} vs ${showdown.villain_hand}`
+  if (showdown.winner === 'split') return `Split pot: ${hands}`
+  return `${showdown.winner === 'hero' ? 'Hero' : 'Villain'} wins: ${hands}`
 }

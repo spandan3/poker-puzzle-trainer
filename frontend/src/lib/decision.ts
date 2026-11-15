@@ -1,7 +1,14 @@
 // The decision a result is about, as plain data, so the details components don't need the
 // puzzle-specific parts of the API response (M10 will feed them a decision from a live hand).
-import type { AttemptResult, OptionResult, PuzzleView, StreetName } from '../api/types'
-import { chosenLabel } from './result'
+import type {
+  AttemptResult,
+  DecisionReview,
+  OptionResult,
+  PuzzleView,
+  StreetName,
+  TableView,
+} from '../api/types'
+import { chosenLabel, reviewChosenLabel } from './result'
 import { formatBb } from './format'
 
 type R = AttemptResult
@@ -44,19 +51,22 @@ export interface DecisionData {
   rangeSteps: R['range_steps']
 }
 
+function contextFromView(view: PuzzleView | TableView): DecisionContext {
+  return {
+    street: view.street,
+    potChips: view.pot,
+    heroStreetBetChips: view.street_bets[view.hero_seat] ?? 0,
+    villainStreetBetChips: view.street_bets[1 - view.hero_seat] ?? 0,
+    potOdds: view.pot_odds,
+    heroCards: view.hero_cards,
+    board: view.board,
+  }
+}
+
 export function decisionFromAttempt(view: PuzzleView, result: AttemptResult): DecisionData {
   const { grade } = result
-  const villainSeat = 1 - view.hero_seat
   return {
-    context: {
-      street: view.street,
-      potChips: view.pot,
-      heroStreetBetChips: view.street_bets[view.hero_seat] ?? 0,
-      villainStreetBetChips: view.street_bets[villainSeat] ?? 0,
-      potOdds: view.pot_odds,
-      heroCards: view.hero_cards,
-      board: view.board,
-    },
+    context: contextFromView(view),
     grade: {
       verdict: grade.verdict,
       ev_loss_bb: grade.ev_loss_bb,
@@ -76,6 +86,39 @@ export function decisionFromAttempt(view: PuzzleView, result: AttemptResult): De
     simplifications: result.simplifications,
     categories: result.categories,
     rangeSteps: result.range_steps,
+  }
+}
+
+/**
+ * The decision of a played hand's analysis. There is no guess, intent or intent flag in play, so
+ * those are null. Throws for a review that was not graded (it has nothing to show).
+ */
+export function decisionFromReview(review: DecisionReview): DecisionData {
+  const { view, grade } = review
+  if (review.status !== 'graded' || !view || !grade || !review.chosen_label) {
+    throw new Error('decisionFromReview needs a graded decision')
+  }
+  return {
+    context: contextFromView(view),
+    grade: {
+      verdict: grade.verdict,
+      ev_loss_bb: grade.ev_loss_bb,
+      chosen_label: grade.chosen_label,
+      best_label: grade.best_label,
+      equity: grade.equity,
+      equity_std_error: grade.equity_std_error,
+      equity_exact: grade.equity_exact,
+      ahead_now: grade.ahead_now,
+      intent: null,
+      intent_truth: grade.intent_truth,
+      intent_flag: null,
+      bluff_check: grade.bluff_check,
+    },
+    chosenLabel: reviewChosenLabel(review.chosen_label),
+    options: review.options,
+    simplifications: review.simplifications,
+    categories: review.categories,
+    rangeSteps: review.range_steps,
   }
 }
 

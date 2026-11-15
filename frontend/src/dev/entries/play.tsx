@@ -2,7 +2,16 @@ import type { CSSProperties } from 'react'
 import type { PlaySessionView } from '../../api/types'
 import type { PlayFlow } from '../../app/usePlayFlow'
 import { PlayPage } from '../../components/Play/PlayPage'
-import { playSessionFixture, playSessionsFixture, settingsFixture } from '../../test/fixture'
+import { HandAnalysis } from '../../components/Play/HandAnalysis'
+import { SessionHands } from '../../components/Play/SessionHands'
+import {
+  explanationLlmFixture,
+  playHandAnalysisFixture,
+  playHandsFixture,
+  playSessionFixture,
+  playSessionsFixture,
+  settingsFixture,
+} from '../../test/fixture'
 import type { GalleryEntry } from '../Gallery'
 
 const caption: CSSProperties = {
@@ -31,13 +40,15 @@ function flow(session: PlaySessionView | null, shownCount?: number): PlayFlow {
 
 function Page({ session, shownCount }: { session: PlaySessionView | null; shownCount?: number }) {
   return (
-    <PlayPage
-      flow={flow(session, shownCount)}
-      settings={settingsFixture()}
-      shortcutsOn={false}
-      onAnalyse={() => undefined}
-    />
+    <PlayPage flow={flow(session, shownCount)} settings={settingsFixture()} shortcutsOn={false} />
   )
+}
+
+const analysisApi = {
+  getPlayAnalysis: async () => playHandAnalysisFixture(),
+  postPlayDecision: async (_handId: number, n: number) => playHandAnalysisFixture().decisions[n]!,
+  getPlayExplanation: async () => explanationLlmFixture(),
+  listPlayHands: async () => playHandsFixture(),
 }
 
 const entry: GalleryEntry = {
@@ -54,6 +65,15 @@ const entry: GalleryEntry = {
       <Page session={playSessionFixture('hand_over_fold')} />
       <p style={caption}>No open session</p>
       <Page session={null} />
+      <p style={caption}>Hand analysis (a stored showdown hand)</p>
+      <HandAnalysis
+        handId={playHandAnalysisFixture().hand_id}
+        api={analysisApi}
+        settings={settingsFixture()}
+        onClose={() => undefined}
+      />
+      <p style={caption}>Session hands</p>
+      <SessionHands sessionId={1} api={analysisApi} onOpen={() => undefined} />
     </>
   ),
 }

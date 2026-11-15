@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import type { PlaySessionSummary } from '../../api/types'
 import { signedBb } from '../../lib/play'
+import type { SessionHandsApi } from './SessionHands'
+import { SessionHands } from './SessionHands'
 import styles from './Play.module.css'
 
 export const HELP_NOTE =
@@ -11,6 +14,9 @@ export interface StartPanelProps {
   busy: boolean
   /** past sessions, newest first (null: not loaded yet) */
   past: PlaySessionSummary[] | null
+  /** a past session's hand was picked to analyse or review */
+  onOpenHand: (handId: number) => void
+  api?: SessionHandsApi
 }
 
 function dateText(iso: string): string {
@@ -21,7 +27,8 @@ function dateText(iso: string): string {
 }
 
 /** Shown when there is no open session: start one, see the old ones, read what the bot does. */
-export function StartPanel({ onStart, busy, past }: StartPanelProps) {
+export function StartPanel({ onStart, busy, past, onOpenHand, api }: StartPanelProps) {
+  const [expanded, setExpanded] = useState<number | null>(null)
   return (
     <section className={styles.start} aria-label="Start a session">
       <h2 className={styles.startTitle}>Play against a bot</h2>
@@ -46,6 +53,22 @@ export function StartPanel({ onStart, busy, past }: StartPanelProps) {
                 <span>vs {s.profile_label}</span>
                 <span className={styles.pastDate}>{dateText(s.created_at)}</span>
                 {s.open && <span className={styles.pastOpen}>open</span>}
+                {s.hands_played > 0 && (
+                  <button
+                    type="button"
+                    className={styles.pastHands}
+                    aria-expanded={expanded === s.id}
+                    aria-label={`Hands of session ${s.id}`}
+                    onClick={() => setExpanded(expanded === s.id ? null : s.id)}
+                  >
+                    Hands
+                  </button>
+                )}
+                {expanded === s.id && (
+                  <div className={styles.pastHandList}>
+                    <SessionHands sessionId={s.id} api={api} onOpen={onOpenHand} />
+                  </div>
+                )}
               </li>
             ))}
           </ul>

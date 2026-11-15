@@ -355,14 +355,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
       </main>
 
       {/* hidden, not unmounted, like Puzzles: the session and the bot's reveal go on */}
-      <PlayPage
-        flow={play}
-        settings={settings}
-        shortcutsOn={playKeysOn}
-        // the analysis view arrives with the next task
-        onAnalyse={() => undefined}
-        hidden={!onPlay}
-      />
+      <PlayPage flow={play} settings={settings} shortcutsOn={playKeysOn} hidden={!onPlay} />
 
       {/* always mounted, so screen readers announce the verdict when its text arrives */}
       <div className={styles.srOnly} role="status" aria-live="polite" data-testid="announcer">

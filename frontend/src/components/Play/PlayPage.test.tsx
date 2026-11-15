@@ -3,7 +3,14 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { PlaySessionView, SettingsView } from '../../api/types'
 import type { PlayFlow, PlayState } from '../../app/usePlayFlow'
-import { playSessionFixture, playSessionsFixture, settingsFixture } from '../../test/fixture'
+import {
+  playHandAnalysisFixture,
+  playHandsFixture,
+  playSessionFixture,
+  playSessionsFixture,
+  settingsFixture,
+} from '../../test/fixture'
+import type { PlayPageApi } from './PlayPage'
 import { PlayPage } from './PlayPage'
 
 const FACE_UP = { name: / of (spades|hearts|diamonds|clubs)$/ }
@@ -41,16 +48,21 @@ function setup(
   shortcutsOn = false,
 ) {
   const flow = flowFor(session, over)
-  const onAnalyse = vi.fn()
+  const api = {
+    getPlayAnalysis: vi.fn<PlayPageApi['getPlayAnalysis']>(async () => playHandAnalysisFixture()),
+    postPlayDecision: vi.fn<PlayPageApi['postPlayDecision']>(),
+    getPlayExplanation: vi.fn<PlayPageApi['getPlayExplanation']>(),
+    listPlayHands: vi.fn<PlayPageApi['listPlayHands']>(async () => playHandsFixture()),
+  }
   render(
     <PlayPage
       flow={flow}
       settings={{ ...settingsFixture(), ...settings }}
       shortcutsOn={shortcutsOn}
-      onAnalyse={onAnalyse}
+      api={api}
     />,
   )
-  return { flow, onAnalyse, user: userEvent.setup() }
+  return { flow, api, user: userEvent.setup() }
 }
 
 const hero = () => screen.getByRole('group', { name: /^Hero,/ })
@@ -132,11 +144,39 @@ describe('PlayPage: a finished hand', () => {
     expect(screen.getByText('You: High card · Villain: Pair')).toBeInTheDocument()
   })
 
-  it('Analyse this hand calls onAnalyse with the hand id', async () => {
+  it('Analyse this hand opens the analysis of the hand just played', async () => {
     const session = playSessionFixture('hand_over_showdown')
-    const { onAnalyse, user } = setup(session)
+    const { api, user } = setup(session)
     await user.click(screen.getByRole('button', { name: 'Analyse this hand' }))
-    expect(onAnalyse).toHaveBeenCalledWith(session.hand!.id)
+    expect(await screen.findByRole('region', { name: 'Summary' })).toBeInTheDocument()
+    expect(api.getPlayAnalysis).toHaveBeenCalledWith(session.hand!.id)
+    expect(screen.queryByRole('button', { name: /^Next hand/ })).toBeNull()
+  })
+
+  it('closing the analysis returns to the hand-over panel with Next hand', async () => {
+    const { flow, user } = setup(playSessionFixture('hand_over_showdown'))
+    await user.click(screen.getByRole('button', { name: 'Analyse this hand' }))
+    await user.click(await screen.findByRole('button', { name: 'Close analysis' }))
+    expect(screen.queryByRole('region', { name: 'Summary' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: /^Next hand/ }))
+    expect(flow.nextHand).toHaveBeenCalledWith(false)
+  })
+
+  it('N does not deal while the analysis is open', async () => {
+    const { flow, user } = setup(playSessionFixture('hand_over_showdown'), {}, {}, true)
+    await user.click(screen.getByRole('button', { name: 'Analyse this hand' }))
+    await screen.findByRole('region', { name: 'Summary' })
+    await user.click(screen.getByRole('tab', { name: 'Options' }))
+    await user.keyboard('n')
+    expect(flow.nextHand).not.toHaveBeenCalled()
+  })
+
+  it('the session’s hands list opens any hand of the session', async () => {
+    const { api, user } = setup(playSessionFixture('hand_over_showdown'))
+    await user.click(screen.getByRole('button', { name: 'Session hands' }))
+    await user.click(await screen.findByRole('button', { name: 'Analyse hand 2' }))
+    expect(await screen.findByRole('region', { name: 'Summary' })).toBeInTheDocument()
+    expect(api.getPlayAnalysis).toHaveBeenCalledWith(playHandsFixture()[1]!.id)
   })
 
   it('a hand with no Hero decision has no Analyse button', () => {
@@ -219,5 +259,18 @@ describe('PlayPage: the start panel', () => {
   it('Start session is disabled while starting', () => {
     setup(null, { busy: true })
     expect(screen.getByRole('button', { name: 'Start session' })).toBeDisabled()
+  })
+})
+
+describe('PlayPage: past sessions', () => {
+  it('a past session’s hands open from the start panel', async () => {
+    const { api, user } = setup(null)
+    await user.click(screen.getAllByRole('button', { name: /^Hands of session/ })[0]!)
+    expect(api.listPlayHands).toHaveBeenCalled()
+    await user.click(await screen.findByRole('button', { name: 'Analyse hand 2' }))
+    expect(await screen.findByRole('region', { name: 'Summary' })).toBeInTheDocument()
+    // closing returns to the start panel
+    await user.click(screen.getByRole('button', { name: 'Close analysis' }))
+    expect(screen.getByRole('button', { name: 'Start session' })).toBeInTheDocument()
   })
 })

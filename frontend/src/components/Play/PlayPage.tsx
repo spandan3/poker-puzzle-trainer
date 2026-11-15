@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import * as client from '../../api/client'
 import type { CustomSizes, PlayHandView, SettingsView } from '../../api/types'
 import type { PlayFlow } from '../../app/usePlayFlow'
 import {
@@ -15,18 +16,27 @@ import { AnswerPanel } from '../AnswerPanel/AnswerPanel'
 import { HistoryPanel } from '../HistoryPanel/HistoryPanel'
 import { Table } from '../Table/Table'
 import { TableCentre } from '../TableCentre/TableCentre'
+import { HandAnalysis } from './HandAnalysis'
+import type { HandAnalysisApi } from './HandAnalysis'
 import { HandOverPanel } from './HandOverPanel'
+import type { SessionHandsApi } from './SessionHands'
+import { SessionHands } from './SessionHands'
 import { StartPanel } from './StartPanel'
 import styles from './Play.module.css'
+
+export type PlayPageApi = HandAnalysisApi & SessionHandsApi
 
 export interface PlayPageProps {
   flow: PlayFlow
   /** the settings the Puzzles flow loaded (one source for the whole app) */
-  settings: Pick<SettingsView, 'show_profile' | 'show_pot_odds'> | null
+  settings: Pick<
+    SettingsView,
+    'show_profile' | 'show_pot_odds' | 'llm_status' | 'llm_model' | 'llm_detail'
+  > | null
   /** single-key shortcuts act on this page now (on, the page is shown, no overlay open) */
   shortcutsOn: boolean
-  /** "Analyse this hand" */
-  onAnalyse: (handId: number) => void
+  /** the analysis and hand-list requests (the real client by default; a fake in tests) */
+  api?: PlayPageApi
   /** the page is not on show (it stays mounted) */
   hidden?: boolean
 }
@@ -38,7 +48,7 @@ export function PlayPage({
   flow,
   settings,
   shortcutsOn,
-  onAnalyse,
+  api = client,
   hidden = false,
 }: PlayPageProps) {
   const { session, shownCount, revealing, busy } = flow
@@ -55,6 +65,15 @@ export function PlayPage({
     setTopUp(false)
   }
 
+  // the hand whose analysis is open (a hand of this session or of a past one), and the hand list
+  const [analysing, setAnalysing] = useState<number | null>(null)
+  const [handsOpen, setHandsOpen] = useState(false)
+  const [closedCount, setClosedCount] = useState(0)
+  const closeAnalysis = () => {
+    setAnalysing(null)
+    setClosedCount((n) => n + 1) // a hand may have been analysed: its row changes
+  }
+
   const slotRef = useRef<HTMLDivElement>(null)
   const nextRef = useRef<HTMLButtonElement>(null)
 
@@ -67,18 +86,18 @@ export function PlayPage({
     const justShown = wasHidden.current && !hidden
     wasHidden.current = hidden
     if (hidden) return
-    if (handIsOver) {
-      nextRef.current?.focus({ preventScroll: true })
+    if (handIsOver && nextRef.current) {
+      nextRef.current.focus({ preventScroll: true })
       return
     }
     const active = document.activeElement
     if (justShown || active === null || active === document.body || !active.isConnected) {
       slotRef.current?.focus({ preventScroll: true })
     }
-  }, [hidden, handIsOver, hand?.id])
+  }, [hidden, handIsOver, hand?.id, analysing])
 
   const onCommand = (cmd: Command): boolean => {
-    if (cmd.id !== 'next' || !handOver || busy) return false
+    if (cmd.id !== 'next' || !handOver || analysing !== null || busy) return false
     flow.nextHand(topUp)
     return true
   }
@@ -93,7 +112,26 @@ export function PlayPage({
               Loading…
             </p>
           ) : (
-            <StartPanel onStart={flow.start} busy={busy} past={flow.past} />
+            // hidden, not unmounted, while an analysis is open: the open list stays open
+            <div hidden={analysing !== null}>
+              <StartPanel
+                onStart={flow.start}
+                busy={busy}
+                past={flow.past}
+                onOpenHand={setAnalysing}
+                api={api}
+              />
+            </div>
+          )}
+          {analysing !== null && (
+            <div className={styles.analysisWrap}>
+              <HandAnalysis
+                handId={analysing}
+                api={api}
+                settings={settings}
+                onClose={closeAnalysis}
+              />
+            </div>
           )}
         </div>
       </main>
@@ -129,7 +167,14 @@ export function PlayPage({
           }
         />
         <div ref={slotRef} className={styles.slot} tabIndex={-1} aria-label="Action">
-          {handOver ? (
+          {analysing !== null ? (
+            <HandAnalysis
+              handId={analysing}
+              api={api}
+              settings={settings}
+              onClose={closeAnalysis}
+            />
+          ) : handOver ? (
             <HandOverPanel
               ref={nextRef}
               hand={hand}
@@ -137,7 +182,7 @@ export function PlayPage({
               canTopUp={session.can_top_up}
               busy={busy}
               onNext={flow.nextHand}
-              onAnalyse={onAnalyse}
+              onAnalyse={setAnalysing}
               shortcutsOn={shortcutsOn}
               topUp={topUp}
               onTopUp={setTopUp}
@@ -153,6 +198,26 @@ export function PlayPage({
             />
           )}
         </div>
+        {analysing === null && (
+          <div className={styles.sessionHands}>
+            <button
+              type="button"
+              className={styles.handsToggle}
+              aria-expanded={handsOpen}
+              onClick={() => setHandsOpen((open) => !open)}
+            >
+              Session hands
+            </button>
+            {handsOpen && (
+              <SessionHands
+                sessionId={session.id}
+                api={api}
+                onOpen={setAnalysing}
+                refreshKey={`${hand.id}:${hand.status}:${closedCount}`}
+              />
+            )}
+          </div>
+        )}
       </div>
       <HistoryPanel view={shown} toAct={toAct} className={styles.side} />
     </main>

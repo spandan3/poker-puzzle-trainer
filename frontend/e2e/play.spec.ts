@@ -104,6 +104,49 @@ test('a session end to end: start, play hands, tally, next hand, resume, end', a
   await expect(page.getByLabel('Session tally')).toHaveCount(0)
 })
 
+test('analyse a hand: progress, summary, every tab, close, and reopen it from the hand list', async ({
+  page,
+}) => {
+  await page.goto('/play')
+  await page.getByRole('button', { name: 'Start session' }).click()
+
+  // a hand in which Hero acted at least once (a bot that folds first gives none to analyse)
+  await dealUntilHeroActs(page)
+  await playToTheEnd(page)
+  await page.getByRole('button', { name: 'Analyse this hand' }).click()
+
+  // the real backend grades each decision; allow it time
+  const summary = page.getByRole('region', { name: 'Summary' })
+  await expect(summary).toBeVisible({ timeout: 60_000 })
+  await expect(summary).toContainText(/Total EV lost: \d+(\.\d+)? bb/)
+  const steps = page.getByRole('list', { name: 'Decisions' }).getByRole('button')
+  await steps.first().click()
+  for (const tab of ['Why', 'Options', 'Maths', 'Range', 'Hand']) {
+    await page.getByRole('tab', { name: tab, exact: true }).click()
+    await expect(page.getByRole('tabpanel')).toBeVisible()
+  }
+  // no guess scores in play
+  await expect(page.getByText(/range read|your guess/i)).toHaveCount(0)
+
+  // close: the hand-over panel is back, and the next hand is dealt
+  await page.getByRole('button', { name: 'Close analysis' }).click()
+  await expect(summary).toHaveCount(0)
+  await expect(nextButton(page)).toBeVisible()
+  await nextButton(page).click()
+  await dealUntilHeroActs(page)
+
+  // the analysed hand opens again from the session's hand list, from what was stored
+  const posts: string[] = []
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && r.url().includes('/analysis/')) posts.push(r.url())
+  })
+  await page.getByRole('button', { name: 'Session hands' }).click()
+  await page.getByRole('button', { name: /^Review hand \d+$/ }).click()
+  await expect(summary).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText(/^Analysing decision/)).toHaveCount(0)
+  expect(posts).toEqual([])
+})
+
 test('layout: the top bar stays one row at 1280 on Play with a wide fallback font', async ({
   page,
   request,

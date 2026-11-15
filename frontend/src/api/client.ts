@@ -3,12 +3,15 @@ import type {
   AttemptIn,
   AttemptResult,
   AttemptSummary,
+  DecisionReview,
   Explanation,
+  HandAnalysis,
   Health,
   HistoryPage,
   NewPuzzleIn,
   NextHandIn,
   PlayActionIn,
+  PlayHandSummary,
   PlaySessionSummary,
   PlaySessionView,
   PuzzleView,
@@ -131,13 +134,23 @@ export function getAttempt(id: number): Promise<AttemptResult> {
 }
 
 /** The explanation of a stored attempt, reworded by the local model when one is set up. */
-export async function getExplanation(
-  attemptId: number,
+export function getExplanation(attemptId: number, signal?: AbortSignal): Promise<Explanation> {
+  return fetchExplanation(`/api/attempts/${attemptId}/explanation`, signal)
+}
+
+/** The explanation of a stored, graded decision of a played hand (decision `n`, 0-based). */
+export function getPlayExplanation(
+  handId: number,
+  n: number,
   signal?: AbortSignal,
 ): Promise<Explanation> {
+  return fetchExplanation(`/api/play/hands/${handId}/analysis/${n}/explanation`, signal)
+}
+
+async function fetchExplanation(url: string, signal?: AbortSignal): Promise<Explanation> {
   let res: Response
   try {
-    res = await fetch(`/api/attempts/${attemptId}/explanation`, { method: 'GET', signal })
+    res = await fetch(url, { method: 'GET', signal })
   } catch (cause) {
     if (signal?.aborted) throw cause
     throw new ApiError(0, cause instanceof Error ? cause.message : 'network error')
@@ -177,4 +190,19 @@ export function playAction(handId: number, body: PlayActionIn): Promise<PlaySess
 /** Past and open sessions, newest first. */
 export function listPlaySessions(): Promise<PlaySessionSummary[]> {
   return request('GET', '/api/play/sessions')
+}
+
+/** What is stored of a finished hand's analysis (409 while the hand is running). */
+export function getPlayAnalysis(handId: number): Promise<HandAnalysis> {
+  return request('GET', `/api/play/hands/${handId}/analysis`)
+}
+
+/** Grades decision `n` of a hand (0-based), or returns the stored grade. */
+export function postPlayDecision(handId: number, n: number): Promise<DecisionReview> {
+  return request('POST', `/api/play/hands/${handId}/analysis/${n}`)
+}
+
+/** The hands of one session, in order. */
+export function listPlayHands(sessionId: number): Promise<PlayHandSummary[]> {
+  return request('GET', `/api/play/sessions/${sessionId}/hands`)
 }
