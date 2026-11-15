@@ -111,8 +111,12 @@ class PlayActionIn(BaseModel):
 
 
 class NextHandIn(BaseModel):
+    """``expected_hands`` is the session's ``hands_played`` the client saw: a doubled or stale
+    "next hand" is refused instead of dealing a hand Hero never saw."""
+
     model_config = ConfigDict(extra="forbid")
 
+    expected_hands: Annotated[int, Field(ge=0, strict=True)]
     top_up: Annotated[bool, Field(strict=True)] = False
 
 

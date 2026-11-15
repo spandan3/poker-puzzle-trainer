@@ -109,6 +109,9 @@ def test_play_isolation(play_client, sessions):
     assert play_client.get(f"/api/play/hands/{hid}").status_code == 404
     assert play_client.post(f"/api/play/hands/{hid}/actions", json=body).status_code == 404
     assert play_client.post(f"/api/play/sessions/{sid}/end").status_code == 404
-    assert play_client.post(f"/api/play/sessions/{sid}/hands", json={}).status_code == 404
+    assert (
+        play_client.post(f"/api/play/sessions/{sid}/hands", json={"expected_hands": 0}).status_code
+        == 404
+    )
     # their open session does not stop me starting mine
     assert play_client.post("/api/play/sessions").status_code == 201

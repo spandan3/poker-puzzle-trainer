@@ -639,8 +639,14 @@ export interface components {
             /** Street */
             street?: ("preflop" | "flop" | "turn" | "river") | null;
         };
-        /** NextHandIn */
+        /**
+         * NextHandIn
+         * @description ``expected_hands`` is the session's ``hands_played`` the client saw: a doubled or stale
+         *     "next hand" is refused instead of dealing a hand Hero never saw.
+         */
         NextHandIn: {
+            /** Expected Hands */
+            expected_hands: number;
             /**
              * Top Up
              * @default false
@@ -1487,9 +1493,9 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["NextHandIn"] | null;
+                "application/json": components["schemas"]["NextHandIn"];
             };
         };
         responses: {

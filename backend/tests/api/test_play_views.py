@@ -382,7 +382,13 @@ def test_request_models():
     ):
         with pytest.raises(ValidationError):
             schemas.PlayActionIn.model_validate(bad)
-    assert schemas.NextHandIn().top_up is False
-    assert schemas.NextHandIn(top_up=True).top_up is True
-    with pytest.raises(ValidationError):
-        schemas.NextHandIn.model_validate({"top_up": 1})
+    assert schemas.NextHandIn(expected_hands=0).top_up is False
+    assert schemas.NextHandIn(expected_hands=3, top_up=True).top_up is True
+    for bad in (
+        {},
+        {"expected_hands": -1},
+        {"expected_hands": "1"},
+        {"expected_hands": 0, "top_up": 1},
+    ):
+        with pytest.raises(ValidationError):
+            schemas.NextHandIn.model_validate(bad)

@@ -270,11 +270,19 @@ def current_session(db: Session, user_id: int) -> dict[str, Any]:
 
 
 def next_hand(
-    db: Session, user_id: int, session_id: int, *, top_up: bool, play_rng: PlayRng
+    db: Session,
+    user_id: int,
+    session_id: int,
+    *,
+    expected_hands: int,
+    top_up: bool,
+    play_rng: PlayRng,
 ) -> dict[str, Any]:
     sess = _load_session(db, user_id, session_id)
     if sess.ended_at is not None:
         raise ConcurrentSubmit("the session has ended")
+    if expected_hands != sess.hands_played:
+        raise ConcurrentSubmit("the table has moved on; reload it")
     last = _latest_hand(db, user_id, sess.id)
     if last is not None and last.status != _COMPLETE:
         raise ConcurrentSubmit("the current hand is still being played")
@@ -341,6 +349,8 @@ def act(
     row, sess, record, profile = load_hand(db, user_id, hand_id)
     if row.status != _IN_PROGRESS:
         raise ConcurrentSubmit("the hand is over")
+    if sess.ended_at is not None:
+        raise ConcurrentSubmit("the session has ended")
     if expected_actions != row.action_count:
         raise ConcurrentSubmit("the table has moved on; reload it")
     s = replay(record)

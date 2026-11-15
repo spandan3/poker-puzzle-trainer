@@ -246,10 +246,16 @@ def end_play_session(session_id: int, db: Db, user_id: UserId) -> dict[str, Any]
 
 @router.post("/play/sessions/{session_id}/hands", status_code=201, response_model=PlaySessionView)
 def next_play_hand(
-    session_id: int, db: Db, user_id: UserId, play_rng: PlayRng, body: NextHandIn | None = None
+    session_id: int, body: NextHandIn, db: Db, user_id: UserId, play_rng: PlayRng
 ) -> dict[str, Any]:
-    body = body or NextHandIn()
-    return play_service.next_hand(db, user_id, session_id, top_up=body.top_up, play_rng=play_rng)
+    return play_service.next_hand(
+        db,
+        user_id,
+        session_id,
+        expected_hands=body.expected_hands,
+        top_up=body.top_up,
+        play_rng=play_rng,
+    )
 
 
 @router.get("/play/sessions/{session_id}/hands", response_model=list[PlayHandSummary])

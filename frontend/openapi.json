@@ -1113,13 +1113,22 @@
       },
       "NextHandIn": {
         "additionalProperties": false,
+        "description": "``expected_hands`` is the session's ``hands_played`` the client saw: a doubled or stale\n\"next hand\" is refused instead of dealing a hand Hero never saw.",
         "properties": {
+          "expected_hands": {
+            "minimum": 0.0,
+            "title": "Expected Hands",
+            "type": "integer"
+          },
           "top_up": {
             "default": false,
             "title": "Top Up",
             "type": "boolean"
           }
         },
+        "required": [
+          "expected_hands"
+        ],
         "title": "NextHandIn",
         "type": "object"
       },
@@ -3204,18 +3213,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/NextHandIn"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Body"
+                "$ref": "#/components/schemas/NextHandIn"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "201": {

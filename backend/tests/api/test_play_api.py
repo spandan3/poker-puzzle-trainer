@@ -48,6 +48,13 @@ def _finish(c, view, pick=lambda k, n: k % n):
     return view
 
 
+def _deal(c, v, **body):
+    """POST next hand as the client would: it echoes the ``hands_played`` it saw."""
+    return c.post(
+        f"/api/play/sessions/{v['id']}/hands", json={"expected_hands": v["hands_played"], **body}
+    )
+
+
 def _jam_or_cycle(jam):
     """Pick the biggest option every time (stacks swing, rebuys happen) or cycle through them."""
     return lambda k, n: n - 1 if jam else k % n
@@ -87,7 +94,7 @@ def test_end_then_current_404_and_end_twice(play_client):
     assert play_client.get("/api/play/sessions/current").status_code == 404
     again = play_client.post(f"/api/play/sessions/{v['id']}/end")
     assert again.status_code == 200 and again.json() == r.json()
-    assert play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).status_code == 409
+    assert _deal(play_client, v).status_code == 409
     assert play_client.post("/api/play/sessions").status_code == 201  # a new one may start
 
 
@@ -118,30 +125,33 @@ def test_stored_outcome_matches_engine(play_client, play_db):
         assert row.action_count == len(record.actions)
 
 
+def _running_after_first_action(c):
+    """Deal until Hero's first action (a non-fold option) leaves the hand running; return
+    the view before it, the response to it and the hand id."""
+    v = _start(c)
+    for _ in range(40):
+        if v["hand"]["status"] == "in_progress":
+            first = _act(c, v, 1)  # option 0 is a fold, which ends the hand
+            assert first.status_code == 200
+            if first.json()["hand"]["status"] == "in_progress":
+                return v, first
+            v = _finish(c, first.json())
+        v = _deal(c, v).json()
+    pytest.fail("no hand stayed running after Hero's first action")
+
+
 def test_stale_and_double_clicks(play_client):
-    v = _start(play_client)
-    while v["hand"]["status"] != "in_progress":  # the bot folded the button: deal another
-        v = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).json()
+    v, first = _running_after_first_action(play_client)
     hid = v["hand"]["id"]
-    first = _act(play_client, v, 0)
-    assert first.status_code == 200
     before = play_client.get(f"/api/play/hands/{hid}").json()
-    again = _act(play_client, v, 0)  # same expected_actions
+    again = _act(play_client, v, 1)  # same expected_actions
     assert again.status_code == 409
     assert play_client.get(f"/api/play/hands/{hid}").json() == before
     cur = first.json()
-    if cur["hand"]["status"] == "in_progress":
-        n = len(cur["hand"]["options"])
-        assert _act(play_client, cur, n).status_code == 422  # out of range
-        bad = play_client.post(
-            f"/api/play/hands/{hid}/actions",
-            json={"expected_actions": cur["hand"]["action_count"], "option": n + 5},
-        )
-        assert bad.status_code == 422
-        assert play_client.post(f"/api/play/sessions/{cur['id']}/hands", json={}).status_code == 409
-        done = _finish(play_client, cur)
-    else:
-        done = cur
+    n = len(cur["hand"]["options"])
+    assert _act(play_client, cur, n).status_code == 422  # out of range
+    assert _deal(play_client, cur).status_code == 409  # a hand is running
+    done = _finish(play_client, cur)
     stale = play_client.post(
         f"/api/play/hands/{hid}/actions",
         json={"expected_actions": done["hand"]["action_count"], "option": 0},
@@ -152,7 +162,7 @@ def test_stale_and_double_clicks(play_client):
 def test_custom_size_preflop_422_and_postflop_ok(play_client):
     v = _start(play_client)
     while v["hand"]["status"] != "in_progress":
-        v = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).json()
+        v = _deal(play_client, v).json()
     hand = v["hand"]
     assert hand["table"]["street"] == "preflop" and not hand["custom"]["allowed"]
     body = {"expected_actions": hand["action_count"], "custom_to": 6}
@@ -162,7 +172,7 @@ def test_custom_size_preflop_422_and_postflop_ok(play_client):
     # reach a post-flop decision by calling/checking (the first non-fold option that exists)
     for _ in range(40):
         while v["hand"]["status"] != "in_progress":
-            v = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).json()
+            v = _deal(play_client, v).json()
         h = v["hand"]
         if h["custom"]["allowed"]:
             break
@@ -181,21 +191,44 @@ def test_custom_size_preflop_422_and_postflop_ok(play_client):
 
 
 def test_next_hand_double_click(play_client):
+    """Two sequential "next hand" posts with the same ``expected_hands``: one 201, one 409, one
+    new hand, whether or not the dealt hand is already over (the bot folded the button)."""
     v = _finish(play_client, _start(play_client))
     sid = v["id"]
-    a = play_client.post(f"/api/play/sessions/{sid}/hands", json={})
-    assert a.status_code == 201 and a.json()["hand"]["hand_no"] == 2
-    if a.json()["hand"]["status"] == "in_progress":
-        b = play_client.post(f"/api/play/sessions/{sid}/hands", json={})
-        assert b.status_code == 409
+    a = _deal(play_client, v)
+    b = _deal(play_client, v)  # the same stale view
+    assert (a.status_code, b.status_code) == (201, 409)
     hands = play_client.get(f"/api/play/sessions/{sid}/hands").json()
-    assert [h["hand_no"] for h in hands] == sorted({h["hand_no"] for h in hands})
+    assert [h["hand_no"] for h in hands] == [1, 2]
+    assert play_client.get("/api/play/sessions/current").json() == a.json()
+
+
+def test_next_hand_wrong_expected_hands(play_client):
+    v = _finish(play_client, _start(play_client))
+    for wrong in (v["hands_played"] - 1, v["hands_played"] + 1):
+        r = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={"expected_hands": wrong})
+        assert r.status_code == 409
+    assert play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).status_code == 422
+    assert len(play_client.get(f"/api/play/sessions/{v['id']}/hands").json()) == 1
+
+
+def test_no_action_in_an_ended_session(play_client, play_db):
+    v = _start(play_client)
+    while v["hand"]["status"] != "in_progress":
+        v = _deal(play_client, v).json()
+    hid = v["hand"]["id"]
+    with play_db() as db:
+        db.execute(update(PlaySessionRow).values(ended_at=service.utcnow()))
+        db.commit()
+    before = play_client.get(f"/api/play/hands/{hid}").json()
+    assert _act(play_client, v, 0).status_code == 409
+    assert play_client.get(f"/api/play/hands/{hid}").json() == before
 
 
 def test_button_alternates(play_client, play_db):
     v = _finish(play_client, _start(play_client))
     first = v["hand"]["table"]["hero_position"]
-    v = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).json()
+    v = _deal(play_client, v).json()
     assert v["hand"]["table"]["hero_position"] != first
 
 
@@ -205,7 +238,7 @@ def test_rebuy_top_up_and_bot_stacks(play_client, play_db):
     cur = play_client.get("/api/play/sessions/current").json()
     assert cur["must_rebuy"] and not cur["can_top_up"]
     bought = cur["hero_bought_chips"]
-    n = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).json()
+    n = _deal(play_client, v).json()
     assert n["hero_bought_chips"] == bought + 194
     assert _start_stacks(play_db) == [START, START]  # rebought, and the bot 394 > 300 reset
     assert n["net_chips"] == n["hero_stack"] - n["hero_bought_chips"]
@@ -216,7 +249,7 @@ def test_top_up_and_bot_below_min(play_client, play_db):
     _force(play_db, hero_stack=150, bot_stack=60)
     cur = play_client.get("/api/play/sessions/current").json()
     assert cur["can_top_up"] and not cur["must_rebuy"]
-    n = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={"top_up": True}).json()
+    n = _deal(play_client, v, top_up=True).json()
     assert n["hero_bought_chips"] == cur["hero_bought_chips"] + 50
     assert _start_stacks(play_db) == [START, START]  # topped up, and the bot 60 < 80 rebought
     assert n["net_chips"] == cur["net_chips"]  # a top-up never changes the tally
@@ -225,12 +258,12 @@ def test_top_up_and_bot_below_min(play_client, play_db):
 def test_no_top_up_keeps_stacks(play_client, play_db):
     v = _finish(play_client, _start(play_client))
     _force(play_db, hero_stack=150, bot_stack=250)
-    n = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).json()
+    n = _deal(play_client, v).json()
     assert n["hero_bought_chips"] == START
     assert _start_stacks(play_db) == [150, 250]
 
 
-def test_tally_over_30_hands(play_client):
+def test_tally_over_30_hands(play_client, play_db):
     v = _start(play_client)
     total = 0
     for i in range(30):
@@ -241,9 +274,13 @@ def test_tally_over_30_hands(play_client):
         assert v["net_chips"] == v["hero_stack"] - v["hero_bought_chips"] == total
         assert v["net_bb"] == total / 2
         assert v["must_rebuy"] == (v["hero_stack"] < 10)
-        v = play_client.post(
-            f"/api/play/sessions/{v['id']}/hands", json={"top_up": i % 3 == 0}
-        ).json()
+        if i == 9:  # between hands: force a rebuy
+            _force(play_db, hero_stack=6)
+            v = play_client.get("/api/play/sessions/current").json()
+            assert v["must_rebuy"] and v["hero_stack"] == 6
+            total = 6 - v["hero_bought_chips"]  # the forced loss moves the tally once
+            assert v["net_chips"] == total
+        v = _deal(play_client, v, top_up=i % 3 == 0).json()
         assert v["hand"]["hand_no"] == i + 2
         if v["hand"]["status"] == "in_progress":
             assert v["net_chips"] == total  # rebuys and top-ups never change the tally
@@ -253,7 +290,7 @@ def test_tally_over_30_hands(play_client):
 def test_end_mid_hand_abandons(play_client):
     v = _start(play_client)
     while v["hand"]["status"] != "in_progress":
-        v = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).json()
+        v = _deal(play_client, v).json()
     stack = v["hero_stack"]
     played = v["hands_played"]
     posted = v["hand"]["table"]["street_bets"][0]
@@ -282,14 +319,14 @@ def test_profile_is_a_snapshot(play_client, monkeypatch):
     monkeypatch.setattr(service, "load_profile", boom)
     v = _finish(play_client, v)
     assert play_client.get("/api/play/sessions/current").status_code == 200
-    n = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={})
+    n = _deal(play_client, v)
     assert n.status_code == 201
 
 
 def test_lists(play_client):
     v = _finish(play_client, _start(play_client))
     sid = v["id"]
-    v2 = play_client.post(f"/api/play/sessions/{sid}/hands", json={}).json()
+    v2 = _deal(play_client, v).json()
     sessions_ = play_client.get("/api/play/sessions").json()
     assert len(sessions_) == 1
     s = sessions_[0]
@@ -314,7 +351,7 @@ def test_lists(play_client):
 def test_decision_count_counts_hero_actions(play_client, play_db):
     v = _start(play_client)
     while v["hand"]["status"] != "in_progress":
-        v = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).json()
+        v = _deal(play_client, v).json()
     assert v["hand"]["decision_count"] == 0
     v = _act(play_client, v, 0).json()
     assert v["hand"]["decision_count"] == 1
@@ -328,7 +365,10 @@ def test_decision_count_counts_hero_actions(play_client, play_db):
 def test_unknown_ids_404(play_client):
     assert play_client.get("/api/play/hands/999").status_code == 404
     assert play_client.post("/api/play/sessions/999/end").status_code == 404
-    assert play_client.post("/api/play/sessions/999/hands", json={}).status_code == 404
+    assert (
+        play_client.post("/api/play/sessions/999/hands", json={"expected_hands": 0}).status_code
+        == 404
+    )
     body = {"expected_actions": 0, "option": 0}
     assert play_client.post("/api/play/hands/999/actions", json=body).status_code == 404
     huge = 2**70
@@ -353,13 +393,13 @@ def test_doubled_next_hand_blocked_by_the_constraint_alone(play_client, monkeypa
     from poker_trainer.api import play_service
 
     v = _finish(play_client, _start(play_client))
-    first = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={})
+    first = _deal(play_client, v)
     assert first.status_code == 201
     with play_client.app.state.sessionmaker() as db:
         stale = db.scalars(select(PlayHandRow).where(PlayHandRow.hand_no == 1)).one()
         db.expunge(stale)
     monkeypatch.setattr(play_service, "_latest_hand", lambda db, user_id, sid: stale)
-    r = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={})
+    r = _deal(play_client, v)
     assert r.status_code == 409
     monkeypatch.undo()
     hands = play_client.get(f"/api/play/sessions/{v['id']}/hands").json()
@@ -372,7 +412,7 @@ def test_compare_and_set_refuses_a_racing_write(play_client, play_db, monkeypatc
 
     v = _start(play_client)
     while v["hand"]["status"] != "in_progress":
-        v = play_client.post(f"/api/play/sessions/{v['id']}/hands", json={}).json()
+        v = _deal(play_client, v).json()
     hid = v["hand"]["id"]
     real = play_service.load_hand
 
