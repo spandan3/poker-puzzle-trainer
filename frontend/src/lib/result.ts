@@ -2,6 +2,7 @@
 import type { ActionLogEntry, AttemptResult, PuzzleView } from '../api/types'
 import { formatBb, formatEvBb, formatPct } from './format'
 
+type Grade = AttemptResult['grade']
 export type Verdict = AttemptResult['grade']['verdict']
 export type Score = AttemptResult['grade']['equity_score']
 
@@ -40,6 +41,17 @@ export function chosenLabel(result: AttemptResult): string {
   return optionLabel(answer.chosen_label)
 }
 
+/** A custom size's server label: the kind and the chips, with no % or x ("bet 14", "raise 15"). */
+const CUSTOM_LABEL = /^(bet|raise) (\d+)$/
+
+/** The chosen label of a played decision: a custom size (in chips on the server) shown in bb. */
+export function reviewChosenLabel(serverLabel: string): string {
+  const custom = CUSTOM_LABEL.exec(serverLabel)
+  if (custom === null) return optionLabel(serverLabel)
+  const to = formatBb(Number(custom[2]))
+  return custom[1] === 'raise' ? `Raise to ${to}` : `Bet ${to}`
+}
+
 /** EV differences below this (in bb) are shown as "0 bb" noise-free. */
 const EV_EPSILON = 0.005
 
@@ -50,8 +62,15 @@ const EV_EPSILON = 0.005
  * - otherwise: "You: Fold · Top EV: Call · 2.25 bb lost"
  */
 export function verdictLine(result: AttemptResult): string {
-  const { grade } = result
-  const you = `You: ${chosenLabel(result)}`
+  return gradeLine(chosenLabel(result), result.grade)
+}
+
+/** The same line from the chosen label (already for display) and the grade's numbers. */
+export function gradeLine(
+  chosen: string,
+  grade: Pick<Grade, 'verdict' | 'ev_loss_bb' | 'best_label'>,
+): string {
+  const you = `You: ${chosen}`
   const best = optionLabel(grade.best_label)
   const loss = grade.ev_loss_bb
   if (loss < EV_EPSILON) return `${you} · the top play`

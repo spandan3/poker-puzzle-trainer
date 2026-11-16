@@ -1,6 +1,7 @@
 // Single-key shortcuts. `keyToCommand` is pure; `useShortcuts` binds it to `window`.
 // `SHORTCUTS` is the one table used for the <kbd> hints, `aria-keyshortcuts` and the overlay.
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import type { Page } from './page'
 
 export type ShortcutId =
   | 'fold'
@@ -39,6 +40,10 @@ export interface Shortcut {
   group: ShortcutGroup
   /** `panel`: shown on the answer panel's controls; `app`: on the app's own controls */
   scope: 'panel' | 'app'
+  /** Play has no guesses: the shortcut exists on Puzzles only. */
+  puzzlesOnly?: true
+  /** The description on Play, when it differs. */
+  playDescription?: string
 }
 
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
@@ -51,6 +56,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     description: 'Equity estimate',
     group: 'Answer',
     scope: 'panel',
+    puzzlesOnly: true,
   },
   {
     id: 'focusRangeRead',
@@ -59,6 +65,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     description: 'Range read (% of the range you are ahead of)',
     group: 'Answer',
     scope: 'panel',
+    puzzlesOnly: true,
   },
   {
     id: 'submit',
@@ -103,6 +110,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     description: 'Intent: value',
     group: 'Intent',
     scope: 'panel',
+    puzzlesOnly: true,
   },
   {
     id: 'bluff',
@@ -111,6 +119,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     description: 'Intent: bluff',
     group: 'Intent',
     scope: 'panel',
+    puzzlesOnly: true,
   },
   {
     id: 'semiBluff',
@@ -119,12 +128,14 @@ export const SHORTCUTS: readonly Shortcut[] = [
     description: 'Intent: semi-bluff',
     group: 'Intent',
     scope: 'panel',
+    puzzlesOnly: true,
   },
   {
     id: 'next',
     keys: ['N'],
     aria: 'N',
     description: 'Next puzzle (while answering: press twice to skip)',
+    playDescription: 'Next hand',
     group: 'Puzzle',
     scope: 'app',
   },
@@ -153,6 +164,17 @@ export function shortcut(id: ShortcutId): Shortcut {
   const s = BY_ID.get(id)
   if (!s) throw new Error(`unknown shortcut ${id}`)
   return s
+}
+
+/** The shortcut's description on a page ("Next puzzle" on Puzzles, "Next hand" on Play). */
+export function describeShortcut(id: ShortcutId, page: Page): string {
+  const s = shortcut(id)
+  return page === 'play' ? (s.playDescription ?? s.description) : s.description
+}
+
+/** Whether the shortcut exists on a page (Play has no equity guess, range read or intent). */
+export function isOnPage(id: ShortcutId, page: Page): boolean {
+  return !(page === 'play' && shortcut(id).puzzlesOnly)
 }
 
 const LETTERS: Record<string, ShortcutId> = {

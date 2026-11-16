@@ -1,7 +1,7 @@
 import { useEffect, useId, useReducer, useRef } from 'react'
 import type { CSSProperties, ChangeEvent, FormEvent, ReactNode, RefObject } from 'react'
 import { flushSync } from 'react-dom'
-import type { AttemptIn, Intent, PuzzleView } from '../../api/types'
+import type { ActionView, AttemptIn, Intent, PlayActionChoice } from '../../api/types'
 import type { ActionKind, AnswerErrors, AnswerField, AnswerState } from '../../lib/answer'
 import {
   EMPTY_ANSWER,
@@ -11,6 +11,7 @@ import {
   isAggressive,
   parsePercent,
   sizeOptions,
+  validateAction,
   validateAnswer,
 } from '../../lib/answer'
 import { formatBb, bbToChips } from '../../lib/format'
@@ -19,13 +20,19 @@ import { shortcut, useShortcuts } from '../../lib/shortcuts'
 import styles from './AnswerPanel.module.css'
 
 export interface AnswerPanelProps {
-  view: PuzzleView
+  view: ActionView
   /**
    * Called once per submit with the request body. The parent must respond by setting `busy`
    * (true while the request is in flight, then false): further submits are ignored until a
    * render with `busy` false after that.
    */
-  onSubmit: (body: AttemptIn) => void
+  onSubmit?: (body: AttemptIn) => void
+  /** Puzzle answers carry an equity guess, a range read and an intent. `false` (play): none. */
+  guesses?: boolean
+  /** The draft resets when this changes. Default `view.id`; play passes one key per decision. */
+  draftKey?: string | number
+  /** With `guesses={false}`: called once per submit with the chosen option or custom size. */
+  onAct?: (body: PlayActionChoice) => void
   /** a submit is in flight: submit is disabled and the answer can't be changed */
   busy: boolean
   /** the last submit's error (409 / 422 `formatDetail`), shown inline */
@@ -41,9 +48,9 @@ export interface AnswerPanelProps {
   initial?: Partial<AnswerState>
 }
 
-/** The answer form. Its draft resets whenever `view.id` changes. */
+/** The answer form. Its draft resets whenever `draftKey` (default `view.id`) changes. */
 export function AnswerPanel(props: AnswerPanelProps) {
-  return <Panel key={props.view.id} {...props} />
+  return <Panel key={props.draftKey ?? props.view.id} {...props} />
 }
 
 type Msg =
@@ -149,6 +156,8 @@ const ACTION_HINT: Partial<Record<ActionKind, { key: string; aria: string }>> = 
 function Panel({
   view,
   onSubmit,
+  guesses = true,
+  onAct,
   busy,
   error,
   customDisabledReason,
@@ -180,7 +189,9 @@ function Panel({
   const bounds = customBoundsBb(view)
   const customDisabled = customDisabledReason !== null
   const aggressive = isAggressive(state.action)
-  const result = validateAnswer(state, view, { customDisabled })
+  const full = guesses ? validateAnswer(state, view, { customDisabled }) : null
+  const act = guesses ? null : validateAction(state, view, { customDisabled })
+  const result = full ?? act!
   const errors: AnswerErrors = result.ok ? {} : result.errors
 
   // inline errors: only for text the user typed
@@ -239,16 +250,17 @@ function Panel({
       case 'value':
       case 'bluff':
       case 'semiBluff': {
-        if (!aggressive) return false
+        if (!guesses || !aggressive) return false
         const intent = INTENTS.find((i) => i.shortcut === cmd.id)?.intent ?? null
         dispatch({ type: 'intent', intent })
         return true
       }
       case 'focusEquity':
+        if (!guesses) return false
         equityRef.current?.focus()
         return true
       case 'focusRangeRead':
-        if (!view.range_read_asked) return false
+        if (!guesses || !view.range_read_asked) return false
         flushSync(() => dispatch({ type: 'skipRangeRead', skipped: false }))
         rangeRef.current?.focus()
         return true
@@ -261,9 +273,14 @@ function Panel({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
-    if (busy || lockRef.current || !result.ok) return
-    lockRef.current = true
-    onSubmit(result.body)
+    if (busy || lockRef.current) return
+    if (full?.ok) {
+      lockRef.current = true
+      onSubmit?.(full.body)
+    } else if (act?.ok) {
+      lockRef.current = true
+      onAct?.(act.body)
+    }
   }
 
   return (
@@ -275,40 +292,42 @@ function Panel({
       onSubmit={handleSubmit}
       noValidate
     >
-      {view.attempts_so_far > 0 && (
+      {guesses && (view.attempts_so_far ?? 0) > 0 && (
         <p className={styles.practice} data-testid="practice-note">
           Practice — this attempt won&apos;t count toward your stats.
         </p>
       )}
-      <div className={styles.estimates}>
-        <PercentField
-          label="Equity"
-          help="vs Villain's range"
-          slider="Equity slider"
-          text={state.equity}
-          error={inline.equity ?? null}
-          inputRef={equityRef}
-          hint={hint('focusEquity')}
-          onChange={(text) => dispatch({ type: 'equity', text })}
-        />
-        {view.range_read_asked && (
+      {guesses && (
+        <div className={styles.estimates}>
           <PercentField
-            label="Range read"
-            help="% of Villain's range you're ahead of now"
-            slider="Range read slider"
-            text={state.rangeRead}
-            skipped={state.rangeSkipped}
-            error={inline.rangeRead ?? null}
-            inputRef={rangeRef}
-            hint={hint('focusRangeRead')}
-            onChange={(text) => dispatch({ type: 'rangeRead', text })}
-            onSkip={(skipped) => {
-              flushSync(() => dispatch({ type: 'skipRangeRead', skipped }))
-              if (!skipped) rangeRef.current?.focus()
-            }}
+            label="Equity"
+            help="vs Villain's range"
+            slider="Equity slider"
+            text={state.equity}
+            error={inline.equity ?? null}
+            inputRef={equityRef}
+            hint={hint('focusEquity')}
+            onChange={(text) => dispatch({ type: 'equity', text })}
           />
-        )}
-      </div>
+          {view.range_read_asked && (
+            <PercentField
+              label="Range read"
+              help="% of Villain's range you're ahead of now"
+              slider="Range read slider"
+              text={state.rangeRead}
+              skipped={state.rangeSkipped}
+              error={inline.rangeRead ?? null}
+              inputRef={rangeRef}
+              hint={hint('focusRangeRead')}
+              onChange={(text) => dispatch({ type: 'rangeRead', text })}
+              onSkip={(skipped) => {
+                flushSync(() => dispatch({ type: 'skipRangeRead', skipped }))
+                if (!skipped) rangeRef.current?.focus()
+              }}
+            />
+          )}
+        </div>
+      )}
 
       <div className={styles.actions} role="group" aria-label="Action">
         {buttons.map((b) => {
@@ -384,7 +403,7 @@ function Panel({
       )}
 
       <div className={styles.footer}>
-        {aggressive ? (
+        {guesses && aggressive ? (
           <div className={styles.intent} role="group" aria-label="Intent">
             <span className={styles.intentLabel} aria-hidden="true">
               Intent

@@ -2,10 +2,10 @@ import { StrictMode } from 'react'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { AttemptIn, PuzzleView } from '../../api/types'
+import type { ActionView, AttemptIn, PlayActionChoice, PuzzleView } from '../../api/types'
 import { formatDetail } from '../../lib/format'
 import { SHORTCUTS } from '../../lib/shortcuts'
-import { puzzleFixture } from '../../test/fixture'
+import { playSessionFixture, puzzleFixture } from '../../test/fixture'
 import { AnswerPanel } from './AnswerPanel'
 
 interface Props {
@@ -486,5 +486,96 @@ describe('AnswerPanel keyboard', () => {
       '4',
       '5',
     ])
+  })
+})
+
+describe('AnswerPanel without guesses (play)', () => {
+  const hand = playSessionFixture('hero_to_act').hand!
+  const playView: ActionView = { ...hand.table, options: hand.options, custom: hand.custom }
+
+  function setupPlay(draftKey: string | number = 'a') {
+    const onAct = vi.fn<(body: PlayActionChoice) => void>()
+    const onSubmit = vi.fn()
+    const user = userEvent.setup()
+    const ui = (key: string | number) => (
+      <StrictMode>
+        <AnswerPanel
+          view={playView}
+          guesses={false}
+          draftKey={key}
+          busy={false}
+          error={null}
+          customDisabledReason={null}
+          shortcutsOn
+          onSubmit={onSubmit}
+          onAct={onAct}
+        />
+      </StrictMode>
+    )
+    const utils = render(ui(draftKey))
+    return { onAct, onSubmit, user, rerender: (key: string | number) => utils.rerender(ui(key)) }
+  }
+
+  it('renders no equity, range read, intent or practice note', () => {
+    setupPlay()
+    expect(screen.queryByRole('textbox', { name: /^equity/i })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: /range read/i })).toBeNull()
+    expect(screen.queryByRole('group', { name: /intent/i })).toBeNull()
+    expect(screen.queryByTestId('practice-note')).toBeNull()
+  })
+
+  it('enables Submit once an action and size are picked and calls onAct with the option', async () => {
+    const { user, onAct, onSubmit } = setupPlay()
+    expect(submit()).toBeDisabled()
+    await user.click(action(/^bet/i))
+    expect(submit()).toBeDisabled()
+    await user.click(sizes()[1]!)
+    expect(submit()).toBeEnabled()
+    await user.click(submit())
+    expect(onAct).toHaveBeenCalledWith({ option: 2 })
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('calls onAct with a custom size in chips and flags one out of bounds', async () => {
+    const { user, onAct } = setupPlay()
+    await user.click(action(/^bet/i))
+    await user.type(customBox(), '200')
+    expect(screen.getByText(/Between/)).toBeVisible()
+    expect(submit()).toBeDisabled()
+    await user.clear(customBox())
+    await user.type(customBox(), '2.5')
+    await user.click(submit())
+    expect(onAct).toHaveBeenCalledWith({ custom_to: 5 })
+  })
+
+  it('a check needs no size', async () => {
+    const { user, onAct } = setupPlay()
+    await user.click(action(/^check/i))
+    await user.click(submit())
+    expect(onAct).toHaveBeenCalledWith({ option: 0 })
+  })
+
+  it('keeps the action, size and submit shortcuts, and ignores the guess keys', async () => {
+    const { user, onAct } = setupPlay()
+    await user.keyboard('e')
+    await user.keyboard('a')
+    await user.keyboard('v')
+    await user.keyboard('x')
+    expect(action(/^check/i)).toHaveAttribute('aria-pressed', 'true')
+    await user.keyboard('b')
+    expect(action(/^bet/i)).toHaveAttribute('aria-pressed', 'true')
+    await user.keyboard('3')
+    expect(sizes()[2]).toHaveAttribute('aria-pressed', 'true')
+    await user.keyboard('{Enter}')
+    expect(onAct).toHaveBeenCalledWith({ option: 3 })
+  })
+
+  it('resets the draft when draftKey changes, not otherwise', async () => {
+    const { user, rerender } = setupPlay('a')
+    await user.click(action(/^check/i))
+    rerender('a')
+    expect(action(/^check/i)).toHaveAttribute('aria-pressed', 'true')
+    rerender('b')
+    expect(action(/^check/i)).toHaveAttribute('aria-pressed', 'false')
   })
 })

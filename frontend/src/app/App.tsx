@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FlowApi, Shown } from './usePuzzleFlow'
 import { usePuzzleFlow } from './usePuzzleFlow'
+import type { PlayApi } from './usePlayFlow'
+import { usePlayFlow } from './usePlayFlow'
 import { AnswerPanel } from '../components/AnswerPanel/AnswerPanel'
 import type { DecisionDetailsHandle } from '../components/Decision/DecisionDetails'
 import { DecisionDetails } from '../components/Decision/DecisionDetails'
 import { HandReveal } from '../components/HandReveal/HandReveal'
+import { PlayPage } from '../components/Play/PlayPage'
 import { HistoryPanel } from '../components/HistoryPanel/HistoryPanel'
 import { ExplanationPanel } from '../components/Explanation/ExplanationPanel'
 import { ResultSummary } from '../components/ResultSummary/ResultSummary'
@@ -16,24 +19,31 @@ import * as client from '../api/client'
 import { ProgressPage } from '../components/Progress/ProgressPage'
 import type { ProgressApi } from '../components/Progress/ProgressPage'
 import { decisionFromAttempt } from '../lib/decision'
+import {
+  BOARD_DEAL_BASE_MS,
+  BOARD_DEAL_STAGGER_MS,
+  HOLE_DEAL_MS,
+  HOLE_STAGGER_MS,
+  RUNOUT_BASE_MS,
+  RUNOUT_STAGGER_MS,
+} from '../lib/dealTiming'
 import { useExplanation } from './useExplanation'
+import type { Page } from '../lib/page'
 import { usePage } from '../lib/page'
 import type { Command } from '../lib/shortcuts'
 import { useShortcuts } from '../lib/shortcuts'
 import { answerEntry, heroFolded, VERDICT_LABELS, verdictLine } from '../lib/result'
+import { shownTally, tallyText } from '../lib/play'
 import { seatsFromView } from '../lib/seats'
 import styles from './App.module.css'
 
 const SHORTCUTS_KEY = 'ppt.shortcuts'
 
-// Deal timings (ms). On a new puzzle everything lands within 600 ms; input is never blocked.
-const HOLE_DEAL_MS = [0, 120] // Hero's cards; Villain's are 60 ms after each
-const HOLE_STAGGER_MS = 60
-const BOARD_DEAL_BASE_MS = 80
-const BOARD_DEAL_STAGGER_MS = 40
-// On reveal the run-out comes after Villain's cards turn over.
-const RUNOUT_BASE_MS = 380 // --duration-flip
-const RUNOUT_STAGGER_MS = 120
+const TITLES: Record<Page, string> = {
+  puzzles: 'Poker Puzzle Trainer',
+  play: 'Play · Poker Puzzle Trainer',
+  progress: 'Progress · Poker Puzzle Trainer',
+}
 
 function readShortcutsOn(): boolean {
   try {
@@ -56,20 +66,29 @@ export interface AppProps {
   api?: FlowApi
   /** the stats API (the real client by default; a fake in tests) */
   progressApi?: ProgressApi
+  /** the play API (the real client by default; a fake in tests) */
+  playApi?: PlayApi
 }
 
-export function App({ api, progressApi = client }: AppProps = {}) {
+export function App({ api, progressApi = client, playApi }: AppProps = {}) {
   const [page, navigate] = usePage()
   // Landing on /progress doesn't generate a puzzle: the flow loads when Puzzles is first shown.
   const [puzzlesSeen, setPuzzlesSeen] = useState(page === 'puzzles')
   if (page === 'puzzles' && !puzzlesSeen) setPuzzlesSeen(true)
   const onPuzzles = page === 'puzzles'
+  const onPlay = page === 'play'
+  // Likewise, the play session loads when Play is first shown.
+  const [playSeen, setPlaySeen] = useState(page === 'play')
+  if (page === 'play' && !playSeen) setPlaySeen(true)
   const flow = usePuzzleFlow(api, { enabled: puzzlesSeen })
+  const play = usePlayFlow(playApi, { enabled: playSeen })
   const { state, settings } = flow
   const [helpOpen, setHelpOpen] = useState(false)
   const [shortcutsOn, setShortcutsOnState] = useState(readShortcutsOn)
-  // shortcuts belong to the Puzzles page; the play area stays mounted (hidden) on Progress
+  // Shortcuts belong to the page on show; the Puzzles and Play pages stay mounted (hidden) on the
+  // others. Each page binds its own keys: `N` is the skip on Puzzles and the next hand on Play.
   const keysOn = shortcutsOn && !helpOpen && onPuzzles
+  const playKeysOn = shortcutsOn && !helpOpen && onPlay
 
   const slotRef = useRef<HTMLDivElement>(null)
   const nextRef = useRef<HTMLButtonElement>(null)
@@ -85,13 +104,14 @@ export function App({ api, progressApi = client }: AppProps = {}) {
   const onCommand = (cmd: Command): boolean => {
     switch (cmd.id) {
       case 'next':
+        if (!onPuzzles) return false
         flow.requestSkip()
         return true
       case 'help':
         setHelpOpen((open) => !open)
         return true
       case 'escape': {
-        if (skipPending) {
+        if (skipPending && onPuzzles) {
           flow.cancelSkip()
           return true
         }
@@ -111,7 +131,7 @@ export function App({ api, progressApi = client }: AppProps = {}) {
         return false
     }
   }
-  useShortcuts(onCommand, keysOn)
+  useShortcuts(onCommand, keysOn || playKeysOn)
 
   // What the page shows: the live state, or what was shown before a load or an error, so the
   // layout never collapses between puzzles.
@@ -143,8 +163,7 @@ export function App({ api, progressApi = client }: AppProps = {}) {
   const titleRef = useRef<HTMLHeadingElement>(null)
   const switchedFrom = useRef(page) // also makes StrictMode's second effect run a no-op
   useEffect(() => {
-    document.title =
-      page === 'progress' ? 'Progress · Poker Puzzle Trainer' : 'Poker Puzzle Trainer'
+    document.title = TITLES[page]
     if (switchedFrom.current === page) return
     switchedFrom.current = page
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
@@ -156,7 +175,13 @@ export function App({ api, progressApi = client }: AppProps = {}) {
     else flow.newPuzzle()
   }
 
-  const explained = useExplanation(result, settings)
+  const attemptId = result?.attempt.id ?? null
+  const explained = useExplanation(
+    attemptId,
+    result?.explanation ?? null,
+    (signal) => client.getExplanation(attemptId!, signal),
+    settings,
+  )
   const showPotOdds = settings?.show_pot_odds ?? true
   const showProfile = settings?.show_profile ?? true
 
@@ -178,6 +203,8 @@ export function App({ api, progressApi = client }: AppProps = {}) {
         onShortcutsOn={setShortcutsOn}
         onHelp={() => setHelpOpen(true)}
         onNewPuzzle={onNewPuzzle}
+        tally={play.session ? tallyText(shownTally(play.session, play.revealing)) : null}
+        onEndSession={play.end}
       />
 
       <div className={styles.toasts}>
@@ -185,6 +212,14 @@ export function App({ api, progressApi = client }: AppProps = {}) {
           <div className={styles.banner} role="alert" data-tone="danger">
             <span>{state.message}</span>
             <button type="button" className={styles.bannerButton} onClick={state.retry}>
+              Retry
+            </button>
+          </div>
+        )}
+        {onPlay && play.state.kind === 'error' && (
+          <div className={styles.banner} role="alert" data-tone="danger">
+            <span>{play.state.message}</span>
+            <button type="button" className={styles.bannerButton} onClick={play.state.retry}>
               Retry
             </button>
           </div>
@@ -232,7 +267,7 @@ export function App({ api, progressApi = client }: AppProps = {}) {
         </main>
       )}
 
-      {/* hidden, not unmounted, on Progress: a half-entered answer survives the visit */}
+      {/* hidden, not unmounted, on the other pages: a half-entered answer survives the visit */}
       <main className={styles.main} aria-busy={pending || undefined} hidden={!onPuzzles}>
         {view === null ? (
           <div className={styles.empty} role="status">
@@ -319,6 +354,9 @@ export function App({ api, progressApi = client }: AppProps = {}) {
         )}
       </main>
 
+      {/* hidden, not unmounted, like Puzzles: the session and the bot's reveal go on */}
+      <PlayPage flow={play} settings={settings} shortcutsOn={playKeysOn} hidden={!onPlay} />
+
       {/* always mounted, so screen readers announce the verdict when its text arrives */}
       <div className={styles.srOnly} role="status" aria-live="polite" data-testid="announcer">
         {state.kind === 'result'
@@ -326,7 +364,7 @@ export function App({ api, progressApi = client }: AppProps = {}) {
           : ''}
       </div>
 
-      <ShortcutsOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <ShortcutsOverlay open={helpOpen} page={page} onClose={() => setHelpOpen(false)} />
     </div>
   )
 }

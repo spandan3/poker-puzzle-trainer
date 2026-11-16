@@ -1,20 +1,22 @@
 import { useId } from 'react'
-import type { ActionLogEntry, PuzzleView } from '../../api/types'
+import type { ActionLogEntry, TableView } from '../../api/types'
 import { groupHistory, STREET_LABELS } from '../../lib/history'
 import { Card } from '../Card/Card'
 import styles from './HistoryPanel.module.css'
 
 export interface HistoryPanelProps {
-  view: PuzzleView
+  view: TableView
   /** Hero's submitted action: shown in place of "Hero to act" once the puzzle is answered. */
   answer?: ActionLogEntry
+  /** Who the last street waits for (default Hero); `null` once the hand is over. */
+  toAct?: 'hero' | 'villain' | null
   className?: string
 }
 
 /** The hand so far, street by street, ending with "Hero to act". */
-export function HistoryPanel({ view, answer, className }: HistoryPanelProps) {
+export function HistoryPanel({ view, answer, toAct, className }: HistoryPanelProps) {
   const base = useId()
-  const sections = groupHistory(view, answer)
+  const sections = groupHistory(view, answer, toAct)
   return (
     <aside
       className={[styles.panel, className].filter(Boolean).join(' ')}
@@ -74,10 +76,10 @@ export function HistoryPanel({ view, answer, className }: HistoryPanelProps) {
                 <span className={styles.yours}>your answer</span>
               </p>
             )}
-            {section.toAct === 'hero' && (
+            {section.toAct && (
               <p className={styles.toAct}>
                 <span className={styles.toActDot} aria-hidden="true" />
-                Hero to act
+                {section.toAct === 'hero' ? 'Hero' : 'Villain'} to act
               </p>
             )}
           </section>

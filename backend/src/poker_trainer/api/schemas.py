@@ -91,6 +91,35 @@ class SettingsPatch(BaseModel):
         return _check_profile(v, allow_random=False)
 
 
+class PlayActionIn(BaseModel):
+    """Hero's move in a played hand: exactly one of ``option`` or ``custom_to``.
+
+    ``expected_actions`` is the hand's ``action_count`` the client saw, so a stale or doubled
+    click is refused instead of acting on a table Hero has not seen."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_actions: Annotated[int, Field(ge=0, strict=True)]
+    option: Annotated[int, Field(ge=0, strict=True)] | None = None
+    custom_to: Annotated[int, Field(gt=0, strict=True)] | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_action(self) -> PlayActionIn:
+        if (self.option is None) == (self.custom_to is None):
+            raise ValueError("give exactly one of option or custom_to")
+        return self
+
+
+class NextHandIn(BaseModel):
+    """``expected_hands`` is the session's ``hands_played`` the client saw: a doubled or stale
+    "next hand" is refused instead of dealing a hand Hero never saw."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_hands: Annotated[int, Field(ge=0, strict=True)]
+    top_up: Annotated[bool, Field(strict=True)] = False
+
+
 # ---------------------------------------------------------------------------
 # Responses
 # ---------------------------------------------------------------------------
@@ -447,3 +476,161 @@ class StatsView(_Out):
     streak: StatsStreak
     days: StatsDays
     leaks: list[Leak]
+
+
+# ---------------------------------------------------------------------------
+# Play vs Bots
+# ---------------------------------------------------------------------------
+
+
+class TableView(_Out):
+    """The table in a played hand: ``PuzzleView`` without the answer-form fields.
+
+    In a finished hand ``stacks`` are the settled stacks, ``street_bets`` are zero and ``pot``
+    is the pot that was awarded."""
+
+    street: StreetName
+    hero_seat: int
+    hero_position: str
+    villain_position: str
+    hero_cards: list[str]
+    board: list[str]
+    stacks: list[int]
+    street_bets: list[int]
+    pot: int
+    to_call: int
+    pot_odds: float | None
+    history: list[ActionLogEntry]
+    villain_profile: ProfileInfo
+
+
+class TableFrame(_Out):
+    """The table after the first ``k`` history entries, before any pot award."""
+
+    stacks: list[int]
+    street_bets: list[int]
+    pot: int  # total pot including bets in front, as ``PuzzleView.pot``
+    board_len: int
+    to_act: Literal["hero", "villain"] | None
+
+
+class PlayOutcome(_Out):
+    ended_by: Literal["fold", "showdown", "abandoned"]
+    winner: Literal["hero", "villain", "split"]
+    hero_delta_chips: int
+    hero_delta_bb: float
+    villain_cards: list[str] | None  # only for a showdown
+    showdown: Showdown | None
+
+
+class PlayHandView(_Out):
+    id: int
+    hand_no: int
+    session_id: int
+    status: Literal["in_progress", "complete"]
+    action_count: int
+    decision_count: int
+    table: TableView
+    frames: list[TableFrame]
+    options: list[OptionBrief]
+    custom: CustomSizes
+    outcome: PlayOutcome | None
+
+
+class PlaySessionView(_Out):
+    id: int
+    open: bool
+    profile: ProfileInfo
+    hero_stack: int
+    bot_stack: int
+    hero_bought_chips: int
+    net_chips: int
+    net_bb: float
+    hands_played: int
+    must_rebuy: bool
+    can_top_up: bool
+    hand: PlayHandView | None
+
+
+class PlaySessionSummary(_Out):
+    id: int
+    created_at: str  # ISO 8601, always ending +00:00
+    ended_at: str | None
+    profile_label: str
+    hands_played: int
+    net_bb: float
+    open: bool
+
+
+class PlayHandSummary(_Out):
+    id: int
+    hand_no: int
+    hero_position: str
+    result_bb: float | None  # null while the hand is running
+    ended_by: Literal["fold", "showdown", "abandoned"] | None
+    decision_count: int
+    analysed: bool
+    ev_loss_bb: float | None
+
+
+# ---------------------------------------------------------------------------
+# Hand analysis: each Hero decision graded like a puzzle, against the bot's narrowed range
+# ---------------------------------------------------------------------------
+
+
+class DecisionGrade(_Out):
+    """``GradeView`` without the guesses: in play Hero states no equity, range read or intent."""
+
+    verdict: VerdictName
+    ev_loss_chips: float
+    ev_loss_bb: float
+    chosen_label: str
+    best_label: str
+    equity: float
+    equity_std_error: float
+    equity_exact: bool
+    ahead_now: float | None
+    intent_truth: IntentName | None
+    bluff_check: BluffCheck | None
+    pot_odds: float | None
+
+
+class DecisionReview(_Out):
+    """One analysed Hero decision. ``not_graded`` carries the reason and the table only."""
+
+    index: int  # 0-based among Hero's decisions in the hand
+    status: Literal["graded", "not_graded"]
+    reason: str | None
+    view: TableView | None  # the table as it stood when Hero acted
+    grade: DecisionGrade | None
+    options: list[OptionResult]
+    simplifications: list[Simplification]
+    categories: list[CategoryView] | None
+    range_steps: list[RangeStep]
+    chosen_label: str | None  # the server's label; a custom size is relabelled in bb by the UI
+    explanation: Explanation | None  # always the template (source "template")
+
+
+class PlayReveal(_Out):
+    """The bot's cards and the board as far as it was dealt (no undealt card)."""
+
+    villain_cards: list[str]
+    board: list[str]
+    profile: RevealProfile  # the session's snapshot
+    showdown: Showdown | None  # only when the hand ended in a showdown
+
+
+class AnalysisSummary(_Out):
+    ev_loss_bb: float  # over the graded decisions
+    worst_index: int | None  # null when nothing was graded or nothing lost EV
+
+
+class HandAnalysis(_Out):
+    """What is stored so far: one entry per Hero decision, null until it is analysed."""
+
+    hand_id: int
+    decisions: list[DecisionReview | None]
+    summary: AnalysisSummary | None  # once every decision is analysed
+    reveal: PlayReveal
+    model_changed: bool  # the Villain model has changed since the hand was played
+    judged_on_range_note: str

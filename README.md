@@ -48,6 +48,10 @@ npm run dev
 
 Then open http://localhost:5173. It proxies API calls to the backend.
 
+### Play vs Bots
+
+The Play page (http://127.0.0.1:8000/play) deals full heads-up hands against one bot, which plays the same Villain policy the puzzles use, with a random profile per session. Stacks start at 100 bb and carry over between hands; the top bar shows the session's net result. After any hand, "Analyse this hand" grades each of your decisions against the bot's range, the same way puzzles are graded. A session survives a reload and stays open until you end it.
+
 ## Optional: local explanations with Ollama
 
 Without this the app uses fixed templates for its explanations, and nothing leaves your machine either way. To have a local model reword them:

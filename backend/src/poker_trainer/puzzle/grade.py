@@ -66,6 +66,24 @@ class Answer:
 
 
 @dataclass(frozen=True, eq=False)
+class ActionGrade:
+    """The grade of an action alone: no guess scores."""
+
+    verdict: Verdict
+    ev_loss_chips: float
+    chosen: OptionEV
+    best: OptionEV
+    intent_truth: str | None
+    intent_flag: str | None
+    bluff_check: tuple[float, float] | None
+    best_is_chosen: bool  # the chosen action is the best play (a listed best or a custom size)
+
+    @property
+    def ev_loss_bb(self) -> float:
+        return self.ev_loss_chips / 2
+
+
+@dataclass(frozen=True, eq=False)
 class Grade:
     verdict: Verdict
     ev_loss_chips: float
@@ -142,6 +160,8 @@ def _resolve(p: Puzzle, action: Action, respond: Respond | None) -> OptionEV:
         profile = load_profile(p.spot.profile)
         if profile.version != p.spot.profile_version:
             raise ValueError("profile changed since this puzzle was generated")
+        if load_config().version != p.spot.config_version:
+            raise ValueError("puzzle config changed since this puzzle was generated")
         respond = villain_respond(profile)
     return evaluate_action(
         s,
@@ -154,23 +174,58 @@ def _resolve(p: Puzzle, action: Action, respond: Respond | None) -> OptionEV:
     )
 
 
-def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
-    """Grade ``a`` against ``p``.
+def grade_action(
+    p: Puzzle,
+    action: Action,
+    *,
+    intent: Intent | None = None,
+    respond: Respond | None = None,
+) -> ActionGrade:
+    """Grade ``action`` against ``p``: verdict, EV loss, intent truth and flag, bluff check.
 
-    The profile-version check runs only for custom sizes with the default ``respond``;
-    callers that inject ``respond`` own that check.
+    The profile- and config-version checks run only for custom sizes with the default
+    ``respond``; callers that inject ``respond`` own those checks.
 
     A custom size whose EV beats the best listed option by more than ``BEST_EPS`` becomes the best
     play itself (loss 0); a tie keeps the listed option as best.
     """
     sol = p.solution
     s = p.spot.state
-    chosen = _resolve(p, a.action, respond)
+    chosen = _resolve(p, action, respond)
     best = sol.options[sol.best]
-    custom = all(o.option.action != a.action for o in sol.options)
+    custom = all(o.option.action != action for o in sol.options)
     if custom and chosen.ev_chips > best.ev_chips + BEST_EPS:
         best = chosen
     loss = max(0.0, best.ev_chips - chosen.ev_chips)
+
+    truth: Intent | None = None
+    flag: str | None = None
+    bluff: tuple[float, float] | None = None
+    if action.kind in _AGGRESSIVE:
+        truth = _intent_truth(chosen, s.street, sol.equity)
+        if intent is not None and intent != truth:
+            never = chosen.ahead_vs_continue is None and chosen.equity_vs_continue is None
+            flag = _intent_flag(intent, truth, action.kind, never)
+        if chosen.required_fold_equity is not None and chosen.fold_freq is not None:
+            bluff = (chosen.required_fold_equity, chosen.fold_freq)
+
+    return ActionGrade(
+        verdict=_verdict(loss, total_pot(s)),
+        ev_loss_chips=float(loss),
+        chosen=chosen,
+        best=best,
+        intent_truth=truth,
+        intent_flag=flag,
+        bluff_check=bluff,
+        best_is_chosen=best.option.action == chosen.option.action,
+    )
+
+
+def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
+    """Grade ``a`` against ``p``: ``grade_action`` on its action, plus the guess scores."""
+    sol = p.solution
+    s = p.spot.state
+    ag = grade_action(p, a.action, intent=a.intent, respond=respond)
 
     equity_error = abs(a.equity_guess - sol.equity)
 
@@ -180,28 +235,17 @@ def grade(p: Puzzle, a: Answer, *, respond: Respond | None = None) -> Grade:
         rr_error = float(abs(a.range_read_guess - sol.ahead_now))
         rr_score = _score(rr_error)
 
-    truth: Intent | None = None
-    flag: str | None = None
-    bluff: tuple[float, float] | None = None
-    if a.action.kind in _AGGRESSIVE:
-        truth = _intent_truth(chosen, s.street, sol.equity)
-        if a.intent is not None and a.intent != truth:
-            never = chosen.ahead_vs_continue is None and chosen.equity_vs_continue is None
-            flag = _intent_flag(a.intent, truth, a.action.kind, never)
-        if chosen.required_fold_equity is not None and chosen.fold_freq is not None:
-            bluff = (chosen.required_fold_equity, chosen.fold_freq)
-
     return Grade(
-        verdict=_verdict(loss, total_pot(s)),
-        ev_loss_chips=float(loss),
-        chosen=chosen,
-        best=best,
+        verdict=ag.verdict,
+        ev_loss_chips=ag.ev_loss_chips,
+        chosen=ag.chosen,
+        best=ag.best,
         equity_error=float(equity_error),
         equity_score=_score(equity_error),
         range_read_error=rr_error,
         range_read_score=rr_score,
-        intent_truth=truth,
-        intent_flag=flag,
-        bluff_check=bluff,
-        best_is_chosen=best.option.action == chosen.option.action,
+        intent_truth=ag.intent_truth,
+        intent_flag=ag.intent_flag,
+        bluff_check=ag.bluff_check,
+        best_is_chosen=ag.best_is_chosen,
     )

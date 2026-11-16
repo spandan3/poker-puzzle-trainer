@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { KeyEventLike, ShortcutId } from './shortcuts'
-import { SHORTCUTS, keyToCommand, useShortcuts } from './shortcuts'
+import { SHORTCUTS, describeShortcut, isOnPage, keyToCommand, useShortcuts } from './shortcuts'
 
 const ON = { enabled: true }
 
@@ -177,5 +177,21 @@ describe('useShortcuts', () => {
     select.dispatchEvent(f)
     expect(handler).not.toHaveBeenCalled()
     expect(f.defaultPrevented).toBe(false)
+  })
+})
+
+describe('shortcuts per page', () => {
+  it('N is "Next hand" on Play and "Next puzzle" on Puzzles', () => {
+    expect(describeShortcut('next', 'play')).toBe('Next hand')
+    expect(describeShortcut('next', 'puzzles')).toMatch(/^Next puzzle/)
+  })
+
+  it('the guess shortcuts exist on Puzzles only', () => {
+    for (const id of ['focusEquity', 'focusRangeRead', 'value', 'bluff', 'semiBluff'] as const) {
+      expect(isOnPage(id, 'puzzles')).toBe(true)
+      expect(isOnPage(id, 'play')).toBe(false)
+    }
+    expect(isOnPage('fold', 'play')).toBe(true)
+    expect(isOnPage('next', 'play')).toBe(true)
   })
 })

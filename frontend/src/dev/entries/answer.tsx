@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import type { AttemptIn, PuzzleView } from '../../api/types'
+import type { ActionView, AttemptIn, PlayActionChoice } from '../../api/types'
 import { AnswerPanel } from '../../components/AnswerPanel/AnswerPanel'
 import { ShortcutsOverlay } from '../../components/ShortcutsOverlay/ShortcutsOverlay'
 import type { AnswerState } from '../../lib/answer'
 import { formatBb, formatPct } from '../../lib/format'
-import { puzzleFixture } from '../../test/fixture'
+import { playSessionFixture, puzzleFixture } from '../../test/fixture'
 import type { GalleryEntry } from '../Gallery'
 
 interface Case {
@@ -66,7 +66,7 @@ const CASES: Case[] = [
   },
 ]
 
-function context(view: PuzzleView): string {
+function context(view: ActionView): string {
   const parts = [
     `${view.street} · ${view.hero_position} vs ${view.villain_position}`,
     `pot ${formatBb(view.pot)}`,
@@ -74,6 +74,44 @@ function context(view: PuzzleView): string {
   if (view.to_call > 0) parts.push(`to call ${formatBb(view.to_call)}`)
   if (view.pot_odds !== null) parts.push(`pot odds ${formatPct(view.pot_odds)}`)
   return parts.join(' · ')
+}
+
+/** The play table's panel: no guesses, one `onAct` call with the option or custom size. */
+function PlayExample({ active, onActive }: { active: boolean; onActive: () => void }) {
+  const hand = playSessionFixture('hero_to_act').hand!
+  const view: ActionView = { ...hand.table, options: hand.options, custom: hand.custom }
+  const [sent, setSent] = useState<PlayActionChoice | null>(null)
+  return (
+    <div
+      data-gallery-case="play-no-guesses"
+      onPointerDownCapture={onActive}
+      onFocusCapture={onActive}
+      style={{ display: 'grid', gap: 'var(--space-2)', maxWidth: 1040 }}
+    >
+      <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'baseline' }}>
+        <h3 style={{ margin: 0, fontSize: 'var(--text-md)' }}>Play: no guesses (guesses=false)</h3>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
+          {context(view)}
+          {active ? ' · keyboard here' : ''}
+        </span>
+      </div>
+      <AnswerPanel
+        view={view}
+        guesses={false}
+        draftKey={`${hand.id}:${hand.action_count}`}
+        busy={false}
+        error={null}
+        customDisabledReason={null}
+        shortcutsOn={active}
+        onAct={setSent}
+      />
+      {sent && (
+        <code style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-xs)' }}>
+          POST body: {JSON.stringify(sent)}
+        </code>
+      )}
+    </div>
+  )
 }
 
 function AnswerGallery() {
@@ -124,6 +162,10 @@ function AnswerGallery() {
           </div>
         )
       })}
+      <PlayExample
+        active={active === 'play-no-guesses'}
+        onActive={() => setActive('play-no-guesses')}
+      />
       <ShortcutsOverlay open={overlay} onClose={() => setOverlay(false)} />
     </div>
   )

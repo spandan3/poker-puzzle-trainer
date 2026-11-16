@@ -3,10 +3,17 @@ import type {
   AttemptIn,
   AttemptResult,
   AttemptSummary,
+  DecisionReview,
   Explanation,
+  HandAnalysis,
   Health,
   HistoryPage,
   NewPuzzleIn,
+  NextHandIn,
+  PlayActionIn,
+  PlayHandSummary,
+  PlaySessionSummary,
+  PlaySessionView,
   PuzzleView,
   SettingsPatch,
   SettingsView,
@@ -127,17 +134,75 @@ export function getAttempt(id: number): Promise<AttemptResult> {
 }
 
 /** The explanation of a stored attempt, reworded by the local model when one is set up. */
-export async function getExplanation(
-  attemptId: number,
+export function getExplanation(attemptId: number, signal?: AbortSignal): Promise<Explanation> {
+  return fetchExplanation(`/api/attempts/${attemptId}/explanation`, signal)
+}
+
+/** The explanation of a stored, graded decision of a played hand (decision `n`, 0-based). */
+export function getPlayExplanation(
+  handId: number,
+  n: number,
   signal?: AbortSignal,
 ): Promise<Explanation> {
+  return fetchExplanation(`/api/play/hands/${handId}/analysis/${n}/explanation`, signal)
+}
+
+async function fetchExplanation(url: string, signal?: AbortSignal): Promise<Explanation> {
   let res: Response
   try {
-    res = await fetch(`/api/attempts/${attemptId}/explanation`, { method: 'GET', signal })
+    res = await fetch(url, { method: 'GET', signal })
   } catch (cause) {
     if (signal?.aborted) throw cause
     throw new ApiError(0, cause instanceof Error ? cause.message : 'network error')
   }
   if (!res.ok) throw await failure(res)
   return (await readBody(res)) as Explanation
+}
+
+/** The open play session with its latest hand, or `null` when there is none (404). */
+export async function currentPlaySession(): Promise<PlaySessionView | null> {
+  const res = await send('GET', '/api/play/sessions/current')
+  if (res.status === 404) return null
+  if (!res.ok) throw await failure(res)
+  return (await readBody(res)) as PlaySessionView
+}
+
+/** Starts a session against a random bot; 409 when one is already open. */
+export function startPlaySession(): Promise<PlaySessionView> {
+  return request('POST', '/api/play/sessions')
+}
+
+/** Ends a session; a running hand is abandoned. */
+export function endPlaySession(id: number): Promise<PlaySessionView> {
+  return request('POST', `/api/play/sessions/${id}/end`)
+}
+
+/** Deals the next hand. `expected_hands` is the `hands_played` the client saw (409 if stale). */
+export function nextPlayHand(id: number, body: NextHandIn): Promise<PlaySessionView> {
+  return request('POST', `/api/play/sessions/${id}/hands`, body)
+}
+
+/** Hero acts; the bot answers until Hero's turn or the end of the hand. */
+export function playAction(handId: number, body: PlayActionIn): Promise<PlaySessionView> {
+  return request('POST', `/api/play/hands/${handId}/actions`, body)
+}
+
+/** Past and open sessions, newest first. */
+export function listPlaySessions(): Promise<PlaySessionSummary[]> {
+  return request('GET', '/api/play/sessions')
+}
+
+/** What is stored of a finished hand's analysis (409 while the hand is running). */
+export function getPlayAnalysis(handId: number): Promise<HandAnalysis> {
+  return request('GET', `/api/play/hands/${handId}/analysis`)
+}
+
+/** Grades decision `n` of a hand (0-based), or returns the stored grade. */
+export function postPlayDecision(handId: number, n: number): Promise<DecisionReview> {
+  return request('POST', `/api/play/hands/${handId}/analysis/${n}`)
+}
+
+/** The hands of one session, in order. */
+export function listPlayHands(sessionId: number): Promise<PlayHandSummary[]> {
+  return request('GET', `/api/play/sessions/${sessionId}/hands`)
 }

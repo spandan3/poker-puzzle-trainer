@@ -23,6 +23,8 @@ function setup(over: Partial<TopBarProps> = {}) {
     onShortcutsOn: vi.fn(),
     onHelp: vi.fn(),
     onNewPuzzle: vi.fn(),
+    tally: null,
+    onEndSession: vi.fn(),
     ...over,
   }
   render(<TopBar {...props} />)
@@ -142,6 +144,40 @@ describe('TopBar', () => {
       expect(screen.queryByRole('button', { name: 'New puzzle' })).toBeNull()
       // shortcuts are off on Progress: no help button either
       expect(screen.queryByRole('button', { name: 'Keyboard shortcuts help' })).toBeNull()
+    })
+  })
+
+  describe('Play', () => {
+    it('has a Play link between Puzzles and Progress', () => {
+      setup({ page: 'play' })
+      const nav = screen.getByRole('navigation', { name: 'Main' })
+      const links = within(nav).getAllByRole('link')
+      expect(links.map((l) => l.textContent)).toEqual(['Puzzles', 'Play', 'Progress'])
+      expect(links[1]).toHaveAttribute('href', '/play')
+      expect(links[1]).toHaveAttribute('aria-current', 'page')
+    })
+
+    it('shows the tally and End session instead of the puzzle controls', async () => {
+      const { props, user } = setup({ page: 'play', tally: '+12.5 bb · 14 hands' })
+      expect(screen.getByText('+12.5 bb · 14 hands')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'End session' }))
+      expect(props.onEndSession).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('combobox', { name: 'Street' })).toBeNull()
+      expect(screen.queryByRole('combobox', { name: 'Villain' })).toBeNull()
+      expect(screen.queryByRole('button', { name: /New puzzle/ })).toBeNull()
+    })
+
+    it('keeps the toggles and help', () => {
+      setup({ page: 'play', tally: '0 bb · 0 hands' })
+      expect(screen.getByRole('switch', { name: 'Pot odds' })).toBeInTheDocument()
+      expect(screen.getByRole('switch', { name: 'Show profile' })).toBeInTheDocument()
+      expect(screen.getByRole('switch', { name: 'Shortcuts' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Keyboard shortcuts help' })).toBeInTheDocument()
+    })
+
+    it('has no tally or End session without a session', () => {
+      setup({ page: 'play', tally: null })
+      expect(screen.queryByRole('button', { name: 'End session' })).toBeNull()
     })
   })
 })

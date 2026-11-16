@@ -1,4 +1,4 @@
-import type { ActionLogEntry, PuzzleView, StreetName } from '../api/types'
+import type { ActionLogEntry, StreetName, TableView } from '../api/types'
 import { formatBb } from './format'
 
 export const STREET_ORDER: readonly StreetName[] = ['preflop', 'flop', 'turn', 'river']
@@ -57,7 +57,7 @@ export interface HistorySection {
   /** The board cards that arrived on this street (none pre-flop). */
   board: string[]
   entries: HistoryItem[]
-  toAct?: 'hero'
+  toAct?: 'hero' | 'villain'
   /** Hero's submitted answer (after a submit), in place of "Hero to act". */
   answer?: HistoryItem
 }
@@ -72,8 +72,13 @@ const BOARD_SLICE: Record<StreetName, [number, number]> = {
 /**
  * One section per street from pre-flop to the decision street (even when it has no entries).
  * With `answer` (Hero's submitted action), the last section shows it instead of "Hero to act".
+ * `toAct` says who the last section is waiting for (default Hero); `null` for a finished hand.
  */
-export function groupHistory(view: PuzzleView, answer?: ActionLogEntry): HistorySection[] {
+export function groupHistory(
+  view: TableView,
+  answer?: ActionLogEntry,
+  toAct: 'hero' | 'villain' | null = 'hero',
+): HistorySection[] {
   const texts = entryTexts(answer ? [...view.history, answer] : view.history)
   const streets = STREET_ORDER.slice(0, STREET_ORDER.indexOf(view.street) + 1)
   return streets.map((street, i) => {
@@ -92,7 +97,7 @@ export function groupHistory(view: PuzzleView, answer?: ActionLogEntry): History
       if (answer) {
         section.answer = { actor: 'hero', position: view.hero_position, text: texts.at(-1)! }
       } else {
-        section.toAct = 'hero'
+        if (toAct !== null) section.toAct = toAct
       }
     }
     return section

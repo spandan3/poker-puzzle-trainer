@@ -214,3 +214,39 @@ def test_profile_meta_unknown():
     from poker_trainer.villain.profiles import profile_meta
 
     assert profile_meta("maniac") == ("Maniac", "")
+
+
+@pytest.mark.parametrize("name", PROFILE_NAMES)
+def test_profile_snapshot_rebuilds_the_loaded_profile(name):
+    from poker_trainer.villain.profiles import profile_data, profile_from_dict
+
+    rebuilt = profile_from_dict(name, profile_data(name))
+    loaded = load_profile(name)
+    assert rebuilt.version == loaded.version
+    assert rebuilt.label == loaded.label
+    assert rebuilt.unopened == loaded.unopened
+    assert np.array_equal(rebuilt.preflop.open, loaded.preflop.open)
+
+
+def test_profile_data_is_a_fresh_dict():
+    from poker_trainer.villain.profiles import profile_data
+
+    first = profile_data("tag")
+    first["label"] = "changed"
+    first["unopened"]["cbet"]["AIR"]["check"] = 0.0
+    second = profile_data("tag")
+    assert second == _raw("tag")
+    assert second["label"] != "changed"
+
+
+def test_profile_data_unknown_name_raises():
+    from poker_trainer.villain.profiles import profile_data
+
+    with pytest.raises(ValueError, match="unknown profile"):
+        profile_data("maniac")
+
+
+def test_private_loader_name_is_an_alias():
+    from poker_trainer.villain.profiles import profile_from_dict
+
+    assert _profile_from_dict is profile_from_dict

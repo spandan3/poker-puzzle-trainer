@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
-import * as client from '../api/client'
-import type { AttemptResult, Explanation, SettingsView } from '../api/types'
+import { useEffect, useRef, useState } from 'react'
+import type { Explanation, SettingsView } from '../api/types'
 
 export type LlmSettings = Pick<SettingsView, 'llm_status' | 'llm_model' | 'llm_detail'>
 
@@ -13,49 +12,56 @@ export interface ExplanationState {
   requestFailed: boolean
 }
 
-type Fetcher = (attemptId: number, signal: AbortSignal) => Promise<Explanation>
+export type ExplanationKey = string | number
 
-type Outcome = { attemptId: number; explanation: Explanation } | { attemptId: number; failed: true }
+type Outcome =
+  { key: ExplanationKey; explanation: Explanation } | { key: ExplanationKey; failed: true }
 
 /**
- * The explanation to show for a result. Off or unavailable: the one inside the result, no request.
- * Ready: the same until `GET /api/attempts/{id}/explanation` answers; the request is aborted when
- * the result changes or the component unmounts, and an answer is used only for its own attempt.
+ * The explanation to show for a decision. Off or unavailable: the `template`, no request.
+ * Ready: the same until `fetcher` answers; the request is aborted when `key` changes or the
+ * component unmounts, and an answer is used only for its own key. `key` is null when there is
+ * nothing to explain yet (the hook then returns null). The fetcher is read through a ref, so an
+ * inline function does not refetch; only a new `key` does.
  */
 export function useExplanation(
-  result: AttemptResult | null,
+  key: ExplanationKey | null,
+  template: Explanation | null,
+  fetcher: (signal: AbortSignal) => Promise<Explanation>,
   llm: LlmSettings | null,
-  fetchExplanation: Fetcher = client.getExplanation,
 ): ExplanationState | null {
-  const attemptId = result?.attempt.id ?? null
   const ready = llm?.llm_status === 'ready'
   const [outcome, setOutcome] = useState<Outcome | null>(null)
+  const fetcherRef = useRef(fetcher)
+  useEffect(() => {
+    fetcherRef.current = fetcher
+  })
 
   useEffect(() => {
-    if (attemptId === null || !ready) return
+    if (key === null || !ready) return
     const controller = new AbortController()
-    fetchExplanation(attemptId, controller.signal).then(
+    fetcherRef.current(controller.signal).then(
       (explanation) => {
-        if (!controller.signal.aborted) setOutcome({ attemptId, explanation })
+        if (!controller.signal.aborted) setOutcome({ key, explanation })
       },
       () => {
-        if (!controller.signal.aborted) setOutcome({ attemptId, failed: true })
+        if (!controller.signal.aborted) setOutcome({ key, failed: true })
       },
     )
     return () => controller.abort()
-  }, [attemptId, ready, fetchExplanation])
+  }, [key, ready])
 
-  if (result === null) return null
-  const mine = outcome !== null && outcome.attemptId === attemptId ? outcome : null
+  if (key === null || template === null) return null
+  const mine = outcome !== null && outcome.key === key ? outcome : null
   if (!ready) {
-    return { explanation: result.explanation, pendingModel: null, requestFailed: false }
+    return { explanation: template, pendingModel: null, requestFailed: false }
   }
   if (mine !== null && 'explanation' in mine) {
     return { explanation: mine.explanation, pendingModel: null, requestFailed: false }
   }
   const failed = mine !== null
   return {
-    explanation: result.explanation,
+    explanation: template,
     pendingModel: failed ? null : (llm?.llm_model ?? 'the local model'),
     requestFailed: failed,
   }

@@ -8,7 +8,7 @@
   slow, broken or gives invalid output, the template is shown with the reason in ``fallback``.
   The Villain section is always the template's.
 
-Successes and guardrail rejections are cached per ``(attempt_id, model)`` (LRU, ``CACHE_SIZE``
+Successes and guardrail rejections are cached per ``(result key, model)`` (LRU, ``CACHE_SIZE``
 entries); failures are not, so the next request retries. A request for a key whose generation is
 running waits for it instead of queueing a second generation in Ollama. Route handlers run in a
 thread pool, so the cache and the in-flight table are guarded by a lock.
@@ -26,7 +26,7 @@ import re
 import threading
 import time
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -90,8 +90,8 @@ class Explainer:
         self._probe = probe if probe is not None else _probe
         self._clock = clock
         self._lock = threading.Lock()
-        self._cache: OrderedDict[tuple[int, str], dict[str, Any]] = OrderedDict()
-        self._in_flight: dict[tuple[int, str], _InFlight] = {}
+        self._cache: OrderedDict[tuple[Hashable, str], dict[str, Any]] = OrderedDict()
+        self._in_flight: dict[tuple[Hashable, str], _InFlight] = {}
         self._probed: tuple[float, LlmStatus, str | None] | None = None
 
     @property
@@ -106,13 +106,14 @@ class Explainer:
     # -- explanations ----------------------------------------------------------------------
 
     def explanation_for(
-        self, attempt_id: int, template: dict[str, Any], facts: Facts
+        self, result_key: Hashable, template: dict[str, Any], facts: Facts
     ) -> dict[str, Any]:
-        """The explanation to show for an attempt (JSON-safe ``Explanation``); never raises
-        because of the model."""
+        """The explanation to show for a result (JSON-safe ``Explanation``); never raises
+        because of the model. ``result_key`` names the result in the cache: an attempt's id, or
+        ``("play", hand_id, n)`` for a played decision."""
         if not self.enabled:
             return _fallback(template, "off")
-        key = (attempt_id, self.settings.ollama_model)
+        key = (result_key, self.settings.ollama_model)
         with self._lock:
             cached = self._cache.get(key)
             if cached is not None:
@@ -131,7 +132,7 @@ class Explainer:
         out: dict[str, Any] | None = None
         cache = False
         try:
-            out, cache = self._run(attempt_id, template, facts)
+            out, cache = self._run(result_key, template, facts)
         finally:
             with self._lock:
                 if cache and out is not None:
@@ -144,7 +145,7 @@ class Explainer:
         return running.result
 
     def _run(
-        self, attempt_id: int, template: dict[str, Any], facts: Facts
+        self, result_key: Hashable, template: dict[str, Any], facts: Facts
     ) -> tuple[dict[str, Any], bool]:
         """``(explanation, cache it?)``."""
         s = self.settings
@@ -159,19 +160,19 @@ class Explainer:
             )
             fields = ollama.parse_reply(content)
         except ollama.LlmFailure as e:
-            log.info("explanation %d: %s (%s)", attempt_id, e.reason, e)
+            log.info("explanation %s: %s (%s)", result_key, e.reason, e)
             return _fallback(template, e.reason), False
         except Exception:  # never a 5xx because of the model
-            log.exception("explanation %d: unexpected error", attempt_id)
+            log.exception("explanation %s: unexpected error", result_key)
             return _fallback(template, "error"), False
         bad = guardrail.check_fields(fields, facts.values_text())
         if bad:
             numbers = {name: sorted(tokens) for name, tokens in bad.items()}
-            log.info("explanation %d: guardrail rejected numbers %s", attempt_id, numbers)
+            log.info("explanation %s: guardrail rejected numbers %s", result_key, numbers)
             return _fallback(template, "guardrail"), True
         claims = guardrail.check_claims(fields, facts)
         if claims:
-            log.info("explanation %d: guardrail rejected claims %s", attempt_id, claims)
+            log.info("explanation %s: guardrail rejected claims %s", result_key, claims)
             return _fallback(template, "guardrail"), True
         sections = {sec["id"]: sec for sec in template["sections"]}
         return {

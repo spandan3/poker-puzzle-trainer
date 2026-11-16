@@ -7,6 +7,9 @@ from sqlalchemy.exc import IntegrityError, StatementError
 from poker_trainer.db import (
     DEFAULT_USER_ID,
     AttemptRow,
+    PlayDecisionRow,
+    PlayHandRow,
+    PlaySessionRow,
     PuzzleRow,
     User,
     UserSettings,
@@ -167,3 +170,100 @@ def test_foreign_keys_on_every_connection(sessions):
     with engine.connect() as a, engine.connect() as b:
         assert a.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
         assert b.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
+
+
+# ---------------------------------------------------------------------------
+# Play tables
+# ---------------------------------------------------------------------------
+
+
+def _play_session(user_id: int = DEFAULT_USER_ID, ended_at=None) -> PlaySessionRow:
+    return PlaySessionRow(
+        user_id=user_id,
+        ended_at=ended_at,
+        profile="tag",
+        profile_version=1,
+        profile_data={"name": "tag"},
+        hero_stack=200,
+        bot_stack=200,
+        hero_bought_chips=200,
+        next_button=0,
+        hands_played=0,
+    )
+
+
+def _play_hand(session_id: int, hand_no: int = 1) -> PlayHandRow:
+    return PlayHandRow(
+        user_id=DEFAULT_USER_ID,
+        session_id=session_id,
+        hand_no=hand_no,
+        button=0,
+        start_stacks=[200, 200],
+        deck=list(range(52)),
+        bot_seed=2**61 + 3,
+        actions=[],
+        action_count=0,
+        abandoned=False,
+        status="in_progress",
+        decision_count=0,
+        strategy_version=1,
+        categories_version=1,
+        config_version=1,
+    )
+
+
+def _play_decision(hand_id: int, n: int = 0) -> PlayDecisionRow:
+    return PlayDecisionRow(
+        user_id=DEFAULT_USER_ID,
+        hand_id=hand_id,
+        n=n,
+        status="not_graded",
+        reason="unsupported",
+        strategy_version=1,
+        categories_version=1,
+        config_version=1,
+    )
+
+
+def test_one_open_play_session_per_user(sessions):
+    with sessions() as db:
+        ensure_default_user(db)
+        first = _play_session()
+        db.add(first)
+        db.commit()
+        db.add(_play_session())
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+        first = db.get(PlaySessionRow, first.id)
+        first.ended_at = datetime(2026, 1, 1, tzinfo=UTC)
+        db.commit()
+        db.add(_play_session())  # allowed once the first has ended
+        db.commit()
+        db.add(_play_session(ended_at=datetime(2026, 1, 2, tzinfo=UTC)))  # ended ones pile up
+        db.commit()
+
+
+def test_play_hand_and_decision_numbers_are_unique(sessions):
+    with sessions() as db:
+        ensure_default_user(db)
+        s = _play_session()
+        db.add(s)
+        db.commit()
+        h = _play_hand(s.id)
+        db.add(h)
+        db.commit()
+        db.add(_play_hand(s.id, hand_no=1))
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+        db.add(_play_hand(s.id, hand_no=2))
+        db.commit()
+        db.add(_play_decision(h.id))
+        db.commit()
+        db.add(_play_decision(h.id))
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+        db.add(_play_decision(h.id, n=1))
+        db.commit()

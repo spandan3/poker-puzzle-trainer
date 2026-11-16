@@ -67,6 +67,8 @@ function InteractiveTopBar() {
       onShortcutsOn={setShortcuts}
       onHelp={() => undefined}
       onNewPuzzle={() => undefined}
+      tally={null}
+      onEndSession={() => undefined}
     />
   )
 }
