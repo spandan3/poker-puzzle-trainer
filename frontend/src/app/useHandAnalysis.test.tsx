@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import type { ReactNode } from 'react'
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { Mock } from 'vitest'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
@@ -53,7 +53,8 @@ describe('useHandAnalysis', () => {
     const api = fakeApi([0, 1])
     const { result } = renderHook(() => useHandAnalysis(1, api), { wrapper: strict })
     expect(result.current.analysis).toBeNull()
-    await flush()
+    // the chain is a GET plus two POSTs: wait for it rather than assume one timer tick (slow CI)
+    await waitFor(() => expect(result.current.progress).toEqual({ done: 4, total: 4 }))
     expect(api.postPlayDecision.mock.calls.map((c) => c[1])).toEqual([2, 3])
     expect(result.current.progress).toEqual({ done: 4, total: 4 })
     expect(result.current.analysis?.summary).not.toBeNull()
@@ -103,13 +104,13 @@ describe('useHandAnalysis', () => {
       }),
     })
     const { result } = renderHook(() => useHandAnalysis(1, api))
-    await flush()
-    expect(result.current.error).toMatch(/solver died/)
+    await waitFor(() => expect(result.current.error).toMatch(/solver died/))
     expect(result.current.progress).toEqual({ done: 2, total: 4 })
     expect(api.postPlayDecision.mock.calls.map((c) => c[1])).toEqual([1, 2])
     fail = false
     act(() => result.current.retry())
-    await flush()
+    // retry is a GET plus two POSTs: wait for the chain rather than assume one timer tick (slow CI)
+    await waitFor(() => expect(result.current.progress).toEqual({ done: 4, total: 4 }))
     expect(api.postPlayDecision.mock.calls.map((c) => c[1])).toEqual([1, 2, 2, 3])
     expect(result.current.error).toBeNull()
     expect(result.current.progress).toEqual({ done: 4, total: 4 })
