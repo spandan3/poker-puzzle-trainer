@@ -8,7 +8,7 @@ A personal NLHE trainer: a FastAPI backend (`backend/`, uv, Python 3.13) and a V
 - Roadmap: `docs/superpowers/plans/2026-11-10-roadmap.md`. Order: M6 results → M7 progress → M8 explanations (local LLM) → M9 Phase 1 sign-off → M10 Play vs Bots heads-up → M11 UI polish → M12 5-max play → M13 5-max analysis.
 - Status (2026-11-17): M1–M10 are merged (M10 via PR #7 on 2026-11-16). **M11 (UI polish) is next.** Its starting point is the end of `docs/superpowers/plans/2026-11-14-m10-play-vs-bots.md` (rulings, then open items for M11 and later). The Phase 1 sign-off report, `docs/superpowers/reports/2026-11-13-m9-competence-signoff.md`, is waiting for the user's approval.
 - Each milestone has a plan in `docs/superpowers/plans/`. The end of the latest plan lists the open items for the next milestones. Read it before planning the next one.
-- `handoff.md` is for parallel work on the Villain model (`villain/*` branches). It also says which paths the main line owns.
+- Villain model: `docs/villain.md` (the `action_distribution` contract and invariants, version-bump rules, competence checks, backlog). Read it before changing anything under `villain/` or the profiles. It replaced `handoff.md` on 2026-11-17.
 
 ## How each milestone is built
 
@@ -24,7 +24,7 @@ A personal NLHE trainer: a FastAPI backend (`backend/`, uv, Python 3.13) and a V
 ## Git rules
 
 - **Never squash.** Every commit is preserved on merge (rebase-merge or merge commit).
-- Docs-only commits (handoff, plan follow-ups, roadmap) may go straight to `main`.
+- Docs-only commits (`docs/villain.md`, plan follow-ups, roadmap) may go straight to `main`.
 - Don't delete branches without asking.
 - **Commit as the user.** Every commit is authored and committed as `spandan3 <62089707+spandan3@users.noreply.github.com>`, with no Co-Authored-By, Claude-Session or other trailers. In a fresh container set it once: `git config user.name spandan3`, `git config user.email 62089707+spandan3@users.noreply.github.com` (and `git config commit.gpgsign false`). Tell subagents the same: no `--author`, no trailers.
 - Once a commit is pushed, review fixes go in as new commits, never amends, so a branch never needs a force-push.

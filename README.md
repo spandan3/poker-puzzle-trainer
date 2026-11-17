@@ -119,4 +119,5 @@ Run these from `backend/` (`cd backend` from the repository root, and `cd ..` wh
 - `backend/`: the FastAPI app and the poker logic (`src/poker_trainer/`: engine, game, Villain profiles, puzzle generator and grader, stats, explanations, analysis tools) and its tests (`tests/`).
 - `frontend/`: the React app (`src/`), the Playwright end-to-end tests (`e2e/`) and the generated API types.
 - `docs/superpowers/`: the design specs, the milestone plans and the M9 competence sign-off report (`reports/`).
-- `CLAUDE.md` and `handoff.md`: working notes for the AI-assisted workflow used to build the project.
+- `CLAUDE.md`: working notes for the AI-assisted workflow used to build the project.
+- `docs/villain.md`: the Villain model's contract, competence checks and backlog.
