@@ -1,8 +1,8 @@
 # Handoff: improving the Villain "poker bot"
 
-This is for working on the Villain model while the main line of work (M10, Play vs Bots heads-up) continues on its own branch.
+This is for working on the Villain model while the main line of work (M11, UI polish) continues on its own branch.
 
-Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M9 merge (2026-11-13). M3 (the puzzle generator and grader), M4 (API and storage), M5 (table UI), M6 (results view), M7 (progress), M8 (explanations) and M9 (Phase 1 sign-off: Villain tuning, new competence checks, position-aware realisation in the grader) are done. M10 (Play vs Bots heads-up) is next.
+Repo: `spandan3/poker-puzzle-trainer` (private). The state described here is `main` after the M10 merge (2026-11-16). M3 (the puzzle generator and grader), M4 (API and storage), M5 (table UI), M6 (results view), M7 (progress), M8 (explanations), M9 (Phase 1 sign-off: Villain tuning, new competence checks, position-aware realisation in the grader) and M10 (Play vs Bots heads-up) are done. M11 (UI polish) is next.
 
 ## 1. What the project is
 
@@ -33,7 +33,7 @@ So any improvement you make to that function automatically improves all three. I
 # install uv first: https://docs.astral.sh/uv/
 cd backend
 uv sync
-uv run pytest -m "not slow"            # fast suite, about 2 min, 991 tests
+uv run pytest -m "not slow"            # fast suite, about 2 min, 1,227 tests
 uv run pytest -m slow                  # slow cross-checks, about 17 min
 uv run ruff check . && uv run ruff format --check .
 uv run competence --profile all --hands 400                 # one seed, about 2 min
@@ -114,11 +114,11 @@ Old puzzles are frozen with the `profile_version` they were generated under. Tha
 
 ## 5. Current status
 
-M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage), M5 (table UI), M6 (results view), M7 (progress), M8 (explanations) and M9 (Phase 1 sign-off) are done and reviewed.
+M1 (equity engine), M2 (game state plus Villain), M3 (puzzles and grader), M4 (API and storage), M5 (table UI), M6 (results view), M7 (progress), M8 (explanations), M9 (Phase 1 sign-off) and M10 (Play vs Bots heads-up) are done and reviewed.
 
-Roadmap (2026-11-13, M1–M9 done): M10 Play vs Bots heads-up → M11 UI polish → M12 Play vs Bots 5-max (play) → M13 5-max analysis. See `docs/superpowers/plans/2026-11-10-roadmap.md`.
+Roadmap (2026-11-17, M1–M10 done): M11 UI polish → M12 Play vs Bots 5-max (play) → M13 5-max analysis. See `docs/superpowers/plans/2026-11-10-roadmap.md`.
 
-**Play vs Bots (M10) matters for Villain work:** the bot in that mode *is* the Villain policy (`action_distribution`, sampled for the bot's real cards), so every tuning change shows up in live play too (spec: `docs/superpowers/specs/2026-11-12-play-vs-bots-design.md`). M10 added `STRATEGY_VERSION` (now 1) to `strategy.py`: bump it by hand whenever the policy's behaviour changes, as you already do for profile and `categories.json` versions. Each played hand stores it, and its analysis is labelled "Villain model has changed since this hand" when it differs. A Play session stores a snapshot of its profile's data (`profile_data`) and keeps playing and analysing with it, so a profile change does not affect sessions already started. Play mode only offers the supported pre-flop tree (no limps, no small 4-bets); widening that tree is a welcome future Villain task, listed under "Later" in the roadmap.
+**Play vs Bots (M10, done) matters for Villain work:** the bot in that mode *is* the Villain policy (`action_distribution`, sampled for the bot's real cards), so every tuning change shows up in live play too (spec: `docs/superpowers/specs/2026-11-12-play-vs-bots-design.md`). M10 added `STRATEGY_VERSION` (now 1) to `strategy.py`: bump it by hand whenever the policy's behaviour changes, as you already do for profile and `categories.json` versions. Each played hand stores it, and its analysis is labelled "Villain model has changed since this hand" when it differs. A Play session stores a snapshot of its profile's data (`profile_data`) and keeps playing and analysing with it, so a profile change does not affect sessions already started. Play mode only offers the supported pre-flop tree (no limps, no small 4-bets); widening that tree is a welcome future Villain task, listed under "Later" in the roadmap.
 
 M4 note for Villain work: custom bet sizes on a stored puzzle are refused (409) once its profile or `categories.json` version changes, so version bumps are still the right way to change data.
 
