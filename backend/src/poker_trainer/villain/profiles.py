@@ -232,6 +232,3 @@ def profile_from_dict(name: str, raw: Any) -> Profile:
         raise ValueError(f"{name}: missing key {e}") from e
     except TypeError as e:
         raise ValueError(f"{name}: malformed profile data: {e}") from e
-
-
-_profile_from_dict = profile_from_dict  # the pre-M10 name, kept for existing callers

@@ -10,8 +10,8 @@ from poker_trainer.villain.features import HandCategory
 from poker_trainer.villain.profiles import (
     PROFILE_NAMES,
     Profile,
-    _profile_from_dict,
     load_profile,
+    profile_from_dict,
 )
 
 ROLES = ("cbet", "lead", "stab")
@@ -106,21 +106,21 @@ def _raw(name: str = "tag") -> dict:
 
 
 def test_loader_accepts_raw_profile():
-    assert _profile_from_dict("tag", _raw()).version == 5
+    assert profile_from_dict("tag", _raw()).version == 5
 
 
 def test_bad_row_sum_raises():
     raw = copy.deepcopy(_raw())
     raw["unopened"]["cbet"]["AIR"]["check"] = 0.9
     with pytest.raises(ValueError, match="cbet.AIR"):
-        _profile_from_dict("tag", raw)
+        profile_from_dict("tag", raw)
 
 
 def test_missing_category_raises():
     raw = copy.deepcopy(_raw())
     del raw["facing"]["facing_bet"]["NUTS"]
     with pytest.raises(ValueError, match="facing_bet"):
-        _profile_from_dict("tag", raw)
+        profile_from_dict("tag", raw)
 
 
 @pytest.mark.parametrize(
@@ -153,7 +153,7 @@ def test_structural_errors_raise_value_error(mutate):
     raw = copy.deepcopy(_raw())
     mutate(raw)
     with pytest.raises(ValueError):
-        _profile_from_dict("tag", raw)
+        profile_from_dict("tag", raw)
 
 
 def test_unknown_profile_raises():
@@ -170,7 +170,7 @@ def test_profiles_ship_as_package_data():
 def test_river_overrides_optional():
     raw = copy.deepcopy(_raw())
     del raw["river_unopened"]
-    assert dict(_profile_from_dict("tag", raw).river_unopened) == {}
+    assert dict(profile_from_dict("tag", raw).river_unopened) == {}
 
 
 @pytest.mark.parametrize("where", ["facing", "river_facing"])
@@ -178,13 +178,13 @@ def test_strong_continue_floor_message(where):
     raw = copy.deepcopy(_raw())
     raw[where]["facing_bet"]["STRONG"] = {"fold": 0.3, "call": 0.7, "raise": 0.0}
     with pytest.raises(ValueError, match=f"{where}.facing_bet.STRONG: continue must be at least"):
-        _profile_from_dict("tag", raw)
+        profile_from_dict("tag", raw)
 
 
 def test_river_facing_optional():
     raw = copy.deepcopy(_raw())
     del raw["river_facing"]
-    assert dict(_profile_from_dict("tag", raw).river_facing) == {}
+    assert dict(profile_from_dict("tag", raw).river_facing) == {}
 
 
 def test_river_facing_partial(profile: Profile):
@@ -244,9 +244,3 @@ def test_profile_data_unknown_name_raises():
 
     with pytest.raises(ValueError, match="unknown profile"):
         profile_data("maniac")
-
-
-def test_private_loader_name_is_an_alias():
-    from poker_trainer.villain.profiles import profile_from_dict
-
-    assert _profile_from_dict is profile_from_dict
