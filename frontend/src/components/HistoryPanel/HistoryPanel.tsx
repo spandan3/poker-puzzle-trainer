@@ -16,7 +16,11 @@ export interface HistoryPanelProps {
   className?: string
 }
 
-/** The hand so far, street by street, ending with "Hero to act". */
+/**
+ * The hand so far, street by street, ending with "Hero to act". `view` is any table: a puzzle's,
+ * Play's current hand (cut to what the reveal has shown) or, beside a Play analysis, the
+ * `review.view` of the step picked (the hand up to that decision, with `toAct` "hero").
+ */
 export function HistoryPanel({ view, answer, toAct, resetKey, className }: HistoryPanelProps) {
   const base = useId()
   const sections = groupHistory(view, answer, toAct)

@@ -19,20 +19,10 @@ import type { Command, ShortcutId } from '../../lib/shortcuts'
 import { shortcut, useShortcuts } from '../../lib/shortcuts'
 import styles from './AnswerPanel.module.css'
 
-export interface AnswerPanelProps {
+interface AnswerPanelBase {
   view: ActionView
-  /**
-   * Called once per submit with the request body. The parent must respond by setting `busy`
-   * (true while the request is in flight, then false): further submits are ignored until a
-   * render with `busy` false after that.
-   */
-  onSubmit?: (body: AttemptIn) => void
-  /** Puzzle answers carry an equity guess, a range read and an intent. `false` (play): none. */
-  guesses?: boolean
   /** The draft resets when this changes. Default `view.id`; play passes one key per decision. */
   draftKey?: string | number
-  /** With `guesses={false}`: called once per submit with the chosen option or custom size. */
-  onAct?: (body: PlayActionChoice) => void
   /** a submit is in flight: submit is disabled and the answer can't be changed */
   busy: boolean
   /** the last submit's error (409 / 422 `formatDetail`), shown inline */
@@ -47,6 +37,27 @@ export interface AnswerPanelProps {
   /** a starting draft (the gallery and tests) */
   initial?: Partial<AnswerState>
 }
+
+/** A puzzle answer: an equity guess, a range read and an intent, sent with `onSubmit`. */
+interface PuzzleAnswerProps extends AnswerPanelBase {
+  guesses?: true
+  /**
+   * Called once per submit with the request body. The parent must respond by setting `busy`
+   * (true while the request is in flight, then false): further submits are ignored until a
+   * render with `busy` false after that.
+   */
+  onSubmit: (body: AttemptIn) => void
+  onAct?: never
+}
+
+/** A play action: no guesses; the chosen option or custom size goes to `onAct`, once per submit. */
+interface PlayActionProps extends AnswerPanelBase {
+  guesses: false
+  onAct: (body: PlayActionChoice) => void
+  onSubmit?: never
+}
+
+export type AnswerPanelProps = PuzzleAnswerProps | PlayActionProps
 
 /** The answer form. Its draft resets whenever `draftKey` (default `view.id`) changes. */
 export function AnswerPanel(props: AnswerPanelProps) {
@@ -391,7 +402,12 @@ function Panel({
         </div>
       )}
 
-      <div className={styles.actions} role="group" aria-label="Action">
+      <div
+        className={styles.actions}
+        role="group"
+        aria-label="Action"
+        data-divided={guesses || undefined}
+      >
         {buttons.map((b) => {
           const h = hint(ACTION_SHORTCUT[b.kind], ACTION_HINT[b.kind])
           const pressed = state.action === b.kind

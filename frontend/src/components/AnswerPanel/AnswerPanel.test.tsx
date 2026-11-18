@@ -512,7 +512,6 @@ describe('AnswerPanel without guesses (play)', () => {
 
   function setupPlay(draftKey: string | number = 'a') {
     const onAct = vi.fn<(body: PlayActionChoice) => void>()
-    const onSubmit = vi.fn()
     const user = userEvent.setup()
     const ui = (key: string | number) => (
       <StrictMode>
@@ -524,14 +523,39 @@ describe('AnswerPanel without guesses (play)', () => {
           error={null}
           customDisabledReason={null}
           shortcutsOn
-          onSubmit={onSubmit}
           onAct={onAct}
         />
       </StrictMode>
     )
     const utils = render(ui(draftKey))
-    return { onAct, onSubmit, user, rerender: (key: string | number) => utils.rerender(ui(key)) }
+    return { onAct, user, rerender: (key: string | number) => utils.rerender(ui(key)) }
   }
+
+  it('the props are a union: play needs onAct, a puzzle needs onSubmit (type level)', () => {
+    const base = {
+      view: playView,
+      busy: false,
+      error: null,
+      customDisabledReason: null,
+      shortcutsOn: false,
+    }
+    // @ts-expect-error guesses={false} without onAct does not compile
+    const noAct = <AnswerPanel {...base} guesses={false} />
+    // @ts-expect-error the default (guesses) without onSubmit does not compile
+    const noSubmit = <AnswerPanel {...base} />
+    expect(noAct).toBeTruthy()
+    expect(noSubmit).toBeTruthy()
+  })
+
+  it('has no divider above the actions (nothing sits above them)', () => {
+    setupPlay()
+    expect(screen.getByRole('group', { name: 'Action' })).not.toHaveAttribute('data-divided')
+  })
+
+  it('a puzzle panel keeps the divider above the actions', () => {
+    setup()
+    expect(screen.getByRole('group', { name: 'Action' })).toHaveAttribute('data-divided')
+  })
 
   it('renders no equity, range read, intent or practice note', () => {
     setupPlay()
@@ -542,7 +566,7 @@ describe('AnswerPanel without guesses (play)', () => {
   })
 
   it('enables Submit once an action and size are picked and calls onAct with the option', async () => {
-    const { user, onAct, onSubmit } = setupPlay()
+    const { user, onAct } = setupPlay()
     expect(submit()).toBeDisabled()
     await user.click(action(/^bet/i))
     expect(submit()).toBeDisabled()
@@ -550,7 +574,6 @@ describe('AnswerPanel without guesses (play)', () => {
     expect(submit()).toBeEnabled()
     await user.click(submit())
     expect(onAct).toHaveBeenCalledWith({ option: 2 })
-    expect(onSubmit).not.toHaveBeenCalled()
   })
 
   it('calls onAct with a custom size in chips and flags one out of bounds', async () => {

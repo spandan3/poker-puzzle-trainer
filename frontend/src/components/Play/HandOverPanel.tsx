@@ -1,6 +1,7 @@
 import { forwardRef } from 'react'
 import type { PlayHandView } from '../../api/types'
 import { resultLine } from '../../lib/play'
+import { Button } from '../ui'
 import styles from './Play.module.css'
 
 export interface HandOverPanelProps {
@@ -29,7 +30,7 @@ export const HandOverPanel = forwardRef<HTMLButtonElement, HandOverPanelProps>(
     return (
       <section className={styles.over} aria-label="Hand over">
         {outcome && (
-          <p className={styles.result} role="status" data-winner={outcome.winner}>
+          <p className={styles.result} role="status">
             {resultLine(outcome)}
           </p>
         )}
@@ -39,29 +40,22 @@ export const HandOverPanel = forwardRef<HTMLButtonElement, HandOverPanelProps>(
           </p>
         )}
         <div className={styles.actions}>
-          <button
+          <Button
             ref={nextRef}
-            type="button"
-            className={styles.primary}
-            aria-disabled={busy || undefined}
+            variant="primary"
+            busy={busy}
+            kbd={shortcutsOn ? 'N' : undefined}
             // the page's own focus target: App leaves it alone after a navigation
             data-primary-focus=""
-            onClick={() => {
-              if (!busy) onNext(topUp)
-            }}
+            onClick={() => onNext(topUp)}
             {...(shortcutsOn ? { 'data-shortcut': 'next', 'aria-keyshortcuts': 'N' } : {})}
           >
             {mustRebuy ? 'Rebuy and deal' : 'Next hand'}
-            {shortcutsOn && (
-              <kbd className={styles.kbd} aria-hidden="true">
-                N
-              </kbd>
-            )}
-          </button>
+          </Button>
           {hand.decision_count > 0 && (
-            <button type="button" className={styles.secondary} onClick={() => onAnalyse(hand.id)}>
+            <Button variant="secondary" onClick={() => onAnalyse(hand.id)}>
               Analyse this hand
-            </button>
+            </Button>
           )}
           {canTopUp && (
             <label className={styles.topUp}>

@@ -46,13 +46,12 @@ const steps = () => screen.getByRole('list', { name: 'Decisions' })
 describe('HandAnalysis', () => {
   it('while loading shows the progress', async () => {
     let release: (() => void) | undefined
+    // two stored of four: the third is being analysed
     const stored: Analysis = {
       ...FULL,
       summary: null,
-      decisions: [FULL.decisions[0]!, null, null, null, null].slice(0, 4),
+      decisions: [FULL.decisions[0]!, FULL.decisions[1]!, null, null],
     }
-    // two stored of four: the third is being analysed
-    stored.decisions = [FULL.decisions[0]!, FULL.decisions[1]!, null, null]
     setup(
       stored,
       {},
@@ -75,8 +74,70 @@ describe('HandAnalysis', () => {
     expect(within(summary).getByText(/3\.17 bb/)).toBeInTheDocument()
     const worst = FULL.summary!.worst_index!
     const item = within(steps()).getAllByRole('listitem')[worst]!
-    expect(within(item).getByText('Worst')).toBeInTheDocument()
-    expect(within(steps()).getAllByText('Worst')).toHaveLength(1)
+    expect(within(item).getByText('Most EV lost')).toBeInTheDocument()
+    expect(within(steps()).getAllByText('Most EV lost')).toHaveLength(1)
+    // neutral text: no "Worst" label, no verdict tone on the mark
+    expect(screen.queryByText('Worst')).toBeNull()
+    expect(within(item).getByText('Most EV lost')).not.toHaveAttribute('data-tone')
+    expect(within(item).getByText('Most EV lost')).not.toHaveAttribute('data-verdict')
+  })
+
+  it('the selected step’s header reads "Decision n · Street" over a grade line with no badge', async () => {
+    const { user } = setup(FULL)
+    await screen.findByRole('region', { name: 'Summary' })
+    await user.click(within(steps()).getAllByRole('button')[1]!)
+    const heading = screen.getByRole('heading', { name: 'Decision 2 · Flop' })
+    const gradeLine = heading.nextElementSibling as HTMLElement
+    expect(gradeLine).toHaveTextContent(/^You: Check · Top EV: /)
+    expect(gradeLine.querySelector('[data-tone], [data-verdict]')).toBeNull()
+    for (const verdict of ['Best', 'Fine', 'Mistake', 'Blunder']) {
+      expect(within(gradeLine).queryByText(verdict)).toBeNull()
+    }
+  })
+
+  it('the details are not inside a Panel (panels are never nested)', async () => {
+    setup(FULL)
+    await screen.findByRole('region', { name: 'Summary' })
+    const header = screen.getByRole('region', { name: 'Hand analysis' })
+    expect(header.contains(screen.getByRole('tablist', { name: 'Details' }))).toBe(false)
+    expect(header.contains(screen.getByRole('region', { name: 'Summary' }))).toBe(true)
+  })
+
+  it('during a retry the status reads "Retrying…"', async () => {
+    const stored: Analysis = { ...FULL, summary: null, decisions: [FULL.decisions[0]!, null] }
+    let release: (() => void) | undefined
+    const post = vi
+      .fn<HandAnalysisApi['postPlayDecision']>()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockImplementation(
+        () =>
+          new Promise<DecisionReview>((resolve) => {
+            release = () => resolve(FULL.decisions[1]!)
+          }),
+      )
+    const { user } = setup(stored, {}, { postPlayDecision: post })
+    await user.click(await screen.findByRole('button', { name: 'Retry' }))
+    expect(await screen.findByText('Retrying…')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    release?.()
+  })
+
+  it('reports the view of the selected step to the page', async () => {
+    const onView = vi.fn()
+    const api = fakeApi(FULL)
+    const user = userEvent.setup()
+    render(
+      <HandAnalysis
+        handId={FULL.hand_id}
+        api={api}
+        settings={settingsFixture()}
+        onClose={vi.fn()}
+        onView={onView}
+      />,
+    )
+    await screen.findByRole('region', { name: 'Summary' })
+    await user.click(within(steps()).getAllByRole('button')[1]!)
+    expect(onView).toHaveBeenLastCalledWith(FULL.decisions[1]!.view)
   })
 
   it('lists each step with its street, action, verdict and EV lost', async () => {
@@ -118,6 +179,24 @@ describe('HandAnalysis', () => {
     expect(within(bot).getAllByRole('img')).toHaveLength(2)
     expect(screen.getByText('LAG')).toBeInTheDocument()
     expect(screen.getByText('Villain wins: High card vs Pair')).toBeInTheDocument()
+    expect(screen.getByText(FULL.judged_on_range_note)).toBeInTheDocument()
+  })
+
+  it('words the judged-on note for a fold without "this run-out", as the result page does', async () => {
+    const last = FULL.decisions.length - 1
+    const folded: Analysis = {
+      ...FULL,
+      decisions: FULL.decisions.map((d, i) => (i === last ? { ...d!, chosen_label: 'fold' } : d)),
+    }
+    setup(folded)
+    await screen.findByRole('region', { name: 'Summary' })
+    expect(screen.getByText("Graded against Villain's whole range.")).toBeInTheDocument()
+    expect(screen.queryByText(/this run-out/)).toBeNull()
+  })
+
+  it('keeps the API note when Hero did not fold', async () => {
+    setup(FULL)
+    await screen.findByRole('region', { name: 'Summary' })
     expect(screen.getByText(FULL.judged_on_range_note)).toBeInTheDocument()
   })
 

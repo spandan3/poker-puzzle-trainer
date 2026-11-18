@@ -26,7 +26,7 @@ export interface Command {
   n?: number
 }
 
-export type ShortcutGroup = 'Answer' | 'Action' | 'Size' | 'Intent' | 'Puzzle'
+export type ShortcutGroup = 'Answer' | 'Action' | 'Size' | 'Intent' | 'Puzzle' | 'Play'
 
 export interface Shortcut {
   id: ShortcutId
@@ -44,6 +44,8 @@ export interface Shortcut {
   puzzlesOnly?: true
   /** The description on Play, when it differs. */
   playDescription?: string
+  /** The overlay's group on Play, when it differs. */
+  playGroup?: ShortcutGroup
 }
 
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
@@ -137,6 +139,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     description: 'Next puzzle (while answering: press twice to skip)',
     playDescription: 'Next hand',
     group: 'Puzzle',
+    playGroup: 'Play',
     scope: 'app',
   },
   {
@@ -145,6 +148,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     aria: 'Shift+? H',
     description: 'Show or hide shortcuts',
     group: 'Puzzle',
+    playGroup: 'Play',
     scope: 'app',
   },
   {
@@ -152,7 +156,9 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: ['Esc'],
     aria: 'Escape',
     description: 'Close, cancel a skip, or leave a field',
+    playDescription: 'Close, or leave a field',
     group: 'Puzzle',
+    playGroup: 'Play',
     scope: 'app',
   },
 ]
@@ -170,6 +176,12 @@ export function shortcut(id: ShortcutId): Shortcut {
 export function describeShortcut(id: ShortcutId, page: Page): string {
   const s = shortcut(id)
   return page === 'play' ? (s.playDescription ?? s.description) : s.description
+}
+
+/** The overlay group a shortcut is under on a page ("Next hand" is under Play on Play). */
+export function groupOn(id: ShortcutId, page: Page): ShortcutGroup {
+  const s = shortcut(id)
+  return page === 'play' ? (s.playGroup ?? s.group) : s.group
 }
 
 /** Whether the shortcut exists on a page (Play has no equity guess, range read or intent). */

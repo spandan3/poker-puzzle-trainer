@@ -19,6 +19,8 @@ export interface HandAnalysisState {
   analysis: HandAnalysis | null
   progress: AnalysisProgress
   error: string | null
+  /** A retry was asked for and nothing has come back yet. */
+  retrying: boolean
   /** Continues from the first decision that is not stored. */
   retry: () => void
 }
@@ -44,18 +46,22 @@ function message(error: unknown): string {
 export function useHandAnalysis(handId: number, api: AnalysisApi = client): HandAnalysisState {
   const [loaded, setLoaded] = useState<Loaded>({ handId, analysis: null, error: null })
   const [attempt, setAttempt] = useState(0)
+  const [retrying, setRetrying] = useState(false)
 
   useEffect(() => {
     let live = true
-    const show = (analysis: HandAnalysis | null, error: string | null) => {
-      if (live) setLoaded({ handId, analysis, error })
+    // a retry shows "Retrying…" until it has stored a decision, finished or failed
+    const show = (analysis: HandAnalysis | null, error: string | null, settled = true) => {
+      if (!live) return
+      setLoaded({ handId, analysis, error })
+      if (settled) setRetrying(false)
     }
     const run = async () => {
       let analysis: HandAnalysis | null = null
       try {
         analysis = await api.getPlayAnalysis(handId)
         if (!live) return
-        show(analysis, null)
+        show(analysis, null, false)
         let posted = false
         for (let n = 0; n < analysis.decisions.length; n++) {
           if (analysis.decisions[n] !== null) continue
@@ -69,6 +75,7 @@ export function useHandAnalysis(handId: number, api: AnalysisApi = client): Hand
         }
         // the server's summary (and its note on the model) once everything is stored
         if (posted) show(await api.getPlayAnalysis(handId), null)
+        else if (live) setRetrying(false)
       } catch (error) {
         show(analysis, message(error))
       }
@@ -79,7 +86,10 @@ export function useHandAnalysis(handId: number, api: AnalysisApi = client): Hand
     }
   }, [handId, api, attempt])
 
-  const retry = useCallback(() => setAttempt((a) => a + 1), [])
+  const retry = useCallback(() => {
+    setRetrying(true)
+    setAttempt((a) => a + 1)
+  }, [])
 
   // a result for another hand is not this hand's (the render before the new load reports in)
   const mine = loaded.handId === handId ? loaded : null
@@ -89,6 +99,7 @@ export function useHandAnalysis(handId: number, api: AnalysisApi = client): Hand
     analysis,
     progress: { done: decisions.filter((d) => d !== null).length, total: decisions.length },
     error: mine?.error ?? null,
+    retrying,
     retry,
   }
 }

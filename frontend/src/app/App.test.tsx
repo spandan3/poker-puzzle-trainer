@@ -34,6 +34,8 @@ function fakeServer(
     stats?: (tz: string) => { status: number; body: unknown }
     /** the open play session (default: none) */
     playSession?: PlaySessionView | null
+    /** the end-session request waits for this before it answers */
+    holdEnd?: Promise<void>
   } = {},
 ) {
   const calls: Call[] = []
@@ -69,6 +71,7 @@ function fakeServer(
     }
     if (url === '/api/play/sessions' && method === 'GET') return json(200, playSessionsFixture())
     if (/^\/api\/play\/sessions\/\d+\/end$/.test(url)) {
+      await opts.holdEnd
       return json(200, { ...opts.playSession, open: false })
     }
     if (/^\/api\/play\/sessions\/\d+\/hands$/.test(url))
@@ -486,6 +489,92 @@ describe('App', () => {
         expect(await screen.findByRole('button', { name: 'Start session' })).toBeVisible()
         expect(playPosts(calls).map((c) => c.url)).toEqual(['/api/play/sessions/1/end'])
         expect(screen.queryByText('−52.5 bb · 13 hands')).toBeNull()
+      })
+
+      describe('End session', () => {
+        const endUrl = '/api/play/sessions/1/end'
+
+        it('with a hand running it asks first; Keep playing leaves the session open', async () => {
+          window.history.replaceState(null, '', '/play')
+          const { calls } = fakeServer({ playSession: playSessionFixture('hero_to_act') })
+          const { user } = setup()
+          await screen.findByRole('form', { name: 'Your answer' })
+          await user.click(screen.getByRole('button', { name: 'End session' }))
+          const dialog = await screen.findByRole('dialog', { name: 'End this session?' })
+          expect(dialog).toHaveTextContent(
+            'The hand in progress is given up and Villain takes the pot.',
+          )
+          await user.click(within(dialog).getByRole('button', { name: 'Keep playing' }))
+          expect(screen.queryByRole('dialog', { name: 'End this session?' })).toBeNull()
+          expect(screen.getByRole('form', { name: 'Your answer' })).toBeVisible()
+          expect(playPosts(calls)).toEqual([])
+        })
+
+        it('confirming ends the session', async () => {
+          window.history.replaceState(null, '', '/play')
+          const { calls } = fakeServer({ playSession: playSessionFixture('hero_to_act') })
+          const { user } = setup()
+          await screen.findByRole('form', { name: 'Your answer' })
+          await user.click(screen.getByRole('button', { name: 'End session' }))
+          const dialog = await screen.findByRole('dialog', { name: 'End this session?' })
+          await user.click(within(dialog).getByRole('button', { name: 'End session' }))
+          expect(await screen.findByRole('button', { name: 'Start session' })).toBeVisible()
+          expect(playPosts(calls).map((c) => c.url)).toEqual([endUrl])
+        })
+
+        it('between hands it ends at once, with no dialog', async () => {
+          window.history.replaceState(null, '', '/play')
+          const { calls } = fakeServer({ playSession: playSessionFixture('hand_over_fold') })
+          const { user } = setup()
+          await screen.findByText('−52.5 bb · 13 hands')
+          await user.click(screen.getByRole('button', { name: 'End session' }))
+          expect(screen.queryByRole('dialog', { name: 'End this session?' })).toBeNull()
+          expect(await screen.findByRole('button', { name: 'Start session' })).toBeVisible()
+          expect(playPosts(calls).map((c) => c.url)).toEqual([endUrl])
+        })
+
+        it('while a play request is in flight the button is aria-disabled, with the reason', async () => {
+          window.history.replaceState(null, '', '/play')
+          let release: () => void = () => undefined
+          const holdEnd = new Promise<void>((resolve) => {
+            release = resolve
+          })
+          const { calls } = fakeServer({
+            playSession: playSessionFixture('hand_over_fold'),
+            holdEnd,
+          })
+          const { user } = setup()
+          await screen.findByText('−52.5 bb · 13 hands')
+          const end = screen.getByRole('button', { name: 'End session' })
+          await user.click(end)
+          await waitFor(() => expect(end).toHaveAttribute('aria-disabled', 'true'))
+          expect(end).toHaveAttribute('title', 'Wait for the hand to update')
+          await user.click(end)
+          expect(playPosts(calls).map((c) => c.url)).toEqual([endUrl])
+          release()
+          expect(await screen.findByRole('button', { name: 'Start session' })).toBeVisible()
+        })
+
+        it('N and Escape do not reach the app behind the dialog; Escape closes only it', async () => {
+          window.history.replaceState(null, '', '/play')
+          const { calls } = fakeServer({ playSession: playSessionFixture('hero_to_act') })
+          const { user } = setup()
+          await screen.findByRole('form', { name: 'Your answer' })
+          await user.click(screen.getByRole('button', { name: 'End session' }))
+          await screen.findByRole('dialog', { name: 'End this session?' })
+          await user.keyboard('x')
+          await user.keyboard('n')
+          // the panel behind took neither key
+          expect(screen.getByRole('button', { name: /^Check/, hidden: true })).toHaveAttribute(
+            'aria-pressed',
+            'false',
+          )
+          expect(playPosts(calls)).toEqual([])
+          await user.keyboard('{Escape}')
+          expect(screen.queryByRole('dialog', { name: 'End this session?' })).toBeNull()
+          expect(screen.getByRole('form', { name: 'Your answer' })).toBeVisible()
+          expect(playPosts(calls)).toEqual([])
+        })
       })
 
       it('puzzle shortcuts do not fire on Play; the play panel has its own', async () => {

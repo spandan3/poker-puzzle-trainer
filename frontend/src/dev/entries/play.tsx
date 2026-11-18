@@ -40,7 +40,12 @@ function flow(session: PlaySessionView | null, shownCount?: number): PlayFlow {
 
 function Page({ session, shownCount }: { session: PlaySessionView | null; shownCount?: number }) {
   return (
-    <PlayPage flow={flow(session, shownCount)} settings={settingsFixture()} shortcutsOn={false} />
+    <PlayPage
+      as="div"
+      flow={flow(session, shownCount)}
+      settings={settingsFixture()}
+      shortcutsOn={false}
+    />
   )
 }
 
