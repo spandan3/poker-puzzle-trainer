@@ -613,8 +613,8 @@ for (const [width, height] of FIT_SIZES) {
     const boxes = await page.evaluate(() => {
       const rect = (el: Element) => el.getBoundingClientRect().toJSON()
       return {
-        side: rect(document.querySelector('aside')!),
-        details: rect(document.querySelector('section[aria-label="Details"]')!),
+        side: rect(document.querySelector('main:not([hidden]) aside')!),
+        details: rect(document.querySelector('main:not([hidden]) section[aria-label="Details"]')!),
       }
     })
     const { side, details } = boxes

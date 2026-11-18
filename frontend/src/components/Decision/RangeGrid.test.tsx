@@ -76,9 +76,14 @@ describe('RangeGrid contrast (B2)', () => {
     expect(cap).toBeLessThanOrEqual(0.45)
     for (let i = 0; i <= 100; i++) {
       const w = i / 100
-      const bg = composite(token('--range-fill'), w * cap, sunken)
+      const bg = composite(token('--range-fill'), Math.sqrt(w) * cap, sunken)
       expect(contrastRatio(text, bg), `weight ${w}`).toBeGreaterThanOrEqual(4.5)
     }
+  })
+
+  it('keeps a 5% weight visibly apart from an empty cell', () => {
+    const fillAt = (w: number) => composite(token('--range-fill'), Math.sqrt(w) * cap, sunken)
+    expect(contrastRatio(fillAt(0.05), fillAt(0))).toBeGreaterThanOrEqual(1.05)
   })
 
   it('keeps the label readable over the blocked hatch', () => {
@@ -92,7 +97,7 @@ describe('RangeGrid contrast (B2)', () => {
     expect(cell).toMatch(/background:\s*var\(--color-bg-sunken\)/)
     expect(cell).toMatch(/color:\s*var\(--color-text\)/)
     const fill = /\.cell::before \{([^}]*)\}/.exec(css)?.[1] ?? ''
-    expect(fill).toMatch(/opacity:\s*calc\(var\(--w, 0\) \* var\(--range-fill-max\)\)/)
+    expect(fill).toMatch(/opacity:\s*calc\(sqrt\(var\(--w, 0\)\) \* var\(--range-fill-max\)\)/)
     expect(css).not.toMatch(/data-strong/)
     expect(css).not.toMatch(/color-text-on-accent/)
   })

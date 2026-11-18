@@ -189,6 +189,7 @@ describe('App', () => {
     const board = () => [...document.querySelectorAll('[data-centre-budget] [data-face="up"]')]
     const before = board()
     expect(before).toHaveLength(view.board.length)
+    const delays = before.map((el) => (el as HTMLElement).style.animationDelay)
     await user.click(screen.getByRole('button', { name: /^Fold/ }))
     await user.click(screen.getByRole('button', { name: /^Submit/ }))
     await screen.findByRole('region', { name: 'Result' })
@@ -196,6 +197,8 @@ describe('App', () => {
     const after = board()
     expect(after).toHaveLength(view.board.length)
     after.forEach((el, i) => expect(el).toBe(before[i]))
+    // and no deal delay was set on them either
+    expect(after.map((el) => (el as HTMLElement).style.animationDelay)).toEqual(delays)
   })
 
   it('shows all five board cards after a bet', async () => {

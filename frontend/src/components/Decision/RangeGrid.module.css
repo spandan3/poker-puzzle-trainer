@@ -41,7 +41,8 @@
   position: absolute;
   inset: 0;
   background: var(--range-fill);
-  opacity: calc(var(--w, 0) * var(--range-fill-max));
+  /* sqrt keeps a 5% weight visibly apart from an empty cell; the cap still bounds w = 1 */
+  opacity: calc(sqrt(var(--w, 0)) * var(--range-fill-max));
 }
 
 .text {

@@ -46,10 +46,5 @@
 /* the Size cells and the long headers may wrap; the numbers never do */
 .table th.wrap,
 .table td.wrap {
-  max-width: 11ch;
   white-space: normal;
-}
-
-.table td.wrap {
-  max-width: 16ch;
 }
