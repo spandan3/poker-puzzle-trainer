@@ -7,6 +7,9 @@ export interface TrendChartsProps {
   trend: TrendPoint[]
 }
 
+/** The rolling window the subtitle names; points before it average fewer puzzles and read as noise. */
+const WARM_UP = 50
+
 /** A value already in percentage points (the series are fractions x 100). */
 const formatPoints = (points: number) => `${points.toFixed(1)} pts`
 
@@ -26,8 +29,9 @@ export function TrendCharts({ trend }: TrendChartsProps) {
           title="EV lost per decision, rolling 50 puzzles"
           yLabel="bb"
           format={formatEvBb}
-          width={1120}
-          height={260}
+          width={900}
+          height={240}
+          warmUp={WARM_UP}
           series={[
             {
               label: 'EV lost (bb)',
@@ -43,6 +47,9 @@ export function TrendCharts({ trend }: TrendChartsProps) {
             title="Equity error, rolling 50 puzzles"
             yLabel="pts"
             format={formatPoints}
+            width={420}
+            height={220}
+            warmUp={WARM_UP}
             series={[
               {
                 label: 'Equity error (pts)',
@@ -57,6 +64,10 @@ export function TrendCharts({ trend }: TrendChartsProps) {
             title="Range-read error, rolling 50 puzzles"
             yLabel="pts"
             format={formatPoints}
+            width={420}
+            height={220}
+            warmUp={WARM_UP}
+            empty="No range reads yet. Answer a puzzle with a range read to start this chart."
             series={[
               {
                 label: 'Range-read error (pts)',

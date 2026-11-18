@@ -6,6 +6,7 @@ import { bbLabel, formatEvBb } from '../../lib/format'
 import { STREET_LABELS, STREET_ORDER } from '../../lib/history'
 import { optionLabel, VERDICT_LABELS } from '../../lib/result'
 import { pts, shortDate } from '../../lib/stats'
+import { Badge, Button, Select } from '../ui'
 import styles from './Progress.module.css'
 
 /** Rows per page. */
@@ -164,66 +165,50 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
       </h3>
 
       <div className={styles.filters} role="group" aria-label="History filters">
-        <label className={styles.filter}>
-          <span>Street</span>
-          <select
-            className={styles.select}
-            value={filters.street}
-            onChange={(e) => change({ street: e.target.value as StreetName | '' })}
-          >
-            <option value="">All</option>
-            {STREET_ORDER.map((s) => (
-              <option key={s} value={s}>
-                {STREET_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.filter}>
-          <span>Verdict</span>
-          <select
-            className={styles.select}
-            value={filters.verdict}
-            onChange={(e) => change({ verdict: e.target.value as Verdict | '' })}
-          >
-            <option value="">All</option>
-            {VERDICTS.map((v) => (
-              <option key={v} value={v}>
-                {VERDICT_LABELS[v]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.filter}>
-          <span>Action</span>
-          <select
-            className={styles.select}
-            value={filters.action}
-            onChange={(e) => change({ action: e.target.value as ActionKind | '' })}
-          >
-            <option value="">All</option>
-            {ACTIONS.map((a) => (
-              <option key={a} value={a}>
-                {optionLabel(a)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.filter}>
-          <span>Villain</span>
-          <select
-            className={styles.select}
-            value={filters.profile}
-            onChange={(e) => change({ profile: e.target.value })}
-          >
-            <option value="">All</option>
-            {profileOptions.map((p) => (
-              <option key={p.key} value={p.key}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Street"
+          value={filters.street}
+          onChange={(v) => change({ street: v as StreetName | '' })}
+        >
+          <option value="">All</option>
+          {STREET_ORDER.map((s) => (
+            <option key={s} value={s}>
+              {STREET_LABELS[s]}
+            </option>
+          ))}
+        </Select>
+        <Select
+          label="Verdict"
+          value={filters.verdict}
+          onChange={(v) => change({ verdict: v as Verdict | '' })}
+        >
+          <option value="">All</option>
+          {VERDICTS.map((v) => (
+            <option key={v} value={v}>
+              {VERDICT_LABELS[v]}
+            </option>
+          ))}
+        </Select>
+        <Select
+          label="Action"
+          value={filters.action}
+          onChange={(v) => change({ action: v as ActionKind | '' })}
+        >
+          <option value="">All</option>
+          {ACTIONS.map((a) => (
+            <option key={a} value={a}>
+              {optionLabel(a)}
+            </option>
+          ))}
+        </Select>
+        <Select label="Villain" value={filters.profile} onChange={(v) => change({ profile: v })}>
+          <option value="">All</option>
+          {profileOptions.map((p) => (
+            <option key={p.key} value={p.key}>
+              {p.label}
+            </option>
+          ))}
+        </Select>
         <label className={styles.checkFilter}>
           <input
             type="checkbox"
@@ -237,15 +222,14 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
       {load.kind === 'error' && (
         <div className={styles.status} role="alert">
           <span>{load.message}</span>{' '}
-          <button
-            type="button"
-            className={styles.button}
+          <Button
+            size="sm"
             onClick={() => {
               setReload((n) => n + 1)
             }}
           >
             Retry
-          </button>
+          </Button>
         </div>
       )}
       {load.kind === 'loading' && load.previous === null && (
@@ -300,10 +284,10 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
                           {localDate(row.created_at)}
                           {!row.is_first && (
                             <span
-                              className={styles.badge}
+                              className={styles.practice}
                               title="A repeat attempt: not in your stats"
                             >
-                              Practice
+                              <Badge>Practice</Badge>
                             </span>
                           )}
                         </td>
@@ -318,23 +302,25 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
                         </td>
                         <td className={styles.num}>{formatEvBb(row.ev_loss_bb)}</td>
                         <td className={styles.num}>{pts(row.equity_error)}</td>
-                        <td className={styles.rowActions}>
-                          <button
-                            type="button"
-                            className={styles.button}
-                            aria-label={`Replay puzzle from ${when}`}
-                            onClick={() => onReplay(row.puzzle_id)}
-                          >
-                            Replay
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.button}
-                            aria-label={`Result of the attempt from ${when}`}
-                            onClick={() => onResult(row.attempt_id)}
-                          >
-                            Result
-                          </button>
+                        <td>
+                          <div className={styles.rowActions}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Replay puzzle from ${when}`}
+                              onClick={() => onReplay(row.puzzle_id)}
+                            >
+                              Replay
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Result of the attempt from ${when}`}
+                              onClick={() => onResult(row.attempt_id)}
+                            >
+                              Result
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -344,27 +330,25 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
             </div>
           )}
           <nav className={styles.pager} aria-label="History pages">
-            <button
-              type="button"
-              className={styles.button}
+            <Button
+              size="sm"
               ref={prevRef}
               disabled={atStart}
               onClick={() => page(-HISTORY_PAGE_SIZE)}
             >
               Previous
-            </button>
+            </Button>
             <span className={styles.hint} aria-live="polite" data-testid="history-range">
               {total === 0 ? '0 of 0' : `${from}–${to} of ${total}`}
             </span>
-            <button
-              type="button"
-              className={styles.button}
+            <Button
+              size="sm"
               ref={nextRef}
               disabled={atEnd}
               onClick={() => page(HISTORY_PAGE_SIZE)}
             >
               Next
-            </button>
+            </Button>
           </nav>
         </>
       )}

@@ -52,7 +52,7 @@ export function DailyGoal({ days, onNavigate, utcNote = false }: DailyGoalProps)
         <BarChart
           title="Puzzles per day, last 14 days"
           goal={days.goal}
-          width={1120}
+          width={900}
           height={240}
           bars={days.recent.map((d) => ({ label: shortDate(d.date), value: d.count }))}
         />

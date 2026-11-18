@@ -6,6 +6,7 @@ import type { StatsView } from '../../api/types'
 import type { Page } from '../../lib/page'
 import { isPlainLeftClick, pathOf } from '../../lib/page'
 import { localTimeZone } from '../../lib/stats'
+import { Button } from '../ui'
 import { Breakdowns } from './Breakdowns'
 import { DailyGoal } from './DailyGoal'
 import { HistoryTable } from './HistoryTable'
@@ -103,9 +104,9 @@ export function ProgressPage({
       {load.kind === 'error' && (
         <div className={styles.status} role="alert">
           <span>{load.message}</span>{' '}
-          <button type="button" className={styles.button} onClick={fetchNow}>
+          <Button size="sm" onClick={fetchNow}>
             Retry
-          </button>
+          </Button>
         </div>
       )}
       {load.kind === 'ready' &&

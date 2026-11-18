@@ -125,4 +125,106 @@ describe('LineChart', () => {
     expect(container.querySelector('circle')).not.toBeNull()
     expect(container.innerHTML).not.toContain('NaN')
   })
+
+  it('shows the empty message and no axis when no point has a value', () => {
+    const { container } = render(
+      <LineChart
+        title="Range"
+        yLabel="pts"
+        format={fmt}
+        empty="No range reads yet."
+        series={[
+          {
+            label: 'A',
+            points: [
+              { x: 1, y: null },
+              { x: 2, y: null },
+            ],
+          },
+        ]}
+      />,
+    )
+    expect(screen.getByText('No range reads yet.')).toBeInTheDocument()
+    expect(screen.queryByTestId('line-chart')).not.toBeInTheDocument()
+    expect(container.querySelector('line')).toBeNull()
+  })
+
+  describe('tooltip', () => {
+    const points = [1, 2, 3].map((x) => ({ x, y: x * 1.5 }))
+
+    function hover(container: HTMLElement, clientX: number) {
+      const svg = screen.getByTestId('line-chart')
+      svg.getBoundingClientRect = () => ({ left: 0, width: 560, top: 0, height: 240 }) as DOMRect
+      fireEvent.mouseMove(svg, { clientX })
+      return container
+    }
+
+    it('says rolling average, with the last-value label text for the last point', () => {
+      const { container } = setup([{ label: 'A', points }])
+      hover(container, 560) // the far right: the last point
+      const tip = screen.getByTestId('chart-tooltip')
+      expect(tip).toHaveTextContent('Puzzle 3 · rolling average: 4.5 bb')
+      expect(tip).toHaveAttribute('aria-hidden', 'true')
+      // the value text is the one the last-value label draws
+      const lastLabel = container.querySelector('text[class*="last"]')
+      expect(lastLabel).toHaveTextContent('4.5 bb')
+      fireEvent.mouseLeave(screen.getByTestId('line-chart'))
+      expect(screen.queryByTestId('chart-tooltip')).not.toBeInTheDocument()
+    })
+
+    it('finds the nearest point and uses tooltipLabel when given', () => {
+      render(
+        <LineChart
+          title="T"
+          yLabel="bb"
+          format={fmt}
+          tooltipLabel={(n, v) => `n=${n} v=${v}`}
+          series={[{ label: 'A', points }]}
+        />,
+      )
+      const svg = screen.getByTestId('line-chart')
+      svg.getBoundingClientRect = () => ({ left: 0, width: 560, top: 0, height: 240 }) as DOMRect
+      fireEvent.mouseMove(svg, { clientX: 0 })
+      expect(screen.getByTestId('chart-tooltip')).toHaveTextContent('n=1 v=1.5')
+    })
+  })
+
+  describe('warm-up band', () => {
+    const pts = (from: number, to: number) =>
+      Array.from({ length: to - from + 1 }, (_, i) => ({ x: from + i, y: 1 }))
+
+    it('shades x below the window and labels it', () => {
+      const { container } = render(
+        <LineChart
+          title="T"
+          yLabel="bb"
+          format={fmt}
+          warmUp={50}
+          series={[{ label: 'A', points: pts(1, 100) }]}
+        />,
+      )
+      const band = screen.getByTestId('warm-up')
+      expect(band).toHaveTextContent('Fewer than 50 puzzles')
+      const rect = band.querySelector('rect')!
+      const left = Number(rect.getAttribute('x'))
+      const right = left + Number(rect.getAttribute('width'))
+      // x = 50 is the middle of 1..100: the band ends there and starts at the plot's left edge
+      expect(right).toBeGreaterThan(left)
+      expect(right).toBeLessThan(560 - 64)
+      expect(container.querySelectorAll('rect')).toHaveLength(1)
+    })
+
+    it('draws none when every point is past the window', () => {
+      render(
+        <LineChart
+          title="T"
+          yLabel="bb"
+          format={fmt}
+          warmUp={50}
+          series={[{ label: 'A', points: pts(50, 120) }]}
+        />,
+      )
+      expect(screen.queryByTestId('warm-up')).not.toBeInTheDocument()
+    })
+  })
 })

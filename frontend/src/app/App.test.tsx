@@ -572,6 +572,7 @@ describe('App', () => {
       await user.click(screen.getByRole('link', { name: 'Progress' }))
       vi.mocked(window.scrollTo).mockClear()
       await user.click((await screen.findAllByRole('button', { name: /^Replay puzzle from / }))[0]!)
+      await user.click(screen.getByRole('button', { name: 'Open' }))
       await screen.findByTestId('practice-note')
       expect(window.scrollTo).toHaveBeenCalledTimes(1)
     })
@@ -803,6 +804,7 @@ describe('App', () => {
       await screen.findByTestId('history')
       const replay = (await screen.findAllByRole('button', { name: /^Replay puzzle from / }))[0]!
       await user.click(replay)
+      await user.click(screen.getByRole('button', { name: 'Open' }))
       expect(window.location.pathname).toBe('/')
       expect(await screen.findByTestId('practice-note')).toHaveTextContent(
         "Practice — this attempt won't count toward your stats.",
@@ -836,6 +838,7 @@ describe('App', () => {
         await screen.findAllByRole('button', { name: /^Result of the attempt from / })
       )[0]!
       await user.click(result)
+      await user.click(screen.getByRole('button', { name: 'Open' }))
       expect(window.location.pathname).toBe('/')
       expect(await screen.findByRole('region', { name: 'Result' })).toBeVisible()
       expect(
@@ -864,8 +867,90 @@ describe('App', () => {
           : real(input, init),
       )
       await user.click(replay)
+      await user.click(screen.getByRole('button', { name: 'Open' }))
       expect(await screen.findByRole('alert')).toHaveTextContent("isn't stored")
       expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible()
+    })
+
+    describe('leaving an unanswered puzzle', () => {
+      const goToProgress = async (user: ReturnType<typeof userEvent.setup>) => {
+        await screen.findByRole('textbox', { name: 'Equity' })
+        await user.click(screen.getByRole('link', { name: 'Progress' }))
+        await screen.findByTestId('history')
+      }
+      const replayFirst = async () =>
+        (await screen.findAllByRole('button', { name: /^Replay puzzle from / }))[0]!
+
+      it('Replay asks first; Cancel stays on Progress and keeps the old puzzle', async () => {
+        const { calls } = fakeServer()
+        const { user } = setup()
+        await goToProgress(user)
+        await user.click(await replayFirst())
+        const dialog = screen.getByRole('dialog', { name: 'Leave this puzzle?' })
+        expect(dialog).toHaveTextContent(
+          "The puzzle on the Puzzles page hasn't been answered. Open this one instead?",
+        )
+        await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+        expect(window.location.pathname).toBe('/progress')
+        expect(calls.some((c) => c.method === 'GET' && /^\/api\/puzzles\/\d+$/.test(c.url))).toBe(
+          false,
+        )
+        // the old puzzle is still there
+        await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+        expect(screen.getByRole('textbox', { name: 'Equity' })).toBeVisible()
+        expect(screen.queryByTestId('practice-note')).not.toBeInTheDocument()
+      })
+
+      it('Escape cancels the dialog and goes no further', async () => {
+        fakeServer()
+        const { user } = setup()
+        await goToProgress(user)
+        await user.click(await replayFirst())
+        await screen.findByRole('dialog')
+        await user.keyboard('{Escape}')
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+        expect(window.location.pathname).toBe('/progress')
+      })
+
+      it('Open switches to Puzzles with the new puzzle', async () => {
+        const { calls } = fakeServer()
+        const { user } = setup()
+        await goToProgress(user)
+        await user.click(await replayFirst())
+        await user.click(screen.getByRole('button', { name: 'Open' }))
+        expect(window.location.pathname).toBe('/')
+        expect(await screen.findByTestId('practice-note')).toBeVisible()
+        expect(
+          calls.some((c) => c.method === 'GET' && c.url === `/api/puzzles/${first().puzzle_id}`),
+        ).toBe(true)
+      })
+
+      it('Result asks the same way', async () => {
+        fakeServer()
+        const { user } = setup()
+        await goToProgress(user)
+        const result = (
+          await screen.findAllByRole('button', { name: /^Result of the attempt from / })
+        )[0]!
+        await user.click(result)
+        await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+        expect(window.location.pathname).toBe('/progress')
+        await user.click(result)
+        await user.click(screen.getByRole('button', { name: 'Open' }))
+        expect(await screen.findByRole('region', { name: 'Result' })).toBeVisible()
+      })
+
+      it('with an answered puzzle on screen there is no dialog', async () => {
+        fakeServer()
+        const { user } = setup()
+        await answerCheck(user)
+        await screen.findByRole('region', { name: 'Result' })
+        await user.click(screen.getByRole('link', { name: 'Progress' }))
+        await user.click(await replayFirst())
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+        expect(await screen.findByTestId('practice-note')).toBeVisible()
+      })
     })
   })
 })

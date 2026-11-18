@@ -43,4 +43,18 @@ describe('BarChart', () => {
     const { container } = render(<BarChart title="Puzzles per day" bars={[]} goal={3} />)
     expect(container.innerHTML).not.toContain('NaN')
   })
+
+  it('puts the goal label left of the first bar, so it cannot overlap one', () => {
+    const { container } = render(<BarChart title="Puzzles per day" bars={bars} goal={4} />)
+    const label = Array.from(container.querySelectorAll('text')).find((t) =>
+      t.textContent?.startsWith('Goal'),
+    )!
+    const first = container.querySelectorAll('rect')[0]!
+    expect(Number(label.getAttribute('x'))).toBeLessThan(Number(first.getAttribute('x')))
+    // an estimate of the label's width (about 7 units a character at 11px) still ends before the bar
+    expect(Number(label.getAttribute('x')) + label.textContent!.length * 7).toBeLessThan(
+      Number(first.getAttribute('x')),
+    )
+    expect(label.getAttribute('text-anchor')).not.toBe('end')
+  })
 })

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { MouseEvent } from 'react'
 import { chartScale } from '../../lib/stats'
 import styles from './Charts.module.css'
 
@@ -26,6 +27,12 @@ export interface LineChartProps {
   /** the SVG's own coordinate size (text scales with the chart: the wider the chart, the larger this) */
   width?: number
   height?: number
+  /** shown in place of the chart when no point has a value */
+  empty?: string
+  /** points with x below this sit on a shaded band ("Fewer than N puzzles") */
+  warmUp?: number
+  /** the pointer tooltip's text (default "Puzzle n · rolling average: value") */
+  tooltipLabel?: (x: number, y: number) => string
 }
 
 const M = { top: 22, right: 64, bottom: 26, left: 40 }
@@ -39,9 +46,14 @@ export function LineChart({
   xLabel = 'Puzzle',
   width = 560,
   height = 240,
+  empty,
+  warmUp,
+  tooltipLabel,
 }: LineChartProps) {
   // the data table's rows exist only while it is open (a 500-row table would otherwise sit in the DOM)
   const [open, setOpen] = useState(false)
+  // the point under the pointer (a pointer aid only: keyboard users have the data table)
+  const [hover, setHover] = useState<{ x: number; y: number; series: number } | null>(null)
   const all = series.flatMap((s) => s.points)
   const xs = all.map((p) => p.x)
   const xMin = xs.length > 0 ? Math.min(...xs) : 0
@@ -92,6 +104,38 @@ export function LineChart({
   const rows = [...new Set(xs)].sort((a, b) => a - b)
   const lookup = series.map((s) => new Map(s.points.map((p) => [p.x, p.y])))
 
+  if (empty !== undefined && ys.length === 0) {
+    return (
+      <figure className={styles.figure}>
+        <p className={styles.empty} role="status">
+          {empty}
+        </p>
+      </figure>
+    )
+  }
+
+  const warmUpOn = warmUp !== undefined && xs.length > 0 && xMin < warmUp
+  const warmUpRight = warmUp === undefined ? 0 : sx(Math.min(warmUp, xMax))
+  const tip =
+    tooltipLabel ?? ((x: number, y: number) => `${xLabel} ${x} · rolling average: ${format(y)}`)
+
+  // the nearest point by x, from the pointer's place in the SVG's own coordinates
+  const onMove = (event: MouseEvent<SVGSVGElement>) => {
+    const box = event.currentTarget.getBoundingClientRect()
+    if (box.width === 0) return
+    const px = ((event.clientX - box.left) / box.width) * width
+    let best: { x: number; y: number; series: number } | null = null
+    series.forEach((s, i) => {
+      for (const p of s.points) {
+        if (p.y === null) continue
+        if (best === null || Math.abs(sx(p.x) - px) < Math.abs(sx(best.x) - px)) {
+          best = { x: p.x, y: p.y, series: i }
+        }
+      }
+    })
+    setHover(best)
+  }
+
   return (
     <figure className={styles.figure}>
       {series.length > 1 && (
@@ -109,7 +153,23 @@ export function LineChart({
         role="img"
         aria-label={title}
         data-testid="line-chart"
+        onMouseMove={onMove}
+        onMouseLeave={() => setHover(null)}
       >
+        {warmUpOn && (
+          <g data-testid="warm-up">
+            <rect
+              className={styles.warmUp}
+              x={M.left}
+              y={M.top}
+              width={Math.max(warmUpRight - M.left, 0)}
+              height={plotH}
+            />
+            <text className={styles.warmUpLabel} x={M.left + 4} y={M.top + 12}>
+              Fewer than {warmUp} puzzles
+            </text>
+          </g>
+        )}
         <text className={styles.unit} x={0} y={10}>
           {yLabel}
         </text>
@@ -148,7 +208,29 @@ export function LineChart({
             </g>
           )
         })}
+        {hover && (
+          <circle
+            className={`${styles.hoverDot} ${styles[`s${hover.series % 2}`]}`}
+            cx={sx(hover.x)}
+            cy={sy(hover.y)}
+            r={4.5}
+          />
+        )}
       </svg>
+      {hover && (
+        <div
+          className={styles.tooltip}
+          data-testid="chart-tooltip"
+          data-side={sx(hover.x) > width * 0.6 ? 'left' : 'right'}
+          aria-hidden="true"
+          style={{
+            left: `${(sx(hover.x) / width) * 100}%`,
+            top: `${(sy(hover.y) / height) * 100}%`,
+          }}
+        >
+          {tip(hover.x, hover.y)}
+        </div>
+      )}
       <p className={styles.srOnly}>{summary}</p>
       <details
         className={styles.data}
