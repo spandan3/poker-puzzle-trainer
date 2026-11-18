@@ -18,7 +18,7 @@ export interface ExplanationPanelProps {
   onNavigate?: (page: Page) => void
 }
 
-const CHECK = "Check it in Settings once it's ready."
+const CHECK = "Use Check again in Settings once it's running."
 
 /** The settings' detail is a sentence with its own full stop (explain/ollama.py's probe). */
 function unavailableNote(detail: string | null | undefined): string {
@@ -35,7 +35,7 @@ function footerText(p: ExplanationPanelProps): string {
     return `Reworded by ${e.model ?? 'the local model'}, a local model. Every number in it was checked against the grader's numbers.`
   }
   const off =
-    'Explanations come from templates. A local model (Ollama) can reword them: see Settings.'
+    "Explanations come from the trainer's templates. A local model can reword them: see Settings."
   switch (e.fallback) {
     case 'guardrail':
       return "The local model's text didn't keep to the grader's numbers and verdict, so the trainer's own text is shown."

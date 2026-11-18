@@ -75,6 +75,19 @@ describe('OptionsTable', () => {
     expect(cells(rowOf(/^Bet 33%/))[1]).toHaveTextContent(formatEvBb(best.ev_bb))
   })
 
+  it('lets the Size cells and the two long headers wrap, and keeps the numbers whole', () => {
+    renderTable('bet')
+    for (const name of ['Villain folds', 'Equity when called']) {
+      expect(screen.getByRole('columnheader', { name }).className).toMatch(/\bwrap\b/)
+    }
+    expect(screen.getByRole('columnheader', { name: 'EV' }).className).not.toMatch(/\bwrap\b/)
+    for (const row of screen.getAllByRole('row').slice(1)) {
+      const [size, ...numbers] = cells(row)
+      expect(size!.className).toMatch(/\bwrap\b/)
+      for (const n of numbers) expect(n.className).not.toMatch(/\bwrap\b/)
+    }
+  })
+
   it('shows a size in bb and the share of the pot', () => {
     renderTable('bet')
     expect(cells(rowOf(/^Bet 33%/))[0]).toHaveTextContent('1.5 bb · 30% pot')

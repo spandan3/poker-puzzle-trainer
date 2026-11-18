@@ -10,7 +10,7 @@ export interface HandRevealProps {
 
 /**
  * The Hand tab: Villain's cards and profile, the board (the sampled run-out unless Hero folded),
- * the showdown, the "judged on range" note and the simplifications. This is puzzle-specific
+ * the showdown and the simplifications (the judged-on-range note is in the summary card). This is puzzle-specific
  * reveal data, not a Decision component.
  */
 export function HandReveal({ view, result }: HandRevealProps) {
@@ -53,10 +53,6 @@ export function HandReveal({ view, result }: HandRevealProps) {
           <p className={styles.showdown}>{showdownLine(result)}</p>
         </section>
       </div>
-
-      <p className={styles.muted}>
-        {folded ? "Graded against Villain's whole range." : result.judged_on_range_note}
-      </p>
 
       {simplifications.length > 0 && (
         <section className={styles.block}>

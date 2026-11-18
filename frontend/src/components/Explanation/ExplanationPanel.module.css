@@ -7,7 +7,7 @@
 
 .headline,
 .paragraph {
-  max-width: 70ch;
+  max-width: var(--prose-max-w);
   margin: 0;
   overflow-wrap: anywhere;
 }
@@ -29,14 +29,14 @@
 }
 
 .footer {
-  max-width: 70ch;
+  max-width: var(--prose-max-w);
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
 
 .pending {
-  max-width: 70ch;
+  max-width: var(--prose-max-w);
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--text-sm);

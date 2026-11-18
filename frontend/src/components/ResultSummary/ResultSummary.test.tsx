@@ -20,10 +20,26 @@ describe('ResultSummary', () => {
     expect(screen.getByText(result.grade.intent_flag!)).toBeVisible()
   })
 
-  it('hides the judged-on-range note after a fold', () => {
+  it("after a fold the note says only that grading used Villain's whole range", () => {
     const result = attemptFixture('fold')
     render(<ResultSummary result={result} onNext={() => {}} onDetails={() => {}} shortcutsOn />)
+    expect(screen.getByText("Graded against Villain's whole range.")).toBeVisible()
     expect(screen.queryByText(result.judged_on_range_note)).toBeNull()
+  })
+
+  it('the Details button calls onDetails', async () => {
+    const user = userEvent.setup()
+    const onDetails = vi.fn()
+    render(
+      <ResultSummary
+        result={attemptFixture('bet')}
+        onNext={() => {}}
+        onDetails={onDetails}
+        shortcutsOn
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Details' }))
+    expect(onDetails).toHaveBeenCalledTimes(1)
   })
 
   it('colour-codes each verdict', () => {

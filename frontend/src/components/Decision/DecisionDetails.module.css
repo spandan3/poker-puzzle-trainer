@@ -4,6 +4,7 @@
   background: var(--color-panel);
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
   scroll-margin-top: var(--space-3);
 }
 
@@ -16,6 +17,7 @@
 
 .tab {
   margin-bottom: -1px;
+  min-height: var(--control-h-md);
   padding: var(--space-2) var(--space-4);
   border: 0;
   border-bottom: 2px solid transparent;

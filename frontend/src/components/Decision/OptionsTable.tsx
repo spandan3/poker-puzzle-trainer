@@ -1,7 +1,8 @@
 import type { DecisionData } from '../../lib/decision'
 import { sizeText, sortedOptions } from '../../lib/decision'
-import { formatEvBb, formatPct } from '../../lib/format'
+import { formatEvBb, formatPct, nowrapUnits } from '../../lib/format'
 import { optionLabel } from '../../lib/result'
+import { Badge } from '../ui'
 import styles from './OptionsTable.module.css'
 
 export interface OptionsTableProps {
@@ -37,10 +38,10 @@ export function OptionsTable({ decision }: OptionsTableProps) {
           <th scope="col" className={styles.num}>
             vs best
           </th>
-          <th scope="col" className={styles.num}>
+          <th scope="col" className={`${styles.num} ${styles.wrap}`}>
             Villain folds
           </th>
-          <th scope="col" className={styles.num}>
+          <th scope="col" className={`${styles.num} ${styles.wrap}`}>
             Equity when called
           </th>
         </tr>
@@ -56,19 +57,11 @@ export function OptionsTable({ decision }: OptionsTableProps) {
             <th scope="row">
               <div className={styles.label}>
                 <span>{o.is_chosen ? decision.chosenLabel : optionLabel(o.label)}</span>
-                {o.is_best && (
-                  <span className={styles.badge} data-kind="best">
-                    Best
-                  </span>
-                )}
-                {o.is_chosen && (
-                  <span className={styles.badge} data-kind="you">
-                    You
-                  </span>
-                )}
+                {o.is_best && <Badge tone="best">Best</Badge>}
+                {o.is_chosen && <Badge tone="neutral">You</Badge>}
               </div>
             </th>
-            <td>{sizeText(o, decision.context)}</td>
+            <td className={styles.wrap}>{nowrapUnits(sizeText(o, decision.context))}</td>
             <td className={styles.num}>{formatEvBb(o.ev_bb)}</td>
             <td className={styles.num}>
               {best && !o.is_best ? versusBest(o.ev_bb, best.ev_bb) : ''}

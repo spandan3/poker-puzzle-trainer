@@ -10,7 +10,10 @@ export interface RangeGridProps {
   label: string
 }
 
-/** 13x13 hand-class grid: fill opacity = weight, hatched = every combo blocked by known cards. */
+/**
+ * 13x13 hand-class grid: fill opacity = weight (capped, so the label stays readable), hatched =
+ * every combo blocked by known cards. The exact weight is in each cell's title and aria-label.
+ */
 export function RangeGrid({ grid, label }: RangeGridProps) {
   return (
     <div className={styles.grid} role="table" aria-label={label}>
@@ -30,14 +33,15 @@ export function RangeGrid({ grid, label }: RangeGridProps) {
           {GRID_RANKS.map((_, c) => {
             const w = grid[r]?.[c] ?? null
             const name = cellLabel(r, c)
+            const weight = w === null ? null : formatPct(w)
             return (
               <span
                 key={name}
                 className={styles.cell}
                 role="cell"
-                aria-label={w === null ? `${name}, blocked` : `${name}, ${formatPct(w)} weight`}
+                aria-label={weight === null ? `${name}, blocked` : `${name}, ${weight} weight`}
+                title={weight ?? 'blocked'}
                 data-blocked={w === null ? '' : undefined}
-                data-strong={w !== null && w > 0.5 ? '' : undefined}
                 style={w === null ? undefined : { ['--w' as string]: w }}
               >
                 <span aria-hidden="true" className={styles.text}>

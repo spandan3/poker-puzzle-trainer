@@ -18,17 +18,23 @@ describe('HandReveal', () => {
     const runout = screen.getByRole('group', { name: 'Run-out' })
     expect(within(runout).getAllByRole('img')).toHaveLength(5)
     expect(screen.getByText('Hero wins: Pair vs Pair')).toBeVisible()
-    expect(screen.getByText(result.judged_on_range_note)).toBeVisible()
+    expect(screen.queryByText(result.judged_on_range_note)).toBeNull()
     const list = screen.getByRole('list', { name: 'Simplifications' })
     const items = within(list).getAllByRole('listitem')
     expect(items.map((i) => i.textContent)).toEqual(result.simplifications.map((s) => s.text))
   })
 
-  it('after a fold the note says only that grading used the whole range', () => {
+  it('keeps the judged-on-range note out of the Hand tab, also after a fold', () => {
     const result = attemptFixture('fold')
     render(<HandReveal view={puzzleFixture('facing_postflop_raise')} result={result} />)
-    expect(screen.getByText("Graded against Villain's whole range.")).toBeVisible()
-    expect(screen.queryByText(result.judged_on_range_note)).toBeNull()
+    expect(screen.queryByText("Graded against Villain's whole range.")).toBeNull()
+    expect(screen.queryByText(/judged|Graded against/i)).toBeNull()
+  })
+
+  it('gives both columns a heading of the same level', () => {
+    render(<HandReveal view={puzzleFixture('flop_unopened')} result={attemptFixture('bet')} />)
+    const levels = screen.getAllByRole('heading').map((h) => h.tagName)
+    expect(new Set(levels).size).toBe(1)
   })
 
   it('pre-flop fold: no Board heading, one line instead', () => {
