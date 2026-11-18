@@ -1,6 +1,7 @@
 // Pure helpers for the result strip: option labels, the verdict line, guesses vs truth.
 import type { ActionLogEntry, AttemptResult, PuzzleView } from '../api/types'
 import { formatBb, formatEvBb, formatPct } from './format'
+import { pts } from './stats'
 
 type Grade = AttemptResult['grade']
 export type Verdict = AttemptResult['grade']['verdict']
@@ -84,10 +85,18 @@ export interface GuessLine {
   label: string
   guess: string
   actual: string
+  /** the API's error (`equity_error`, `range_read_error`) in points, as Progress shows it */
+  error: string | null
   score: Score | null
+  /** the score badge's title */
+  scoreTitle: string
 }
 
-/** Equity guess vs truth, and the range read when it was asked. */
+/**
+ * Equity guess vs truth, and the range read when it was asked. Each number is an API field,
+ * rounded on its own: at a .x5 boundary the shown difference of guess and actual can differ from
+ * the shown error by 0.1 (all three are the API's numbers).
+ */
 export function guessLines(result: AttemptResult): GuessLine[] {
   const { grade } = result
   const lines: GuessLine[] = [
@@ -95,7 +104,9 @@ export function guessLines(result: AttemptResult): GuessLine[] {
       label: 'Equity',
       guess: formatPct(grade.equity_guess),
       actual: formatPct(grade.equity, 1),
+      error: pts(grade.equity_error),
       score: grade.equity_score,
+      scoreTitle: 'How close your equity estimate was',
     },
   ]
   if (grade.range_read_guess !== null && grade.ahead_now !== null) {
@@ -103,10 +114,18 @@ export function guessLines(result: AttemptResult): GuessLine[] {
       label: 'Range read',
       guess: formatPct(grade.range_read_guess),
       actual: formatPct(grade.ahead_now, 1),
+      error: grade.range_read_error === null ? null : pts(grade.range_read_error),
       score: grade.range_read_score,
+      scoreTitle: 'How close your range read was',
     })
   }
   return lines
+}
+
+/** "Your estimate 45% · actual 46.4% · off by 1.4 pts" */
+export function guessText(line: GuessLine): string {
+  const off = line.error === null ? '' : ` · off by ${line.error}`
+  return `Your estimate ${line.guess} · actual ${line.actual}${off}`
 }
 
 /** Hero folded (on any street): there is no run-out and no showdown. */

@@ -282,4 +282,102 @@ describe('optionMaths', () => {
     if (!chosen) throw new Error('no chosen')
     expect(optionMaths(chosen, d).label).toBe('Bet 1 bb')
   })
+
+  describe("pot odds: equal shown numbers (the Why text's _pot_odds rule)", () => {
+    /** attempt_call (r = 1) or raise_preflop (r = 0.8) with its equity and pot odds replaced */
+    function tied(name: 'call' | 'raise_preflop', equity: number, potOdds = 0.3): string {
+      const base = decision(name)
+      const d: DecisionData = {
+        ...base,
+        context: { ...base.context, potOdds },
+        grade: { ...base.grade, equity },
+      }
+      const fold = d.options.find((o) => o.kind === 'fold')
+      if (!fold) throw new Error('no fold')
+      const last = optionMaths(fold, d).potOdds.at(-1)?.text
+      // the call option says the same
+      const call = d.options.find((o) => o.kind === 'call')
+      if (!call) throw new Error('no call')
+      expect(optionMaths(call, d).potOdds.at(-1)?.text).toBe(last)
+      return last ?? ''
+    }
+
+    it('a tie just above: "is exactly the … pot odds", calling beats folding', () => {
+      expect(tied('call', 0.30004)).toBe(
+        '30.0% is exactly the 30.0% pot odds, so calling beats folding',
+      )
+    })
+
+    it('a tie just below: "falls just short of the … pot odds", folding beats calling', () => {
+      expect(tied('call', 0.29996)).toBe(
+        '30.0% falls just short of the 30.0% pot odds, so folding beats calling',
+      )
+    })
+
+    it('the realised branch: the shown r × e against the pot odds', () => {
+      expect(tied('raise_preflop', 0.37505)).toBe(
+        'Your realised equity (80% of 37.5% = 30.0%) is exactly the 30.0% pot odds, so calling beats folding',
+      )
+      expect(tied('raise_preflop', 0.37495)).toBe(
+        'Your realised equity (80% of 37.5% = 30.0%) falls just short of the 30.0% pot odds, so folding beats calling',
+      )
+    })
+
+    it('numbers that format differently still say above and below', () => {
+      expect(tied('call', 0.3006)).toBe('30.1% is above 30.0%, so calling beats folding')
+      expect(tied('call', 0.2994)).toBe('29.9% is below 30.0%, so folding beats calling')
+      expect(tied('raise_preflop', 0.3758)).toBe(
+        'Your realised equity (80% of 37.6% = 30.1%) is above the 30.0% pot odds, so calling beats folding',
+      )
+    })
+
+    it('never "x is above x" or "x is below x"', () => {
+      for (const e of [0.29951, 0.29996, 0.3, 0.30004, 0.30049]) {
+        for (const name of ['call', 'raise_preflop'] as const) {
+          const text = tied(name, name === 'call' ? e : e / 0.8)
+          expect(text).not.toMatch(/(\d+\.\d%)\)? is (above|below) (the )?\1/)
+          expect(text).not.toMatch(/30\.0%\)? is (above|below)/)
+        }
+      }
+    })
+  })
+
+  describe('pinned formula lines, and the fallback when one does not reproduce the API', () => {
+    it("the Σ line of a bet: share × value over Villain's replies", () => {
+      const d = decision('bet')
+      const bet = d.options.find((o) => o.label === 'bet 33%')
+      if (!bet) throw new Error('no bet 33%')
+      expect(optionMaths(bet, d).ev).toEqual([
+        { text: 'Realisation (out of position, flop)', result: '88%' },
+        { text: "EV = Σ share × value, over Villain's replies" },
+        { text: '= 33.6% × 5 bb + 52.3% × 1.06 bb + 14.1% × 0.4 bb', result: '2.29 bb' },
+      ])
+      // a branch sum that misses the API value: the solver value alone
+      const broken = { ...bet, ev_bb: bet.ev_bb + 0.5 }
+      expect(optionMaths(broken, d).ev).toEqual([
+        { text: 'EV (solver value)', result: formatEvBb(broken.ev_bb) },
+      ])
+    })
+
+    it('the Villain-calls working, and no working when its value is not reproduced', () => {
+      const d = decision('bet')
+      const bet = d.options.find((o) => o.label === 'bet 33%')
+      if (!bet) throw new Error('no bet 33%')
+      const row = optionMaths(bet, d).branches.find((b) => b.label === 'Villain calls')
+      expect(row).toEqual({
+        label: 'Villain calls',
+        share: '52.3%',
+        equity: '36.4%',
+        value: '1.06 bb',
+        formula: '0.88 × 36.4% × (5 bb + 1.5 bb + 1.5 bb) − 1.5 bb',
+      })
+      const branches = bet.branches.map((b) =>
+        b.label === 'Villain calls' ? { ...b, value_bb: b.value_bb + 0.5 } : b,
+      )
+      const off = optionMaths({ ...bet, branches }, d).branches.find(
+        (b) => b.label === 'Villain calls',
+      )
+      expect(off).toEqual({ ...row, value: '1.56 bb', formula: null })
+    })
+  })
 })

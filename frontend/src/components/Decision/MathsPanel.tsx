@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import type { OptionResult } from '../../api/types'
 import type { DecisionData } from '../../lib/decision'
-import { formatEvBb } from '../../lib/format'
+import { formatEvBb, MINUS, nowrapUnits } from '../../lib/format'
 import type { MathsLine, OptionMaths } from '../../lib/maths'
 import { optionMaths } from '../../lib/maths'
 import styles from './MathsPanel.module.css'
@@ -20,8 +20,11 @@ function Lines({ title, lines }: { title: string; lines: MathsLine[] }) {
       <div className={styles.formula}>
         {lines.map((line, i) => (
           <div key={i} className={styles.line}>
-            <span>{line.text}</span>
-            {line.result !== undefined && <span className={styles.result}>{line.result}</span>}
+            {/* an amount never splits from its unit ("33 bb") across two lines */}
+            <span>{nowrapUnits(line.text)}</span>
+            {line.result !== undefined && (
+              <span className={styles.result}>{nowrapUnits(line.result)}</span>
+            )}
           </div>
         ))}
       </div>
@@ -55,11 +58,11 @@ function Branches({ maths }: { maths: OptionMaths }) {
       <tbody>
         {maths.branches.map((b) => (
           <tr key={b.label}>
-            <th scope="row">{b.label}</th>
+            <th scope="row">{nowrapUnits(b.label)}</th>
             <td className={styles.num}>{b.share}</td>
             <td className={styles.num}>{b.equity ?? DASH}</td>
-            <td className={styles.num}>{b.value}</td>
-            <td className={styles.working}>{b.formula ?? DASH}</td>
+            <td className={styles.num}>{nowrapUnits(b.value)}</td>
+            <td className={styles.working}>{b.formula === null ? DASH : nowrapUnits(b.formula)}</td>
           </tr>
         ))}
       </tbody>
@@ -109,7 +112,8 @@ export function MathsPanel({ decision }: MathsPanelProps) {
         ))}
       </div>
       <p className={styles.loss}>
-        EV lost = best − yours = <strong>{formatEvBb(decision.grade.ev_loss_bb)}</strong>
+        EV lost = best {MINUS} yours ={' '}
+        <strong>{nowrapUnits(formatEvBb(decision.grade.ev_loss_bb))}</strong>
       </p>
     </div>
   )

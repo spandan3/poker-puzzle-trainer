@@ -1,0 +1,133 @@
+{
+  "_comment": "Pot-odds tie cases, read by backend/tests/explain/test_tie_cases.py (the Why text) and frontend/src/lib/tieCases.test.ts (the Maths tab). A tie is when realisation x equity and the pot odds format to the same 1-decimal text; the direction comes from the unrounded comparison realisation x equity >= pot_odds.",
+  "cases": [
+    {
+      "name": "tie, calling just beats",
+      "equity": 0.30004,
+      "pot_odds": 0.3,
+      "realisation": 1.0,
+      "expected_tie": true,
+      "expected_beats": true
+    },
+    {
+      "name": "tie, folding just beats",
+      "equity": 0.29996,
+      "pot_odds": 0.3,
+      "realisation": 1.0,
+      "expected_tie": true,
+      "expected_beats": false
+    },
+    {
+      "name": "tie at the top of the shown 30.0%",
+      "equity": 0.30049,
+      "pot_odds": 0.3,
+      "realisation": 1.0,
+      "expected_tie": true,
+      "expected_beats": true
+    },
+    {
+      "name": "exactly equal",
+      "equity": 0.25,
+      "pot_odds": 0.25,
+      "realisation": 1.0,
+      "expected_tie": true,
+      "expected_beats": true
+    },
+    {
+      "name": "near tie above",
+      "equity": 0.3006,
+      "pot_odds": 0.3,
+      "realisation": 1.0,
+      "expected_tie": false,
+      "expected_beats": true
+    },
+    {
+      "name": "near tie below",
+      "equity": 0.2994,
+      "pot_odds": 0.3,
+      "realisation": 1.0,
+      "expected_tie": false,
+      "expected_beats": false
+    },
+    {
+      "name": "0.2995 is stored below 29.95: shown 29.9%, not a tie",
+      "equity": 0.2995,
+      "pot_odds": 0.3,
+      "realisation": 1.0,
+      "expected_tie": false,
+      "expected_beats": false
+    },
+    {
+      "name": "plain above",
+      "equity": 0.45,
+      "pot_odds": 0.25,
+      "realisation": 1.0,
+      "expected_tie": false,
+      "expected_beats": true
+    },
+    {
+      "name": "plain below",
+      "equity": 0.2,
+      "pot_odds": 0.3333333333333333,
+      "realisation": 1.0,
+      "expected_tie": false,
+      "expected_beats": false
+    },
+    {
+      "name": "realised tie, calling just beats",
+      "equity": 0.37505,
+      "pot_odds": 0.3,
+      "realisation": 0.8,
+      "expected_tie": true,
+      "expected_beats": true
+    },
+    {
+      "name": "realised tie, folding just beats",
+      "equity": 0.37495,
+      "pot_odds": 0.3,
+      "realisation": 0.8,
+      "expected_tie": true,
+      "expected_beats": false
+    },
+    {
+      "name": "realised tie, flop factor",
+      "equity": 0.34095,
+      "pot_odds": 0.3,
+      "realisation": 0.88,
+      "expected_tie": true,
+      "expected_beats": true
+    },
+    {
+      "name": "realised near tie above",
+      "equity": 0.3758,
+      "pot_odds": 0.3,
+      "realisation": 0.8,
+      "expected_tie": false,
+      "expected_beats": true
+    },
+    {
+      "name": "realised near tie below",
+      "equity": 0.3742,
+      "pot_odds": 0.3,
+      "realisation": 0.8,
+      "expected_tie": false,
+      "expected_beats": false
+    },
+    {
+      "name": "realised plain above",
+      "equity": 0.5,
+      "pot_odds": 0.3,
+      "realisation": 0.8,
+      "expected_tie": false,
+      "expected_beats": true
+    },
+    {
+      "name": "realised plain below, raw equity above the pot odds",
+      "equity": 0.35,
+      "pot_odds": 0.3,
+      "realisation": 0.8,
+      "expected_tie": false,
+      "expected_beats": false
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import type { AttemptResult } from '../../api/types'
 import { nowrapUnits } from '../../lib/format'
 import {
   guessLines,
+  guessText,
   heroFolded,
   judgedNote,
   SCORE_LABELS,
@@ -10,10 +11,7 @@ import {
   verdictLine,
 } from '../../lib/result'
 import { Badge, Button } from '../ui'
-import type { BadgeTone } from '../ui'
 import styles from './ResultSummary.module.css'
-
-const SCORE_TONES: Record<string, BadgeTone> = { great: 'best', good: 'fine', off: 'mistake' }
 
 export interface ResultSummaryProps {
   result: AttemptResult
@@ -48,10 +46,13 @@ export const ResultSummary = forwardRef<HTMLButtonElement, ResultSummaryProps>(
             <div key={g.label} className={styles.fact}>
               <dt>{g.label}</dt>
               <dd>
-                you {g.guess} · actual {g.actual}
+                {guessText(g)}
                 {g.score && (
+                  // neutral: verdict colours are for the decision, not for the estimate
                   <span className={styles.score} data-score={g.score}>
-                    <Badge tone={SCORE_TONES[g.score] ?? 'neutral'}>{SCORE_LABELS[g.score]}</Badge>
+                    <Badge tone="neutral" title={g.scoreTitle}>
+                      {SCORE_LABELS[g.score]}
+                    </Badge>
                   </span>
                 )}
               </dd>

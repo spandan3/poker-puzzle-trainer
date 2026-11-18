@@ -85,4 +85,39 @@ describe('TableCentre', () => {
     )
     expect(container.querySelector('[data-dealing]')).toBeNull()
   })
+
+  it('a finished hand names who takes the awarded pot, in place of "Pot"', () => {
+    const { rerender } = render(
+      <TableCentre
+        board={[]}
+        potChips={3}
+        potOdds={null}
+        showPotOdds
+        award={{ winner: 'villain', potChips: 3 }}
+      />,
+    )
+    expect(screen.getByTestId('pot-label')).toHaveTextContent('Villain takes 1.5 bb')
+    rerender(
+      <TableCentre
+        board={[]}
+        potChips={12}
+        potOdds={null}
+        showPotOdds
+        award={{ winner: 'hero', potChips: 12 }}
+      />,
+    )
+    expect(screen.getByTestId('pot-label')).toHaveTextContent('You take 6 bb')
+    rerender(
+      <TableCentre
+        board={[]}
+        potChips={24}
+        potOdds={null}
+        showPotOdds
+        award={{ winner: 'split', potChips: 24 }}
+      />,
+    )
+    expect(screen.getByTestId('pot-label')).toHaveTextContent('Split pot 12 bb')
+    rerender(<TableCentre board={[]} potChips={24} potOdds={null} showPotOdds />)
+    expect(screen.getByTestId('pot-label')).toHaveTextContent('Pot 12 bb')
+  })
 })

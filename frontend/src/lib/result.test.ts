@@ -6,6 +6,7 @@ import {
   answerEntry,
   chosenLabel,
   guessLines,
+  guessText,
   optionLabel,
   heroFolded,
   showdownLine,
@@ -87,7 +88,20 @@ describe('guessLines', () => {
   it('equity, and the range read when it was asked', () => {
     const lines = guessLines(attemptFixture('bet'))
     expect(lines.map((l) => l.label)).toEqual(['Equity', 'Range read'])
-    expect(lines[0]).toMatchObject({ guess: '45%', actual: '46.4%', score: 'great' })
+    expect(lines[0]).toMatchObject({
+      guess: '45%',
+      actual: '46.4%',
+      error: '1.4 pts',
+      score: 'great',
+    })
+    expect(guessText(lines[0]!)).toBe('Your estimate 45% · actual 46.4% · off by 1.4 pts')
+  })
+
+  it('no "off by" when the API has no error for the line', () => {
+    const r = withGrade(attemptFixture('bet'), { range_read_error: null })
+    const line = guessLines(r)[1]!
+    expect(line.error).toBeNull()
+    expect(guessText(line)).toBe('Your estimate 50% · actual 47.0%')
   })
 
   it('no range read line when none was given', () => {

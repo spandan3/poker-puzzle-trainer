@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bb2,
   bbLabel,
   bbToChips,
   chipsToBb,
@@ -7,6 +8,7 @@ import {
   formatDetail,
   formatEvBb,
   formatPct,
+  MINUS,
   nowrapUnits,
 } from './format'
 
@@ -111,5 +113,26 @@ describe('bbLabel', () => {
     expect(bbLabel('raise 2.5x')).toBe('raise 2.5x')
     expect(bbLabel('bet 14')).toBe('bet 7 bb')
     expect(bbLabel('raise to 14')).toBe('raise to 7 bb')
+  })
+})
+
+describe('MINUS', () => {
+  it('is U+2212, and the EV formatters use it', () => {
+    expect(MINUS).toBe('\u2212')
+    expect(formatEvBb(-1.5)).toBe(`${MINUS}1.5 bb`)
+    expect(bb2(-0.7)).toBe(`${MINUS}0.70 bb`)
+  })
+})
+
+describe('bb2', () => {
+  it('keeps two decimals, so a column lines up', () => {
+    expect(bb2(0)).toBe('0.00 bb')
+    expect(bb2(0.7)).toBe('0.70 bb')
+    expect(bb2(27.65)).toBe('27.65 bb')
+    expect(bb2(1.256)).toBe('1.26 bb')
+  })
+
+  it('never shows a negative zero', () => {
+    expect(bb2(-0.001)).toBe('0.00 bb')
   })
 })

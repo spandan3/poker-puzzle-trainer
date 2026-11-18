@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import type { PlayOutcome } from '../api/types'
 import { playHandAnalysisFixture, playSessionFixture } from '../test/fixture'
-import { resultLine, revealShowdownLine, shownTally, tableAt, tallyText, toActAt } from './play'
+import { MINUS } from './format'
+import {
+  awardText,
+  resultLine,
+  revealShowdownLine,
+  shownTally,
+  signedBb,
+  signedBbFromBb,
+  tableAt,
+  tallyText,
+  toActAt,
+} from './play'
 
 function outcome(over: Partial<PlayOutcome>): PlayOutcome {
   return {
@@ -137,5 +148,29 @@ describe('revealShowdownLine', () => {
 
   it('says who won', () => {
     expect(revealShowdownLine(reveal)).toBe('Villain wins: High card vs Pair')
+  })
+})
+
+describe('signedBb and signedBbFromBb', () => {
+  it('sign, bb and the one minus sign', () => {
+    expect(signedBbFromBb(-1.5)).toBe(`${MINUS}1.5 bb`)
+    expect(signedBbFromBb(0)).toBe('0 bb')
+    expect(signedBbFromBb(12.5)).toBe('+12.5 bb')
+    expect(signedBb(-3)).toBe(`${MINUS}1.5 bb`)
+    expect(signedBb(25)).toBe('+12.5 bb')
+  })
+
+  it('give the same text for the same amount, in chips or in bb', () => {
+    for (let c = -400; c <= 400; c++) {
+      expect(signedBbFromBb(c / 2)).toBe(signedBb(c))
+    }
+  })
+})
+
+describe('awardText', () => {
+  it('names who takes the pot', () => {
+    expect(awardText({ winner: 'villain', potChips: 3 })).toBe('Villain takes 1.5 bb')
+    expect(awardText({ winner: 'hero', potChips: 12 })).toBe('You take 6 bb')
+    expect(awardText({ winner: 'split', potChips: 24 })).toBe('Split pot 12 bb')
   })
 })

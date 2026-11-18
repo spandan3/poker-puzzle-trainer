@@ -1,5 +1,11 @@
 /** Chips are half big blinds: the API speaks chips, the UI speaks bb. */
 
+/**
+ * The minus sign every negative number on screen uses (U+2212), never a hyphen. This file is the
+ * only one that spells it: everything else imports `MINUS` (a test checks).
+ */
+export const MINUS = '\u2212'
+
 export function chipsToBb(chips: number): number {
   return chips / 2
 }
@@ -47,10 +53,16 @@ export function formatDetail(detail: unknown): string {
   return FALLBACK_DETAIL
 }
 
-/** An EV in bb from the API's `*_bb` floats: two decimals, no trailing zeros ("2.25 bb"), U+2212 for negatives. */
+/** An EV in bb from the API's `*_bb` floats: two decimals, no trailing zeros ("2.25 bb"), `MINUS` for negatives. */
 export function formatEvBb(bb: number): string {
   const n = Number(bb.toFixed(2))
-  return `${n < 0 ? '−' : ''}${Math.abs(n)} bb`
+  return `${n < 0 ? MINUS : ''}${Math.abs(n)} bb`
+}
+
+/** An EV in bb with two fixed decimals, so a column lines up: `0.7` -> "0.70 bb". */
+export function bb2(x: number): string {
+  const n = Number(x.toFixed(2))
+  return `${n < 0 ? MINUS : ''}${Math.abs(n).toFixed(2)} bb`
 }
 
 /**

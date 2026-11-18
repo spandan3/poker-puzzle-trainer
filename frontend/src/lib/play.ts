@@ -8,7 +8,7 @@ import type {
   StreetName,
   TableView,
 } from '../api/types'
-import { formatBb } from './format'
+import { formatBb, formatEvBb, MINUS } from './format'
 
 /** The line under the table when a hand is over. */
 export function resultLine(outcome: PlayOutcome): string {
@@ -19,10 +19,32 @@ export function resultLine(outcome: PlayOutcome): string {
   return `${who} won ${amount}${outcome.ended_by === 'showdown' ? ' at showdown' : ''}`
 }
 
-/** A net result in bb with its sign: `+12.5 bb`, `−3 bb` (U+2212, like the rest of the app), `0 bb`. */
+/** A net result in chips, shown in bb with its sign: `+12.5 bb`, `MINUS 3 bb`, `0 bb`. */
 export function signedBb(chips: number): string {
-  const sign = chips > 0 ? '+' : chips < 0 ? '−' : ''
+  const sign = chips > 0 ? '+' : chips < 0 ? MINUS : ''
   return `${sign}${formatBb(Math.abs(chips))}`
+}
+
+/**
+ * The same text from an amount the API already gives in bb (e.g. a session's `net_bb`), so the
+ * screen does no chips arithmetic: `signedBbFromBb(c / 2) === signedBb(c)` for whole chips `c`.
+ */
+export function signedBbFromBb(bb: number): string {
+  const text = formatEvBb(bb)
+  return Number(bb.toFixed(2)) > 0 ? `+${text}` : text
+}
+
+/** Who took a finished hand's pot, and the awarded pot (`table.pot` of the finished hand). */
+export interface Award {
+  winner: PlayOutcome['winner']
+  potChips: number
+}
+
+/** The pot label of a finished hand: "You take 6 bb", "Villain takes 1.5 bb", "Split pot 12 bb". */
+export function awardText(award: Award): string {
+  const pot = formatBb(award.potChips)
+  if (award.winner === 'split') return `Split pot ${pot}`
+  return award.winner === 'hero' ? `You take ${pot}` : `Villain takes ${pot}`
 }
 
 /**

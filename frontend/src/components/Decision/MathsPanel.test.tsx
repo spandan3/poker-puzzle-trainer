@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { decisionFromAttempt } from '../../lib/decision'
 import { formatEvBb } from '../../lib/format'
@@ -7,6 +7,7 @@ import {
   bbCallAttempt,
   customBelowListedBestAttempt,
   neverContinuesAttempt,
+  potOddsTieAttempt,
 } from '../../test/synthetic'
 import { MathsPanel } from './MathsPanel'
 
@@ -105,5 +106,41 @@ describe('MathsPanel', () => {
     render(<MathsPanel decision={d} />)
     const text = d.simplifications.find((s) => s.code === 'preflop_size')?.text ?? ''
     expect(screen.getByText(text)).toBeInTheDocument()
+  })
+
+  it('an amount never splits from its unit: no plain space before "bb" (Task 6 N3)', () => {
+    const d = decisionFromAttempt(puzzleFixture('facing_postflop_raise'), attemptFixture('fold'))
+    const { container } = render(<MathsPanel decision={d} />)
+    const text = container.textContent ?? ''
+    expect(text).toContain('3\u00a0bb')
+    expect(text).not.toMatch(/\d bb/)
+    // the formula still reads the same to assistive tech and to tests (whitespace-normalised)
+    expect(screen.getByText('= 37.6% × (11 bb + 3 bb) − 3 bb')).toBeInTheDocument()
+  })
+
+  it('branch rows keep their amounts on one line too', () => {
+    const d = decisionFromAttempt(puzzleFixture('river'), attemptFixture('check_river'))
+    const { container } = render(<MathsPanel decision={d} />)
+    const table = container.querySelector('table')
+    expect(table).not.toBeNull()
+    expect(table!.textContent).toContain('\u00a0bb')
+    expect(table!.textContent).not.toMatch(/\d bb/)
+  })
+
+  it('a pot-odds tie says "exactly" or "just short", and every formula still reproduces', () => {
+    const view = puzzleFixture('facing_postflop_raise')
+    render(<MathsPanel decision={decisionFromAttempt(view, potOddsTieAttempt(0.2143))} />)
+    expect(
+      screen.getByText('21.4% is exactly the 21.4% pot odds, so calling beats folding'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('EV (solver value)')).toBeNull()
+    cleanup()
+    render(<MathsPanel decision={decisionFromAttempt(view, potOddsTieAttempt(0.21426))} />)
+    // chosen call, best fold: both columns carry the pot-odds line
+    expect(
+      screen.getAllByText('21.4% falls just short of the 21.4% pot odds, so folding beats calling'),
+    ).toHaveLength(2)
+    expect(screen.queryByText('EV (solver value)')).toBeNull()
+    expect(screen.queryByText(/is (above|below)/)).toBeNull()
   })
 })

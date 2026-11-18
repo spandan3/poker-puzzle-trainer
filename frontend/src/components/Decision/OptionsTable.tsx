@@ -1,6 +1,6 @@
 import type { DecisionData } from '../../lib/decision'
 import { sizeText, sortedOptions } from '../../lib/decision'
-import { formatEvBb, formatPct, nowrapUnits } from '../../lib/format'
+import { formatEvBb, formatPct, MINUS, nowrapUnits } from '../../lib/format'
 import { optionLabel } from '../../lib/result'
 import { Badge } from '../ui'
 import styles from './OptionsTable.module.css'
@@ -9,7 +9,6 @@ export interface OptionsTableProps {
   decision: DecisionData
 }
 
-const MINUS = '−'
 const DASH = '—'
 
 /** best EV minus this option's EV: an allowed rearrangement of two API numbers. */

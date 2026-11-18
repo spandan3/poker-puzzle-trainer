@@ -7,7 +7,7 @@
 // that uses equity shows r when r is not 1, so it still reproduces the API value.
 import type { OptionResult } from '../api/types'
 import type { DecisionData } from './decision'
-import { bbLabel, formatBb, formatEvBb, formatPct } from './format'
+import { bbLabel, formatBb, formatEvBb, formatPct, MINUS } from './format'
 import { optionLabel } from './result'
 
 export interface MathsLine {
@@ -43,7 +43,6 @@ type Branch = OptionResult['branches'][number]
 /** EV tolerance in bb and fraction tolerance for "the formula reproduces the API value". */
 const EV_TOL = 0.01
 const FRACTION_TOL = 0.001
-const MINUS = '−'
 
 const matchesEv = (chips: number, bb: number) => Math.abs(chips / 2 - bb) < EV_TOL
 const matchesFraction = (x: number, api: number) => Math.abs(x - api) < FRACTION_TOL
@@ -73,7 +72,7 @@ function realisationLine(r: number, d: DecisionData): MathsLine {
   return { text: `Realisation (${where}${STREET_WORDS[d.context.street]})`, result: share(r) }
 }
 
-/** a bb value inside a sum, with negatives bracketed: "(−1.7 bb)" */
+/** a bb value inside a sum, a negative one in brackets: `(${MINUS}1.7 bb)` */
 function term(bb: number): string {
   const text = formatEvBb(bb)
   return text.startsWith(MINUS) ? `(${text})` : text
@@ -168,13 +167,58 @@ function evLines(o: OptionResult, d: DecisionData): MathsLine[] {
   ]
 }
 
+export interface PotOddsComparison {
+  /** the compared equity as shown: r × e when r is not 1, else e (one decimal) */
+  shownEquity: string
+  shownPotOdds: string
+  /** both format to the same text */
+  tie: boolean
+  /** calling beats folding: the unrounded r × e >= pot odds */
+  beats: boolean
+}
+
+/**
+ * Equity (realised: r × e) against the pot odds, as the Why text's `_pot_odds` rule
+ * (backend explain/template.py) decides it: a tie is equal formatted text, and the direction is
+ * the unrounded comparison (`equity_beats_pot_odds` in the facts). Shared cases:
+ * backend/tests/data/tie_cases.json.
+ */
+export function comparePotOdds(
+  equity: number,
+  potOdds: number,
+  realisation: number,
+): PotOddsComparison {
+  const realised = realisation * equity
+  const shownEquity = eq(realised)
+  const shownPotOdds = eq(potOdds)
+  return {
+    shownEquity,
+    shownPotOdds,
+    tie: shownEquity === shownPotOdds,
+    beats: realised >= potOdds,
+  }
+}
+
+/** "… is above the 30.0% pot odds, so calling beats folding"; never "above" equal-looking text */
+function comparisonText(subject: string, c: PotOddsComparison, potOddsWords: string): string {
+  const outcome = c.beats ? 'so calling beats folding' : 'so folding beats calling'
+  if (c.tie) {
+    // equal shown numbers: say which side of the line the unrounded equity falls
+    return c.beats
+      ? `${subject} is exactly the ${c.shownPotOdds} pot odds, ${outcome}`
+      : `${subject} falls just short of the ${c.shownPotOdds} pot odds, ${outcome}`
+  }
+  return `${subject} is ${c.beats ? 'above' : 'below'} ${potOddsWords}, ${outcome}`
+}
+
 function potOddsLines(o: OptionResult, d: DecisionData): MathsLine[] {
   const po = d.context.potOdds
   if (po === null || (o.kind !== 'call' && o.kind !== 'fold')) return []
   const P = d.context.potChips
   const call = d.options.find((x) => x.kind === 'call')
   const e = d.grade.equity
-  // the call's value uses realised equity r × e, so that is what the pot odds compare
+  // the call's value uses realised equity r × e, so that is what the pot odds compare; with no
+  // call option there is no factor (the facts compare nothing then either)
   const r = call?.realisation ?? 1
   const lines: MathsLine[] =
     call !== undefined && matchesFraction(call.put / (P + call.put), po)
@@ -186,23 +230,13 @@ function potOddsLines(o: OptionResult, d: DecisionData): MathsLine[] {
         ]
       : [{ text: 'Pot odds', result: eq(po) }]
   lines.push({ text: 'Your equity', result: eq(e) })
+  const c = comparePotOdds(e, po, r)
   if (r === 1) {
-    lines.push({
-      text:
-        e >= po
-          ? `${eq(e)} is above ${eq(po)}, so calling beats folding`
-          : `${eq(e)} is below ${eq(po)}, so folding beats calling`,
-    })
+    lines.push({ text: comparisonText(eq(e), c, eq(po)) })
     return lines
   }
-  const realised = r * e
-  const which = `Your realised equity (${share(r)} of ${eq(e)} = ${eq(realised)})`
-  lines.push({
-    text:
-      realised >= po
-        ? `${which} is above the ${eq(po)} pot odds, so calling beats folding`
-        : `${which} is below the ${eq(po)} pot odds, so folding beats calling`,
-  })
+  const which = `Your realised equity (${share(r)} of ${eq(e)} = ${c.shownEquity})`
+  lines.push({ text: comparisonText(which, c, `the ${eq(po)} pot odds`) })
   return lines
 }
 
