@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ActionView, AttemptIn, PlayActionChoice, PuzzleView } from '../../api/types'
 import { formatDetail } from '../../lib/format'
 import { SHORTCUTS } from '../../lib/shortcuts'
@@ -577,5 +577,104 @@ describe('AnswerPanel without guesses (play)', () => {
     expect(action(/^check/i)).toHaveAttribute('aria-pressed', 'true')
     rerender('b')
     expect(action(/^check/i)).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+/** matchMedia answers "yes" for the panel's compaction query, and "no" for everything else. */
+function narrowViewport(narrow: boolean) {
+  const original = window.matchMedia
+  window.matchMedia = ((query: string) => ({
+    ...original(query),
+    matches: narrow && query.includes('1100px'),
+  })) as typeof window.matchMedia
+  return () => {
+    window.matchMedia = original
+  }
+}
+
+describe('AnswerPanel below 1100px (the 1024×768 height budget)', () => {
+  const restoreFns: (() => void)[] = []
+  const narrow = (on = true) => restoreFns.push(narrowViewport(on))
+  afterEach(() => {
+    while (restoreFns.length > 0) restoreFns.pop()!()
+  })
+
+  it('draws no key hint on the size chips or the intent buttons, but the keys still work', async () => {
+    narrow()
+    const { user } = setup({ view: puzzleFixture('custom_allowed') })
+    await user.click(action(/^bet/i))
+    for (const chip of sizes()) {
+      expect(chip.querySelector('kbd')).toBeNull()
+      expect(chip).toHaveAttribute('aria-keyshortcuts')
+    }
+    const intent = screen.getByRole('group', { name: /intent/i })
+    expect(intent.querySelector('kbd')).toBeNull()
+    expect(within(intent).getByRole('button', { name: /^value/i })).toHaveAttribute(
+      'aria-keyshortcuts',
+    )
+    // the action buttons keep theirs
+    expect(action(/^bet/i).querySelector('kbd')).not.toBeNull()
+    await user.keyboard('2')
+    expect(sizes()[1]).toHaveAttribute('aria-pressed', 'true')
+    await user.keyboard('l')
+    expect(within(intent).getByRole('button', { name: /^bluff/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('shows the custom bounds as the placeholder and the title, and reads them as a description', async () => {
+    narrow()
+    const { user } = setup({ view: puzzleFixture('custom_allowed') })
+    await user.click(action(/^bet/i))
+    expect(customBox()).toHaveAttribute('placeholder', '1–97.5')
+    expect(customBox()).toHaveAttribute('title', '1–97.5 bb')
+    expect(customBox()).toHaveAccessibleDescription('1–97.5 bb')
+    expect(customBox().closest('[data-shortcut-scope]')?.querySelector('kbd')).toBeNull()
+    // the group stays in the size row, with the chips
+    expect(customBox().closest('[data-compact]')).not.toBeNull()
+    // the box still takes the custom shortcut
+    await user.keyboard('0')
+    expect(customBox()).toHaveFocus()
+  })
+
+  it('shows the short Range-read hint and keeps the full sentence as the description', () => {
+    narrow()
+    setup({ view: puzzleFixture('flop_unopened') })
+    expect(screen.getByText("% of range you're ahead of")).toHaveAttribute('aria-hidden', 'true')
+    // the full sentence is there for assistive tech only (visually hidden)
+    expect(screen.getByText("% of Villain's range you're ahead of now")).toHaveClass('srOnly')
+    expect(rangeBox()).toHaveAccessibleDescription("% of Villain's range you're ahead of now")
+  })
+
+  it('at 1100px and above keeps the roomy layout', async () => {
+    narrow(false)
+    const { user } = setup({ view: puzzleFixture('custom_allowed') })
+    await user.click(action(/^bet/i))
+    for (const chip of sizes()) expect(chip.querySelector('kbd')).not.toBeNull()
+    expect(screen.getByRole('group', { name: /intent/i }).querySelector('kbd')).not.toBeNull()
+    expect(customBox()).toHaveAttribute('placeholder', 'custom')
+    expect(screen.getByText('1–97.5 bb')).toBeInTheDocument()
+    expect(rangeBox()).toHaveAccessibleDescription("% of Villain's range you're ahead of now")
+    expect(screen.queryByText("% of range you're ahead of")).toBeNull()
+  })
+
+  it('with guesses off (play) keeps the roomy layout, whatever the width', async () => {
+    narrow()
+    const hand = playSessionFixture('hero_to_act').hand!
+    render(
+      <AnswerPanel
+        view={{ ...hand.table, options: hand.options, custom: hand.custom }}
+        guesses={false}
+        busy={false}
+        error={null}
+        customDisabledReason={null}
+        shortcutsOn
+        onAct={vi.fn()}
+      />,
+    )
+    await userEvent.setup().click(action(/^bet/i))
+    for (const chip of sizes()) expect(chip.querySelector('kbd')).not.toBeNull()
+    expect(customBox()).toHaveAttribute('placeholder', 'custom')
   })
 })

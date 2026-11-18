@@ -1,5 +1,6 @@
-import { useId } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import type { ActionLogEntry, TableView } from '../../api/types'
+import { nowrapUnits } from '../../lib/format'
 import { groupHistory, STREET_LABELS } from '../../lib/history'
 import { Card } from '../Card/Card'
 import styles from './HistoryPanel.module.css'
@@ -17,8 +18,17 @@ export interface HistoryPanelProps {
 export function HistoryPanel({ view, answer, toAct, className }: HistoryPanelProps) {
   const base = useId()
   const sections = groupHistory(view, answer, toAct)
+  const panelRef = useRef<HTMLElement>(null)
+  const answered = answer !== undefined
+  // A long history scrolls inside the panel (the table screens give it a fixed height). Start at
+  // the end, so the latest action and who acts next are on show; the heading scrolls away.
+  useEffect(() => {
+    const panel = panelRef.current
+    if (panel && panel.scrollHeight > panel.clientHeight) panel.scrollTop = panel.scrollHeight
+  }, [view.history.length, view.street, answered, toAct])
   return (
     <aside
+      ref={panelRef}
       className={[styles.panel, className].filter(Boolean).join(' ')}
       aria-labelledby={`${base}-title`}
     >
@@ -58,7 +68,7 @@ export function HistoryPanel({ view, answer, toAct, className }: HistoryPanelPro
                       </span>
                       <span className={styles.position}>{item.position}</span>
                     </span>
-                    <span className={styles.text}>{item.text}</span>
+                    <span className={styles.text}>{nowrapUnits(item.text)}</span>
                   </li>
                 ))}
               </ol>
@@ -72,7 +82,7 @@ export function HistoryPanel({ view, answer, toAct, className }: HistoryPanelPro
                   <span className={styles.name}>Hero</span>
                   <span className={styles.position}>{section.answer.position}</span>
                 </span>
-                <span className={styles.text}>{section.answer.text}</span>
+                <span className={styles.text}>{nowrapUnits(section.answer.text)}</span>
                 <span className={styles.yours}>your answer</span>
               </p>
             )}

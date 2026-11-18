@@ -7,6 +7,7 @@ import {
   formatDetail,
   formatEvBb,
   formatPct,
+  nowrapUnits,
 } from './format'
 
 describe('formatBb', () => {
@@ -23,6 +24,18 @@ describe('formatBb', () => {
       const text = formatBb(chips)
       expect(text).toMatch(/^\d+(\.5)? bb$/)
     }
+  })
+})
+
+describe('nowrapUnits', () => {
+  it('puts a no-break space before "bb"', () => {
+    expect(nowrapUnits('opens to 2.5 bb')).toBe('opens to 2.5\u00a0bb')
+    expect(nowrapUnits('raises to 7 bb, then 9 bb')).toBe('raises to 7\u00a0bb, then 9\u00a0bb')
+  })
+
+  it('leaves text without "bb" as it is', () => {
+    expect(nowrapUnits('checks')).toBe('checks')
+    expect(nowrapUnits('a bbq night')).toBe('a bbq night')
   })
 })
 

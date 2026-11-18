@@ -37,6 +37,7 @@ import { answerEntry, heroFolded, VERDICT_LABELS, verdictLine } from '../lib/res
 import { shownTally, tallyText } from '../lib/play'
 import { seatsFromView } from '../lib/seats'
 import styles from './App.module.css'
+import layout from '../styles/tableLayout.module.css'
 
 const SHORTCUTS_KEY = 'ppt.shortcuts'
 
@@ -309,7 +310,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
       )}
 
       {/* hidden, not unmounted, on the other pages: a half-entered answer survives the visit */}
-      <main className={styles.main} aria-busy={pending || undefined} hidden={!onPuzzles}>
+      <main className={layout.main} aria-busy={pending || undefined} hidden={!onPuzzles}>
         <h2 className={styles.srOnly} ref={puzzlesHeadingRef} tabIndex={-1}>
           Puzzles
         </h2>
@@ -319,7 +320,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
           </div>
         ) : (
           <>
-            <div className={styles.play} data-pending={pending || undefined}>
+            <div className={`${layout.top} ${styles.play}`} data-pending={pending || undefined}>
               <Table
                 // a new puzzle re-mounts the table, so the cards deal in again
                 key={view.id}
@@ -374,10 +375,13 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
             <HistoryPanel
               view={view}
               answer={result ? answerEntry(view, result) : undefined}
-              className={styles.side}
+              className={layout.side}
             />
             {result && (
-              <div className={styles.details} data-pending={pending || undefined}>
+              <div
+                className={`${layout.details} ${styles.details}`}
+                data-pending={pending || undefined}
+              >
                 <DecisionDetails
                   ref={detailsRef}
                   decision={decisionFromAttempt(view, result)}

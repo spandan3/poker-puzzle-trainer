@@ -4,11 +4,20 @@
  * on the table (seats and board) scale with it.
  *
  * Centre budget (for the board, pot and pot odds): `.centre` is a box between Villain's bet and
- * Hero's bet, from 6em below the rail's top edge to 10.8em above its bottom edge. The rail is
- * at least 27em tall, so the box is at least 10.2em tall. Content centred in it that is at most
- * 22em wide and 10em tall never touches a seat, its cards, bet or dealer button, in any slot
+ * Hero's bet, from 6.9em below the rail's top edge to 10.8em above its bottom edge. The rail is
+ * at least 27.8em tall, so the box is at least 10.1em tall. Content at the top of it that is at
+ * most 22em wide and 10em tall never touches a seat, its cards, bet or dealer button, in any slot
  * (heads-up or five seats), at any table width. Five md board cards in a row are 19.6em wide and
- * 5em tall, which leaves room for a pot line and a pot-odds line.
+ * 5em tall, which leaves room for a pot line and a pot-odds line (about 9.5em in all, with the
+ * 11px text floor at a 9px table font). The box starts low because the seat plates grow with that
+ * floor, and Villain's bet hangs under its plate.
+ *
+ * Height: the rail (27.8em) plus the padding (6.85em above for Villain's cards and plate, 2.9em
+ * below for Hero's plate) make the table 37.55em tall at its smallest. Villain's hole cards tuck
+ * only 0.8em behind the plate, so their rank, pip and top-left index show in full. (Hero's bet
+ * sits above Hero's cards, which keep their 1.9em tuck, and under the pot-odds line: the rail is
+ * 0.8em taller than the 27em it was, to give the line room.) `tableLayout.module.css` caps the
+ * table's width so that the rail stays at that height.
  */
 .table {
   container-type: inline-size;
@@ -22,13 +31,13 @@
   --card-w-md: 3.6em;
   --card-w-lg: 4.6em;
 
-  padding: 6.1em 2.6em 2.9em;
+  padding: 6.85em 2.6em 2.9em;
   font-size: clamp(var(--table-font-min), var(--table-font-fluid), var(--table-font-max));
 }
 
 .rail {
   position: relative;
-  min-height: 27em;
+  min-height: 27.8em;
   aspect-ratio: 1.9 / 1;
   background: linear-gradient(
     180deg,
@@ -83,7 +92,7 @@
 
 .centre {
   position: absolute;
-  top: calc(6em - var(--table-rail));
+  top: calc(6.9em - var(--table-rail));
   right: 0;
   bottom: calc(10.8em - var(--table-rail));
   left: 0;

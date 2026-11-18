@@ -3,6 +3,7 @@ import { Card } from '../../components/Card/Card'
 import { Table } from '../../components/Table/Table'
 import { TableCentre } from '../../components/TableCentre/TableCentre'
 import { SEAT_SLOTS, seatsFromView, type SeatInfo } from '../../lib/seats'
+import layout from '../../styles/tableLayout.module.css'
 import { puzzleFixture } from '../../test/fixture'
 import type { GalleryEntry } from '../Gallery'
 
@@ -28,13 +29,20 @@ function Demo({ title, children }: { title: string; children: ReactNode }) {
 function fixtureTable(name: string, opts: { showProfile: boolean; villainCards?: string[] }) {
   const view = puzzleFixture(name)
   return (
-    <Table
-      seats={seatsFromView(view, opts)}
-      centre={
-        <TableCentre board={view.board} potChips={view.pot} potOdds={view.pot_odds} showPotOdds />
-      }
-    />
+    <Capped>
+      <Table
+        seats={seatsFromView(view, opts)}
+        centre={
+          <TableCentre board={view.board} potChips={view.pot} potOdds={view.pot_odds} showPotOdds />
+        }
+      />
+    </Capped>
   )
+}
+
+/** The table as the Puzzles and Play pages draw it: the same width cap and minimum font. */
+function Capped({ children }: { children: ReactNode }) {
+  return <div className={layout.top}>{children}</div>
 }
 
 const FIVE_SEATS: SeatInfo[] = SEAT_SLOTS.filter((slot) => slot !== 'top').map((slot, i) => ({
@@ -97,7 +105,9 @@ const entry: GalleryEntry = {
         {fixtureTable('facing_all_in', { showProfile: true })}
       </Demo>
       <Demo title="Five seats (synthetic)">
-        <Table seats={FIVE_SEATS} centre={fiveCentre} />
+        <Capped>
+          <Table seats={FIVE_SEATS} centre={fiveCentre} />
+        </Capped>
       </Demo>
     </div>
   ),

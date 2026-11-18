@@ -43,6 +43,13 @@ const CASES: Case[] = [
     initial: { equity: '31', action: 'call' },
   },
   {
+    id: 'fold-selected',
+    title:
+      'Fold selected (one selected style: tint, 2px border; the others dashed where not offered)',
+    fixture: 'facing_all_in',
+    initial: { equity: '12', action: 'fold' },
+  },
+  {
     id: 'river',
     title: 'River: no range read',
     fixture: 'river',

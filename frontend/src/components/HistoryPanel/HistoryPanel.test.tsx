@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { answerEntry } from '../../lib/result'
 import { attemptFixture, playSessionFixture, puzzleFixture } from '../../test/fixture'
 import { HistoryPanel } from './HistoryPanel'
@@ -30,6 +30,29 @@ describe('HistoryPanel', () => {
     expect(items[1]).toHaveAttribute('data-actor', 'villain')
     const turn = within(screen.getByRole('list', { name: 'Turn actions' })).getAllByRole('listitem')
     expect(turn.at(-1)).toHaveTextContent('all-in to 87.5 bb')
+  })
+
+  it('keeps an amount and its unit on one line', () => {
+    render(<HistoryPanel view={puzzleFixture('history_3bet_and_all_in')} />)
+    const preflop = screen.getByRole('list', { name: 'Pre-flop actions' })
+    const first = within(preflop).getAllByRole('listitem')[0]!
+    // a no-break space before "bb", so the amount never splits from its unit
+    expect(first.textContent).toContain('opens to 2.5\u00a0bb')
+    // testing-library normalises whitespace, no-break space included
+    expect(within(preflop).getByText(/opens to 2.5 bb/)).toBeInTheDocument()
+  })
+
+  it('starts a scrolling history at its end, so who acts next is on show', () => {
+    // jsdom has no layout: say the panel's content is taller than the panel
+    const heights = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(900)
+    const client = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(400)
+    try {
+      render(<HistoryPanel view={puzzleFixture('history_3bet_and_all_in')} />)
+      expect(screen.getByRole('complementary')).toHaveProperty('scrollTop', 900)
+    } finally {
+      heights.mockRestore()
+      client.mockRestore()
+    }
   })
 
   it('shows positions', () => {
