@@ -3,6 +3,7 @@ import * as client from '../../api/client'
 import type { PlayHandSummary } from '../../api/types'
 import { formatEvBb } from '../../lib/format'
 import { signedBb } from '../../lib/play'
+import { Button } from '../ui'
 import styles from './SessionHands.module.css'
 
 export type SessionHandsApi = Pick<typeof client, 'listPlayHands'>
@@ -23,6 +24,7 @@ type Loaded =
 /** A session's hands: number, position, result and EV lost when analysed, with Analyse / Review. */
 export function SessionHands({ sessionId, api = client, onOpen, refreshKey }: SessionHandsProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let live = true
@@ -33,43 +35,77 @@ export function SessionHands({ sessionId, api = client, onOpen, refreshKey }: Se
     return () => {
       live = false
     }
-  }, [api, sessionId, refreshKey])
+  }, [api, sessionId, refreshKey, attempt])
 
   if (loaded === null || loaded.sessionId !== sessionId) {
     return <p className={styles.muted}>Loading hands…</p>
   }
-  if ('failed' in loaded) return <p className={styles.muted}>Couldn’t load the hands.</p>
+  if ('failed' in loaded) {
+    return (
+      <div className={styles.muted} role="alert">
+        <span>Couldn’t load the hands.</span>{' '}
+        <Button
+          size="sm"
+          onClick={() => {
+            setLoaded(null)
+            setAttempt((n) => n + 1)
+          }}
+        >
+          Retry
+        </Button>
+      </div>
+    )
+  }
   if (loaded.hands.length === 0) return <p className={styles.muted}>No hands yet.</p>
   return (
-    <ul className={styles.list} aria-label="Hands">
-      {loaded.hands.map((h) => {
-        const running = h.ended_by === null || h.result_bb === null
-        const verb = h.analysed ? 'Review' : 'Analyse'
-        return (
-          <li key={h.id} className={styles.row}>
-            <span className={styles.no}>Hand {h.hand_no}</span>
-            <span className={styles.position}>{h.hero_position}</span>
-            <span className={styles.result}>
-              {running ? 'In progress' : signedBb(Math.round(h.result_bb! * 2))}
-            </span>
-            <span className={styles.loss}>
-              {h.analysed && h.ev_loss_bb !== null ? `EV lost ${formatEvBb(h.ev_loss_bb)}` : ''}
-            </span>
-            {h.decision_count > 0 && !running ? (
-              <button
-                type="button"
-                className={styles.open}
-                aria-label={`${verb} hand ${h.hand_no}`}
-                onClick={() => onOpen(h.id)}
-              >
-                {verb}
-              </button>
-            ) : (
-              <span />
-            )}
-          </li>
-        )
-      })}
-    </ul>
+    <div className={styles.wrap}>
+      <table className={styles.table} aria-label="Hands">
+        <thead>
+          <tr>
+            <th scope="col">Hand</th>
+            <th scope="col">Position</th>
+            <th scope="col" className={styles.num}>
+              Result
+            </th>
+            <th scope="col" className={styles.num}>
+              EV lost
+            </th>
+            <th scope="col">
+              <span className={styles.srOnly}>Analysis</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {loaded.hands.map((h) => {
+            const running = h.ended_by === null || h.result_bb === null
+            const verb = h.analysed ? 'Review' : 'Analyse'
+            return (
+              <tr key={h.id}>
+                <th scope="row">Hand {h.hand_no}</th>
+                <td>{h.hero_position}</td>
+                <td className={styles.num}>
+                  {running ? 'In progress' : signedBb(Math.round(h.result_bb! * 2))}
+                </td>
+                <td className={styles.num}>
+                  {h.analysed && h.ev_loss_bb !== null ? formatEvBb(h.ev_loss_bb) : ''}
+                </td>
+                <td className={styles.action}>
+                  {h.decision_count > 0 && !running && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`${verb} hand ${h.hand_no}`}
+                      onClick={() => onOpen(h.id)}
+                    >
+                      {verb}
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }

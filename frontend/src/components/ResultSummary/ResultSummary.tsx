@@ -1,15 +1,19 @@
 import { forwardRef } from 'react'
 import type { AttemptResult } from '../../api/types'
 import { nowrapUnits } from '../../lib/format'
-import { guessLines, heroFolded, SCORE_LABELS, VERDICT_LABELS, verdictLine } from '../../lib/result'
+import {
+  guessLines,
+  heroFolded,
+  judgedNote,
+  SCORE_LABELS,
+  VERDICT_LABELS,
+  verdictLine,
+} from '../../lib/result'
 import { Badge, Button } from '../ui'
 import type { BadgeTone } from '../ui'
 import styles from './ResultSummary.module.css'
 
 const SCORE_TONES: Record<string, BadgeTone> = { great: 'best', good: 'fine', off: 'mistake' }
-
-/** The one note on how the hand was judged: after a fold the sampled run-out doesn't apply. */
-const FOLD_NOTE = "Graded against Villain's whole range."
 
 export interface ResultSummaryProps {
   result: AttemptResult
@@ -59,7 +63,7 @@ export const ResultSummary = forwardRef<HTMLButtonElement, ResultSummaryProps>(
 
         <div className={styles.foot}>
           <p className={styles.muted}>
-            {heroFolded(result) ? FOLD_NOTE : result.judged_on_range_note}
+            {judgedNote(result.judged_on_range_note, heroFolded(result))}
           </p>
           <Button variant="secondary" onClick={onDetails}>
             Details

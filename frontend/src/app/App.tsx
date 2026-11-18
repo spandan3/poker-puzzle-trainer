@@ -220,6 +220,16 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
     else openNow(target)
   }
 
+  // End session: a running hand is given up, so that asks first; between hands it ends at once
+  const [confirmEnd, setConfirmEnd] = useState(false)
+  const handRunning =
+    play.session?.hand != null && (play.session.hand.status !== 'complete' || play.revealing)
+  const requestEnd = () => {
+    if (play.busy) return
+    if (handRunning) setConfirmEnd(true)
+    else play.end()
+  }
+
   const onNewPuzzle = () => {
     if (state.kind === 'answering') flow.requestSkip()
     else flow.newPuzzle()
@@ -249,7 +259,8 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
         onHelp={() => setHelpOpen(true)}
         onNewPuzzle={onNewPuzzle}
         tally={play.session ? tallyText(shownTally(play.session, play.revealing)) : null}
-        onEndSession={play.end}
+        onEndSession={requestEnd}
+        endBusy={play.busy}
       />
 
       <div className={styles.toasts}>
@@ -445,6 +456,20 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
           onConfirm={() => {
             setPendingOpen(null)
             openNow(pendingOpen)
+          }}
+        />
+      )}
+
+      {confirmEnd && (
+        <ConfirmDialog
+          title="End this session?"
+          body="The hand in progress is given up and Villain takes the pot."
+          confirmLabel="End session"
+          cancelLabel="Keep playing"
+          onCancel={() => setConfirmEnd(false)}
+          onConfirm={() => {
+            setConfirmEnd(false)
+            play.end()
           }}
         />
       )}

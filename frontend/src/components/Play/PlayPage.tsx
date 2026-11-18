@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Ref } from 'react'
 import * as client from '../../api/client'
-import type { CustomSizes, PlayHandView, SettingsView } from '../../api/types'
+import type { CustomSizes, PlayHandView, SettingsView, TableView } from '../../api/types'
 import type { PlayFlow } from '../../app/usePlayFlow'
 import {
   BOARD_DEAL_BASE_MS,
@@ -18,6 +18,7 @@ import { AnswerPanel } from '../AnswerPanel/AnswerPanel'
 import { HistoryPanel } from '../HistoryPanel/HistoryPanel'
 import { Table } from '../Table/Table'
 import { TableCentre } from '../TableCentre/TableCentre'
+import { Button, Panel } from '../ui'
 import { HandAnalysis } from './HandAnalysis'
 import type { HandAnalysisApi } from './HandAnalysis'
 import { HandOverPanel } from './HandOverPanel'
@@ -46,6 +47,8 @@ export interface PlayPageProps {
   onNavigate?: (page: Page) => void
   /** the page is not on show (it stays mounted) */
   hidden?: boolean
+  /** the page's root element: `main` in the app, `div` where it sits inside another `main` */
+  as?: 'main' | 'div'
 }
 
 const NO_CUSTOM: CustomSizes = { allowed: false, min_to: null, max_to: null }
@@ -59,6 +62,7 @@ export function PlayPage({
   onNavigate,
   headingRef,
   hidden = false,
+  as: Root = 'main',
 }: PlayPageProps) {
   const { session, shownCount, revealing, busy } = flow
   const hand = session?.hand ?? null
@@ -78,10 +82,39 @@ export function PlayPage({
   const [analysing, setAnalysing] = useState<number | null>(null)
   const [handsOpen, setHandsOpen] = useState(false)
   const [closedCount, setClosedCount] = useState(0)
+  // the table at the step picked in the analysis: the Action panel shows it (never the current hand)
+  const [analysisView, setAnalysisView] = useState<TableView | null>(null)
+  const openAnalysis = (handId: number) => {
+    setAnalysisView(null)
+    setAnalysing(handId)
+  }
   const closeAnalysis = () => {
     setAnalysing(null)
+    setAnalysisView(null)
     setClosedCount((n) => n + 1) // a hand may have been analysed: its row changes
   }
+  const analysis = analysing !== null && (
+    <>
+      <div className={layout.top}>
+        <HandAnalysis
+          handId={analysing}
+          api={api}
+          settings={settings}
+          onNavigate={onNavigate}
+          onClose={closeAnalysis}
+          onView={setAnalysisView}
+        />
+      </div>
+      {analysisView !== null && (
+        <HistoryPanel
+          view={analysisView}
+          toAct="hero"
+          resetKey={`${analysing}:${analysisView.history.length}`}
+          className={layout.side}
+        />
+      )}
+    </>
+  )
 
   const slotRef = useRef<HTMLDivElement>(null)
   const nextRef = useRef<HTMLButtonElement>(null)
@@ -121,38 +154,29 @@ export function PlayPage({
 
   if (session === null || hand === null) {
     return (
-      <main className={layout.main} hidden={hidden} aria-busy={busy || undefined}>
+      <Root className={layout.main} hidden={hidden} aria-busy={busy || undefined}>
         {heading}
-        <div className={styles.startWrap}>
-          {flow.state.kind === 'loading' ? (
+        {flow.state.kind === 'loading' ? (
+          <div className={styles.startWrap}>
             <p className={styles.loading} role="status">
               Loading…
             </p>
-          ) : (
-            // hidden, not unmounted, while an analysis is open: the open list stays open
-            <div hidden={analysing !== null}>
-              <StartPanel
-                onStart={flow.start}
-                busy={busy}
-                past={flow.past}
-                onOpenHand={setAnalysing}
-                api={api}
-              />
-            </div>
-          )}
-          {analysing !== null && (
-            <div className={styles.analysisWrap}>
-              <HandAnalysis
-                handId={analysing}
-                api={api}
-                settings={settings}
-                onNavigate={onNavigate}
-                onClose={closeAnalysis}
-              />
-            </div>
-          )}
-        </div>
-      </main>
+          </div>
+        ) : (
+          // hidden, not unmounted, while an analysis is open: the open list stays open
+          <div className={styles.startWrap} hidden={analysing !== null}>
+            <StartPanel
+              onStart={flow.start}
+              busy={busy}
+              past={flow.past}
+              onOpenHand={openAnalysis}
+              api={api}
+              refreshKey={closedCount}
+            />
+          </div>
+        )}
+        {analysis}
+      </Root>
     )
   }
 
@@ -162,85 +186,88 @@ export function PlayPage({
   const villainCards = handOver ? (hand.outcome?.villain_cards ?? undefined) : undefined
 
   return (
-    <main className={layout.main} hidden={hidden} aria-busy={busy || revealing || undefined}>
+    <Root className={layout.main} hidden={hidden} aria-busy={busy || revealing || undefined}>
       {heading}
-      <div className={layout.top}>
-        <Table
-          // a new hand re-mounts the table, so the cards deal in again
-          key={hand.id}
-          seats={seatsFromView(shown, { showProfile, villainCards }).map((seat) => ({
-            ...seat,
-            dealDelaysMs: HOLE_DEAL_MS.map((ms) => ms + (seat.isHero ? 0 : HOLE_STAGGER_MS)),
-            flip: villainCards !== undefined && !seat.isHero,
-          }))}
-          centre={
-            <TableCentre
-              board={shown.board}
-              potChips={shown.pot}
-              potOdds={shown.pot_odds}
-              showPotOdds={showPotOdds}
-              dealFrom={0}
-              dealBaseMs={BOARD_DEAL_BASE_MS}
-              dealStaggerMs={BOARD_DEAL_STAGGER_MS}
+      {analysing !== null ? (
+        analysis
+      ) : (
+        <>
+          <div className={layout.top}>
+            <Table
+              // a new hand re-mounts the table, so the cards deal in again
+              key={hand.id}
+              seats={seatsFromView(shown, { showProfile, villainCards }).map((seat) => ({
+                ...seat,
+                dealDelaysMs: HOLE_DEAL_MS.map((ms) => ms + (seat.isHero ? 0 : HOLE_STAGGER_MS)),
+                flip: villainCards !== undefined && !seat.isHero,
+              }))}
+              centre={
+                <TableCentre
+                  board={shown.board}
+                  potChips={shown.pot}
+                  potOdds={shown.pot_odds}
+                  showPotOdds={showPotOdds}
+                  dealFrom={0}
+                  dealBaseMs={BOARD_DEAL_BASE_MS}
+                  dealStaggerMs={BOARD_DEAL_STAGGER_MS}
+                />
+              }
             />
-          }
-        />
-        <div ref={slotRef} className={styles.slot} tabIndex={-1} aria-label="Action">
-          {analysing !== null ? (
-            <HandAnalysis
-              handId={analysing}
-              api={api}
-              settings={settings}
-              onNavigate={onNavigate}
-              onClose={closeAnalysis}
-            />
-          ) : handOver ? (
-            <HandOverPanel
-              ref={nextRef}
-              hand={hand}
-              mustRebuy={session.must_rebuy}
-              canTopUp={session.can_top_up}
-              busy={busy}
-              onNext={flow.nextHand}
-              onAnalyse={setAnalysing}
-              shortcutsOn={shortcutsOn}
-              topUp={topUp}
-              onTopUp={setTopUp}
-            />
-          ) : (
-            <ActionSlot
-              hand={hand}
-              shown={shown}
-              revealing={revealing}
-              busy={busy}
-              flow={flow}
-              shortcutsOn={shortcutsOn}
-            />
-          )}
-        </div>
-        {analysing === null && (
-          <div className={styles.sessionHands}>
-            <button
-              type="button"
-              className={styles.handsToggle}
-              aria-expanded={handsOpen}
-              onClick={() => setHandsOpen((open) => !open)}
+            <div ref={slotRef} className={styles.slot} tabIndex={-1} aria-label="Action">
+              {handOver ? (
+                <HandOverPanel
+                  ref={nextRef}
+                  hand={hand}
+                  mustRebuy={session.must_rebuy}
+                  canTopUp={session.can_top_up}
+                  busy={busy}
+                  onNext={flow.nextHand}
+                  onAnalyse={openAnalysis}
+                  shortcutsOn={shortcutsOn}
+                  topUp={topUp}
+                  onTopUp={setTopUp}
+                />
+              ) : (
+                <ActionSlot
+                  hand={hand}
+                  shown={shown}
+                  revealing={revealing}
+                  busy={busy}
+                  flow={flow}
+                  shortcutsOn={shortcutsOn}
+                />
+              )}
+            </div>
+            <Panel
+              title="This session"
+              flush
+              className={styles.sessionHands}
+              actions={
+                <Button
+                  size="sm"
+                  aria-expanded={handsOpen}
+                  onClick={() => setHandsOpen((open) => !open)}
+                >
+                  Session hands · {session.hands_played}
+                </Button>
+              }
             >
-              Session hands
-            </button>
-            {handsOpen && (
-              <SessionHands
-                sessionId={session.id}
-                api={api}
-                onOpen={setAnalysing}
-                refreshKey={`${hand.id}:${hand.status}:${closedCount}`}
-              />
-            )}
+              {handsOpen && (
+                <div className={styles.handsBody}>
+                  <SessionHands
+                    sessionId={session.id}
+                    api={api}
+                    onOpen={openAnalysis}
+                    refreshKey={`${hand.id}:${hand.status}:${closedCount}`}
+                  />
+                </div>
+              )}
+            </Panel>
           </div>
-        )}
-      </div>
-      <HistoryPanel view={shown} toAct={toAct} className={layout.side} />
-    </main>
+          <HistoryPanel view={shown} toAct={toAct} className={layout.side} />
+        </>
+      )}
+    </Root>
   )
 }
 

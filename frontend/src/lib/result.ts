@@ -114,6 +114,14 @@ export function heroFolded(result: AttemptResult): boolean {
   return result.answer.action.kind === 'fold'
 }
 
+/** The one note on how a hand was judged: after a fold the sampled run-out doesn't apply. */
+export const FOLD_NOTE = "Graded against Villain's whole range."
+
+/** The API's judged-on-range note, or the fold wording when Hero folded (no run-out was dealt). */
+export function judgedNote(apiNote: string, heroFoldedHand: boolean): string {
+  return heroFoldedHand ? FOLD_NOTE : apiNote
+}
+
 /** The showdown of the sampled run-out, e.g. "Hero wins: Pair vs Pair"; none after a fold. */
 export function showdownLine(result: AttemptResult): string {
   if (heroFolded(result)) return "You folded, so there's no showdown."

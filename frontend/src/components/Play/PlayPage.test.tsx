@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { PlaySessionView, SettingsView } from '../../api/types'
@@ -12,6 +12,7 @@ import {
 } from '../../test/fixture'
 import type { PlayPageApi } from './PlayPage'
 import { PlayPage } from './PlayPage'
+import { StartPanel } from './StartPanel'
 
 const FACE_UP = { name: / of (spades|hearts|diamonds|clubs)$/ }
 
@@ -173,7 +174,7 @@ describe('PlayPage: a finished hand', () => {
 
   it('the session’s hands list opens any hand of the session', async () => {
     const { api, user } = setup(playSessionFixture('hand_over_showdown'))
-    await user.click(screen.getByRole('button', { name: 'Session hands' }))
+    await user.click(screen.getByRole('button', { name: /^Session hands/ }))
     await user.click(await screen.findByRole('button', { name: 'Analyse hand 2' }))
     expect(await screen.findByRole('region', { name: 'Summary' })).toBeInTheDocument()
     expect(api.getPlayAnalysis).toHaveBeenCalledWith(playHandsFixture()[1]!.id)
@@ -241,24 +242,65 @@ describe('PlayPage: the start panel', () => {
         'Pre-flop, the bot responds the same way to a 2.5x and a 3x open or 3-bet, and treats an all-in as a jam. There is no limping and no small 4-bet.',
       ),
     ).toBeInTheDocument()
-    const list = screen.getByRole('list', { name: 'Past sessions' })
-    const items = within(list).getAllByRole('listitem')
-    expect(items).toHaveLength(2)
-    expect(items[1]).toHaveTextContent('−52.5 bb')
-    expect(items[1]).toHaveTextContent('13 hands')
+    const table = screen.getByRole('table', { name: 'Past sessions' })
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(2)
+    expect(rows[1]).toHaveTextContent('−52.5 bb')
+    expect(rows[1]).toHaveTextContent('13')
     await user.click(screen.getByRole('button', { name: 'Start session' }))
     expect(flow.start).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('group', { name: /^Hero,/ })).toBeNull()
   })
 
-  it('no past sessions: no list', () => {
+  it('no past sessions: no table', () => {
     setup(null, { past: [] })
-    expect(screen.queryByRole('list', { name: 'Past sessions' })).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Past sessions' })).toBeNull()
+  })
+
+  it('has the page heading and the past sessions as a table with column headers', () => {
+    setup(null)
+    expect(screen.getByRole('heading', { name: 'Play against a bot' })).toBeInTheDocument()
+    const table = screen.getByRole('table', { name: 'Past sessions' })
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((h) => h.textContent),
+    ).toEqual(['Date', 'Profile', 'Hands', 'Net', 'Hands list'])
+  })
+
+  it('a new refreshKey reloads an open hand list', async () => {
+    const flow = flowFor(null)
+    const api = {
+      getPlayAnalysis: vi.fn<PlayPageApi['getPlayAnalysis']>(),
+      postPlayDecision: vi.fn<PlayPageApi['postPlayDecision']>(),
+      getPlayExplanation: vi.fn<PlayPageApi['getPlayExplanation']>(),
+      listPlayHands: vi.fn<PlayPageApi['listPlayHands']>(async () => playHandsFixture()),
+    }
+    const user = userEvent.setup()
+    const ui = (refreshKey: number) => (
+      <StartPanel
+        onStart={vi.fn()}
+        busy={false}
+        past={flow.past}
+        onOpenHand={vi.fn()}
+        api={api}
+        refreshKey={refreshKey}
+      />
+    )
+    const { rerender } = render(ui(0))
+    await user.click(screen.getAllByRole('button', { name: /^Hands of session/ })[0]!)
+    await screen.findByRole('table', { name: 'Hands' })
+    expect(api.listPlayHands).toHaveBeenCalledTimes(1)
+    rerender(ui(1))
+    await waitFor(() => expect(api.listPlayHands).toHaveBeenCalledTimes(2))
   })
 
   it('Start session is disabled while starting', () => {
     setup(null, { busy: true })
-    expect(screen.getByRole('button', { name: 'Start session' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Start session' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
   })
 })
 
@@ -272,5 +314,102 @@ describe('PlayPage: past sessions', () => {
     // closing returns to the start panel
     await user.click(screen.getByRole('button', { name: 'Close analysis' }))
     expect(screen.getByRole('button', { name: 'Start session' })).toBeInTheDocument()
+  })
+})
+
+describe('PlayPage: the session hands and the result line', () => {
+  it('Session hands is a disclosure, collapsed at first, showing the count', async () => {
+    const { user } = setup(playSessionFixture('hero_to_act'))
+    const toggle = screen.getByRole('button', { name: /^Session hands/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle).toHaveTextContent(String(playSessionFixture('hero_to_act').hands_played))
+    expect(screen.queryByRole('table', { name: 'Hands' })).toBeNull()
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(await screen.findByRole('table', { name: 'Hands' })).toBeInTheDocument()
+  })
+
+  it('the result line is neutral: no verdict or warning attribute for a loss', () => {
+    setup(playSessionFixture('hand_over_showdown'))
+    const line = screen.getByText('Villain won 2.5 bb at showdown')
+    expect(line.getAttribute('class') ?? '').not.toMatch(/warn|danger|mistake|blunder/i)
+    expect(line).not.toHaveAttribute('data-winner')
+  })
+})
+
+describe('PlayPage: the analysis replaces the table', () => {
+  it('with the analysis open the table is gone and there is exactly one analysis', async () => {
+    const { user } = setup(playSessionFixture('hand_over_showdown'))
+    await user.click(screen.getByRole('button', { name: 'Analyse this hand' }))
+    await screen.findByRole('region', { name: 'Summary' })
+    expect(screen.queryByRole('group', { name: /^Hero,/ })).toBeNull()
+    expect(screen.queryByRole('form', { name: 'Your answer' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Hand over' })).toBeNull()
+    expect(screen.getAllByRole('region', { name: 'Hand analysis' })).toHaveLength(1)
+    expect(screen.getAllByRole('region', { name: 'Summary' })).toHaveLength(1)
+  })
+
+  it('closing it restores the table and the hand-over panel with Next hand', async () => {
+    const { user } = setup(playSessionFixture('hand_over_showdown'))
+    await user.click(screen.getByRole('button', { name: 'Analyse this hand' }))
+    await user.click(await screen.findByRole('button', { name: 'Close analysis' }))
+    expect(screen.getByRole('group', { name: /^Hero,/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Next hand/ })).toBeInTheDocument()
+  })
+
+  it('B4: the Action panel shows the analysed hand’s history, step by step, then the current one', async () => {
+    const session = playSessionFixture('hero_to_act')
+    const FULL = playHandAnalysisFixture()
+    // an earlier hand whose every step opens to 5.5 bb (the current hand opens to 2.5 bb)
+    const earlier = {
+      ...FULL,
+      decisions: FULL.decisions.map((d) => ({
+        ...d!,
+        view: {
+          ...d!.view!,
+          history: d!.view!.history.map((h, i) => (i === 0 ? { ...h, to: 11 } : h)),
+        },
+      })),
+    }
+    const { api, user } = setup(session)
+    api.getPlayAnalysis.mockResolvedValue(earlier)
+    const history = () => screen.getByRole('complementary')
+    expect(history()).toHaveTextContent('opens to 2.5 bb')
+    await user.click(screen.getByRole('button', { name: /^Session hands/ }))
+    await user.click(await screen.findByRole('button', { name: 'Analyse hand 2' }))
+    await screen.findByRole('region', { name: 'Summary' })
+    // the worst step (the river, 7 entries) opens first
+    await waitFor(() => expect(history()).toHaveTextContent('opens to 5.5 bb'))
+    expect(history()).not.toHaveTextContent('opens to 2.5 bb')
+    expect(within(history()).getAllByRole('listitem')).toHaveLength(
+      earlier.decisions[3]!.view.history.length,
+    )
+    // another step: its own history
+    await user.click(
+      within(screen.getByRole('list', { name: 'Decisions' })).getAllByRole('button')[1]!,
+    )
+    await waitFor(() =>
+      expect(within(history()).getAllByRole('listitem')).toHaveLength(
+        earlier.decisions[1]!.view.history.length,
+      ),
+    )
+    // closed: the current hand again
+    await user.click(screen.getByRole('button', { name: 'Close analysis' }))
+    expect(history()).toHaveTextContent('opens to 2.5 bb')
+    expect(history()).not.toHaveTextContent('opens to 5.5 bb')
+  })
+})
+
+describe('PlayPage: inside another main', () => {
+  it('as="div" renders no main element', () => {
+    render(
+      <PlayPage
+        as="div"
+        flow={flowFor(playSessionFixture('hero_to_act'))}
+        settings={settingsFixture()}
+        shortcutsOn={false}
+      />,
+    )
+    expect(screen.queryByRole('main')).toBeNull()
   })
 })

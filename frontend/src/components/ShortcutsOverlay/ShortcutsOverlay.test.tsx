@@ -17,6 +17,13 @@ describe('ShortcutsOverlay', () => {
     expect(dialog.querySelector('[data-shortcut-row="fold"]')).not.toBeNull()
   })
 
+  it('on Play, Next hand is under the Play group', () => {
+    render(<ShortcutsOverlay open page="play" onClose={() => {}} />)
+    const group = screen.getByRole('region', { name: 'Play' })
+    expect(within(group).getByText('Next hand')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Puzzle' })).toBeNull()
+  })
+
   it('on Settings lists the Puzzles and the Play groups', () => {
     render(<ShortcutsOverlay open page="settings" onClose={() => {}} />)
     const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })

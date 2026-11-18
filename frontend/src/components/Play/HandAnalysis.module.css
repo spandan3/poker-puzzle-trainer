@@ -1,48 +1,28 @@
-/* The hand analysis: header, summary, step list, then the details of the step picked. */
+/*
+ * The hand analysis: a header Panel (title, Close, summary, steps) and the step's details under
+ * it. The details are not inside the Panel: panels are never nested.
+ */
 .root {
   display: grid;
   gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-4) var(--space-5);
-  background: var(--answer-bg);
-  border: 1px solid var(--answer-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-panel);
   font-variant-numeric: tabular-nums;
 }
 
 .root:focus-visible {
+  outline: none;
   box-shadow: none;
 }
 
-.head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.panelBody {
+  display: grid;
   gap: var(--space-3);
-}
-
-.title {
-  margin: 0;
-  font-size: var(--text-lg);
-}
-
-.button {
-  height: var(--answer-action-height);
-  padding: 0 var(--space-4);
-  border: 1px solid var(--color-panel-border);
-  border-radius: var(--answer-radius);
-  background: transparent;
-  font-weight: var(--weight-semibold);
-  cursor: pointer;
-}
-
-.button:hover {
-  background: var(--color-badge-bg);
+  min-width: 0;
 }
 
 .status {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   margin: 0;
@@ -53,12 +33,6 @@
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--text-sm);
-}
-
-.body {
-  display: grid;
-  gap: var(--space-3);
-  min-width: 0;
 }
 
 .note {
@@ -97,71 +71,45 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-panel-border);
-  border-left: 4px solid var(--verdict-colour, var(--color-panel-border));
+  min-height: var(--control-h-md);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   background: transparent;
   color: inherit;
+  font: inherit;
   font-size: var(--text-sm);
   text-align: left;
   cursor: pointer;
 }
 
 .stepButton:hover {
-  background: var(--color-badge-bg);
+  background: var(--answer-control-bg-hover);
+}
+
+.stepButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .stepButton[aria-current='step'] {
   background: var(--color-bg-sunken);
   border-color: var(--color-accent);
-  border-left-color: var(--verdict-colour, var(--color-accent));
-}
-
-.stepButton[data-verdict='best'],
-.badge[data-verdict='best'],
-.verdictLine[data-verdict='best'] {
-  --verdict-colour: var(--color-verdict-best);
-}
-
-.stepButton[data-verdict='fine'],
-.badge[data-verdict='fine'],
-.verdictLine[data-verdict='fine'] {
-  --verdict-colour: var(--color-verdict-fine);
-}
-
-.stepButton[data-verdict='mistake'],
-.badge[data-verdict='mistake'],
-.verdictLine[data-verdict='mistake'] {
-  --verdict-colour: var(--color-verdict-mistake);
-}
-
-.stepButton[data-verdict='blunder'],
-.badge[data-verdict='blunder'],
-.verdictLine[data-verdict='blunder'] {
-  --verdict-colour: var(--color-verdict-blunder);
 }
 
 .stepTitle {
   font-weight: var(--weight-semibold);
 }
 
-.badge {
-  color: var(--verdict-colour, inherit);
-  font-weight: var(--weight-black);
-}
-
 .loss {
   color: var(--color-text-muted);
 }
 
+/* neutral text: colours are for verdicts */
 .worst {
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-sm);
-  background: var(--color-verdict-blunder);
-  color: var(--color-bg);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
 }
 
 .details {
@@ -170,7 +118,17 @@
   min-width: 0;
 }
 
-.verdictLine {
+.stepHead {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.stepName {
+  margin: 0;
+  font-size: var(--text-card-title);
+}
+
+.gradeLine {
   margin: 0;
   font-weight: var(--weight-semibold);
 }

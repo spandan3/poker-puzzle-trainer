@@ -1,7 +1,14 @@
 import { renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { KeyEventLike, ShortcutId } from './shortcuts'
-import { SHORTCUTS, describeShortcut, isOnPage, keyToCommand, useShortcuts } from './shortcuts'
+import {
+  SHORTCUTS,
+  describeShortcut,
+  groupOn,
+  isOnPage,
+  keyToCommand,
+  useShortcuts,
+} from './shortcuts'
 
 const ON = { enabled: true }
 
@@ -184,6 +191,11 @@ describe('shortcuts per page', () => {
   it('N is "Next hand" on Play and "Next puzzle" on Puzzles', () => {
     expect(describeShortcut('next', 'play')).toBe('Next hand')
     expect(describeShortcut('next', 'puzzles')).toMatch(/^Next puzzle/)
+  })
+
+  it('Next hand is in the Play group on Play, and Next puzzle in Puzzle on Puzzles', () => {
+    expect(groupOn('next', 'play')).toBe('Play')
+    expect(groupOn('next', 'puzzles')).toBe('Puzzle')
   })
 
   it('the guess shortcuts exist on Puzzles only', () => {

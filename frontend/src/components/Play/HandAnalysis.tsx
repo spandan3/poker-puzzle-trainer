@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import * as client from '../../api/client'
-import type { DecisionReview, HandAnalysis as Analysis } from '../../api/types'
+import type { DecisionReview, HandAnalysis as Analysis, TableView } from '../../api/types'
 import type { AnalysisApi } from '../../app/useHandAnalysis'
 import { useHandAnalysis } from '../../app/useHandAnalysis'
 import type { LlmSettings } from '../../app/useExplanation'
@@ -10,7 +11,9 @@ import { formatEvBb } from '../../lib/format'
 import { STREET_LABELS } from '../../lib/history'
 import type { Page } from '../../lib/page'
 import { revealShowdownLine } from '../../lib/play'
-import { gradeLine, reviewChosenLabel, VERDICT_LABELS } from '../../lib/result'
+import { gradeLine, judgedNote, reviewChosenLabel, VERDICT_LABELS } from '../../lib/result'
+import { Badge, Button, Panel } from '../ui'
+import type { BadgeTone } from '../ui'
 import { Card } from '../Card/Card'
 import { DecisionDetails } from '../Decision/DecisionDetails'
 import { ExplanationPanel } from '../Explanation/ExplanationPanel'
@@ -28,11 +31,29 @@ export interface HandAnalysisProps {
   /** the Why tab's "Settings" link */
   onNavigate?: (page: Page) => void
   onClose: () => void
+  /**
+   * The table at the selected decision (null while loading or when none is stored): the page
+   * shows it in the Action panel, so the panel follows the hand being analysed.
+   */
+  onView?: (view: TableView | null) => void
+}
+
+const TONES: Record<string, BadgeTone> = {
+  best: 'best',
+  fine: 'fine',
+  mistake: 'mistake',
+  blunder: 'blunder',
 }
 
 type GradedReview = DecisionReview & { status: 'graded' }
 
 const isGraded = (d: DecisionReview): d is GradedReview => d.status === 'graded' && d.grade !== null
+
+/** "Decision 2 · Flop": the heading of a step's details. */
+function stepHeading(review: DecisionReview): string {
+  const street = review.view ? ` · ${STREET_LABELS[review.view.street]}` : ''
+  return `Decision ${review.index + 1}${street}`
+}
 
 function stepTitle(review: DecisionReview): string {
   const street = review.view ? STREET_LABELS[review.view.street] : `Decision ${review.index + 1}`
@@ -49,20 +70,45 @@ export function HandAnalysis({
   settings,
   onNavigate,
   onClose,
+  onView,
 }: HandAnalysisProps) {
-  const { analysis, progress, error, retry } = useHandAnalysis(handId, api)
-  const rootRef = useRef<HTMLElement>(null)
+  const { analysis, progress, error, retrying, retry } = useHandAnalysis(handId, api)
+  const rootRef = useRef<HTMLDivElement>(null)
   useEffect(() => rootRef.current?.focus({ preventScroll: true }), [handId])
 
   const complete = analysis !== null && progress.done === progress.total
-  let body
-  if (error !== null) {
+  const finished =
+    !retrying && error === null && complete && analysis !== null && analysis.decisions.length > 0
+  const reviews = finished ? analysis.decisions.filter((d): d is DecisionReview => d !== null) : []
+  const summary = finished ? analysis.summary : null
+  const [picked, setPicked] = useState<number | null>(null)
+  const selected = picked ?? summary?.worst_index ?? 0
+  const review = reviews[selected] ?? reviews[0] ?? null
+  const view = review?.view ?? null
+  // the Action panel follows the step on show
+  useEffect(() => {
+    onView?.(view)
+  }, [view, onView])
+
+  let body: ReactNode
+  if (retrying) {
+    body = (
+      <p className={styles.status} role="status">
+        Retrying…
+      </p>
+    )
+  } else if (error !== null) {
     body = (
       <div className={styles.status} role="alert">
         <span>{error}</span>
-        <button type="button" className={styles.button} onClick={retry}>
+        <Button size="sm" onClick={retry}>
           Retry
-        </button>
+        </Button>
+        {analysis !== null && progress.total > 0 && (
+          <span className={styles.muted}>
+            {progress.done} of {progress.total} decisions analysed so far.
+          </span>
+        )}
       </div>
     )
   } else if (analysis === null) {
@@ -80,56 +126,55 @@ export function HandAnalysis({
   } else if (analysis.decisions.length === 0) {
     body = <p className={styles.status}>You made no decision in this hand.</p>
   } else {
-    body = (
-      <Finished
-        handId={handId}
-        analysis={analysis}
-        api={api}
-        settings={settings}
-        onNavigate={onNavigate}
-      />
-    )
+    body = <Summary analysis={analysis} reviews={reviews} selected={selected} onPick={setPicked} />
   }
 
   return (
-    <section ref={rootRef} tabIndex={-1} className={styles.root} aria-label="Hand analysis">
-      <header className={styles.head}>
-        <h2 className={styles.title}>Hand analysis</h2>
-        <button type="button" className={styles.button} onClick={onClose}>
-          Close analysis
-        </button>
-      </header>
-      {error !== null && analysis !== null && progress.total > 0 && (
-        <p className={styles.muted}>
-          {progress.done} of {progress.total} decisions analysed so far.
-        </p>
+    <div ref={rootRef} tabIndex={-1} className={styles.root}>
+      <AnalysisPanel onClose={onClose}>{body}</AnalysisPanel>
+      {finished && review && (
+        <StepDetails
+          key={review.index}
+          handId={handId}
+          review={review}
+          analysis={analysis}
+          api={api}
+          settings={settings}
+          onNavigate={onNavigate}
+        />
       )}
-      {body}
-    </section>
+    </div>
   )
 }
 
-function Finished({
-  handId,
-  analysis,
-  api,
-  settings,
-  onNavigate,
-}: {
-  handId: number
-  analysis: Analysis
-  api: HandAnalysisApi
-  settings: LlmSettings | null
-  onNavigate?: (page: Page) => void
-}) {
-  const reviews = analysis.decisions.filter((d): d is DecisionReview => d !== null)
-  const { summary } = analysis
-  const [picked, setPicked] = useState<number | null>(null)
-  const selected = picked ?? summary?.worst_index ?? 0
-  const review = reviews[selected] ?? reviews[0]!
-
+/** The header panel: the title, Close analysis and what goes under them. */
+function AnalysisPanel({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   return (
-    <div className={styles.body}>
+    <Panel
+      title="Hand analysis"
+      headingLevel={2}
+      actions={<Button onClick={onClose}>Close analysis</Button>}
+    >
+      <div className={styles.panelBody}>{children}</div>
+    </Panel>
+  )
+}
+
+/** The summary and the step list: what sits in the header panel once everything is graded. */
+function Summary({
+  analysis,
+  reviews,
+  selected,
+  onPick,
+}: {
+  analysis: Analysis
+  reviews: DecisionReview[]
+  selected: number
+  onPick: (index: number) => void
+}) {
+  const { summary } = analysis
+  return (
+    <>
       {analysis.model_changed && (
         <p className={styles.note} role="note">
           Villain model has changed since this hand
@@ -146,7 +191,10 @@ function Finished({
               ? 'No decision lost EV.'
               : 'No decision could be graded.'}
         </p>
-        <p className={styles.muted}>{analysis.judged_on_range_note}</p>
+        <p className={styles.muted}>
+          {/* a fold ends the hand: Hero's last decision */}
+          {judgedNote(analysis.judged_on_range_note, reviews.at(-1)?.chosen_label === 'fold')}
+        </p>
       </section>
 
       <ol className={styles.steps} aria-label="Decisions">
@@ -159,36 +207,26 @@ function Finished({
                 className={styles.stepButton}
                 aria-current={i === selected ? 'step' : undefined}
                 data-verdict={graded ? r.grade!.verdict : 'none'}
-                onClick={() => setPicked(i)}
+                onClick={() => onPick(i)}
               >
                 <span className={styles.stepTitle}>{stepTitle(r)}</span>
                 {graded ? (
                   <>
-                    <span className={styles.badge} data-verdict={r.grade!.verdict}>
+                    <Badge tone={TONES[r.grade!.verdict] ?? 'neutral'}>
                       {VERDICT_LABELS[r.grade!.verdict]}
-                    </span>
+                    </Badge>
                     <span className={styles.loss}>{formatEvBb(r.grade!.ev_loss_bb)} lost</span>
                   </>
                 ) : (
                   <span className={styles.loss}>Not graded: {r.reason}</span>
                 )}
-                {i === summary?.worst_index && <span className={styles.worst}>Worst</span>}
+                {i === summary?.worst_index && <span className={styles.worst}>Most EV lost</span>}
               </button>
             </li>
           )
         })}
       </ol>
-
-      <StepDetails
-        key={review.index}
-        handId={handId}
-        review={review}
-        analysis={analysis}
-        api={api}
-        settings={settings}
-        onNavigate={onNavigate}
-      />
-    </div>
+    </>
   )
 }
 
@@ -220,12 +258,10 @@ function StepDetails({
   const { grade } = decision
   return (
     <div className={styles.details}>
-      <p className={styles.verdictLine} data-verdict={grade.verdict}>
-        <span className={styles.badge} data-verdict={grade.verdict}>
-          {VERDICT_LABELS[grade.verdict]}
-        </span>{' '}
-        {gradeLine(decision.chosenLabel, grade)}
-      </p>
+      <div className={styles.stepHead}>
+        <h3 className={styles.stepName}>{stepHeading(review)}</h3>
+        <p className={styles.gradeLine}>{gradeLine(decision.chosenLabel, grade)}</p>
+      </div>
       <DecisionDetails
         decision={decision}
         whyTab={

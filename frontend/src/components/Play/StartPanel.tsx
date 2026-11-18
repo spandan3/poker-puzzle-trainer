@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { PlaySessionSummary } from '../../api/types'
 import { signedBb } from '../../lib/play'
+import { Badge, Button, Panel } from '../ui'
 import type { SessionHandsApi } from './SessionHands'
 import { SessionHands } from './SessionHands'
 import styles from './Play.module.css'
@@ -17,6 +18,8 @@ export interface StartPanelProps {
   /** a past session's hand was picked to analyse or review */
   onOpenHand: (handId: number) => void
   api?: SessionHandsApi
+  /** changes when a hand list may have changed (an analysis was closed): open lists reload */
+  refreshKey?: string | number
 }
 
 function dateText(iso: string): string {
@@ -27,7 +30,7 @@ function dateText(iso: string): string {
 }
 
 /** Shown when there is no open session: start one, see the old ones, read what the bot does. */
-export function StartPanel({ onStart, busy, past, onOpenHand, api }: StartPanelProps) {
+export function StartPanel({ onStart, busy, past, onOpenHand, api, refreshKey }: StartPanelProps) {
   const [expanded, setExpanded] = useState<number | null>(null)
   return (
     <section className={styles.start} aria-label="Start a session">
@@ -36,43 +39,74 @@ export function StartPanel({ onStart, busy, past, onOpenHand, api }: StartPanelP
         A heads-up cash game, 100 bb deep, against one bot with a random profile. Play full hands,
         then analyse any hand afterwards.
       </p>
-      <button type="button" className={styles.primary} disabled={busy} onClick={onStart}>
+      <Button variant="primary" busy={busy} onClick={onStart}>
         Start session
-      </button>
+      </Button>
 
       {past !== null && past.length > 0 && (
-        <div className={styles.past}>
-          <h3 className={styles.pastTitle}>Past sessions</h3>
-          <ul className={styles.pastList} aria-label="Past sessions">
-            {past.map((s) => (
-              <li key={s.id} className={styles.pastItem}>
-                <span className={styles.pastNet}>{signedBb(Math.round(s.net_bb * 2))}</span>
-                <span>
-                  {s.hands_played} {s.hands_played === 1 ? 'hand' : 'hands'}
-                </span>
-                <span>vs {s.profile_label}</span>
-                <span className={styles.pastDate}>{dateText(s.created_at)}</span>
-                {s.open && <span className={styles.pastOpen}>open</span>}
-                {s.hands_played > 0 && (
-                  <button
-                    type="button"
-                    className={styles.pastHands}
-                    aria-expanded={expanded === s.id}
-                    aria-label={`Hands of session ${s.id}`}
-                    onClick={() => setExpanded(expanded === s.id ? null : s.id)}
-                  >
+        <Panel title="Past sessions" flush className={styles.past}>
+          <div className={styles.tableWrap}>
+            <table className={styles.table} aria-label="Past sessions">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Profile</th>
+                  <th scope="col" className={styles.num}>
                     Hands
-                  </button>
-                )}
-                {expanded === s.id && (
-                  <div className={styles.pastHandList}>
-                    <SessionHands sessionId={s.id} api={api} onOpen={onOpenHand} />
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+                  </th>
+                  <th scope="col" className={styles.num}>
+                    Net
+                  </th>
+                  <th scope="col">
+                    <span className={styles.srOnly}>Hands list</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {past.map((s) => (
+                  <Fragment key={s.id}>
+                    <tr>
+                      <th scope="row">
+                        {dateText(s.created_at)}
+                        {s.open && <span className={styles.pastOpen}> open</span>}
+                      </th>
+                      <td>
+                        <Badge tone="profile">{s.profile_label}</Badge>
+                      </td>
+                      <td className={styles.num}>{s.hands_played}</td>
+                      <td className={styles.num}>{signedBb(Math.round(s.net_bb * 2))}</td>
+                      <td className={styles.num}>
+                        {s.hands_played > 0 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-expanded={expanded === s.id}
+                            aria-label={`Hands of session ${s.id}`}
+                            onClick={() => setExpanded(expanded === s.id ? null : s.id)}
+                          >
+                            Hands
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                    {expanded === s.id && (
+                      <tr>
+                        <td colSpan={5} className={styles.pastHandList}>
+                          <SessionHands
+                            sessionId={s.id}
+                            api={api}
+                            onOpen={onOpenHand}
+                            refreshKey={refreshKey}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       )}
 
       <p className={styles.note}>{HELP_NOTE}</p>

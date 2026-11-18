@@ -2,7 +2,7 @@ import { useEffect, useId, useRef } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Page } from '../../lib/page'
 import type { ShortcutGroup } from '../../lib/shortcuts'
-import { SHORTCUTS, describeShortcut, isOnPage, keyToCommand } from '../../lib/shortcuts'
+import { SHORTCUTS, describeShortcut, groupOn, isOnPage, keyToCommand } from '../../lib/shortcuts'
 import styles from './ShortcutsOverlay.module.css'
 
 export interface ShortcutsOverlayProps {
@@ -12,7 +12,7 @@ export interface ShortcutsOverlayProps {
   onClose: () => void
 }
 
-const GROUPS: ShortcutGroup[] = ['Answer', 'Action', 'Size', 'Intent', 'Puzzle']
+const GROUPS: ShortcutGroup[] = ['Answer', 'Action', 'Size', 'Intent', 'Puzzle', 'Play']
 
 /**
  * The keyboard shortcuts, listed from `SHORTCUTS`. A modal dialog drawn without
@@ -89,7 +89,9 @@ export function ShortcutsOverlay({ open, page = 'puzzles', onClose }: ShortcutsO
         </header>
         <div className={styles.groups}>
           {GROUPS.map((group) => {
-            const rows = SHORTCUTS.filter((s) => s.group === group && isOnPage(s.id, page))
+            const rows = SHORTCUTS.filter(
+              (s) => groupOn(s.id, page) === group && isOnPage(s.id, page),
+            )
             if (rows.length === 0) return null
             return (
               <section key={group} className={styles.group} aria-label={group}>

@@ -98,9 +98,17 @@ test('a session end to end: start, play hands, tally, next hand, resume, end', a
 
   // end the session: the start panel lists it
   await page.getByRole('button', { name: 'End session' }).click()
+  const dialog = page.getByRole('dialog', { name: 'End this session?' })
+  await expect(dialog).toBeVisible()
+  // Keep playing leaves the hand as it was; End session in the dialog ends it
+  await dialog.getByRole('button', { name: 'Keep playing' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(actionForm(page)).toBeVisible()
+  await page.getByRole('button', { name: 'End session' }).click()
+  await dialog.getByRole('button', { name: 'End session' }).click()
   await expect(page.getByRole('button', { name: 'Start session' })).toBeVisible()
-  const past = page.getByRole('list', { name: 'Past sessions' })
-  await expect(past.getByRole('listitem').first()).toContainText(/\d+ hands?/)
+  const past = page.getByRole('table', { name: 'Past sessions' })
+  await expect(past.getByRole('row').nth(1)).toContainText(/\d+/)
   await expect(page.getByLabel('Session tally')).toHaveCount(0)
 })
 
@@ -118,6 +126,8 @@ test('analyse a hand: progress, summary, every tab, close, and reopen it from th
   // the real backend grades each decision; allow it time
   const summary = page.getByRole('region', { name: 'Summary' })
   await expect(summary).toBeVisible({ timeout: 60_000 })
+  // the analysis replaces the table
+  await expect(page.getByRole('group', { name: /^Hero,/ })).toHaveCount(0)
   await expect(summary).toContainText(/Total EV lost: \d+(\.\d+)? bb/)
   const steps = page.getByRole('list', { name: 'Decisions' }).getByRole('button')
   await steps.first().click()
@@ -140,9 +150,29 @@ test('analyse a hand: progress, summary, every tab, close, and reopen it from th
   page.on('request', (r) => {
     if (r.method() === 'POST' && r.url().includes('/analysis/')) posts.push(r.url())
   })
-  await page.getByRole('button', { name: 'Session hands' }).click()
+  const hands = page.getByRole('button', { name: /^Session hands/ })
+  await expect(hands).toHaveAttribute('aria-expanded', 'false')
+  await hands.click()
+  await expect(hands).toHaveAttribute('aria-expanded', 'true')
   await page.getByRole('button', { name: /^Review hand \d+$/ }).click()
   await expect(summary).toBeVisible({ timeout: 10_000 })
   await expect(page.getByText(/^Analysing decision/)).toHaveCount(0)
   expect(posts).toEqual([])
+})
+
+test('at 1024×768 the options table in the analysis does not scroll sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await page.goto('/play')
+  await page.getByRole('button', { name: 'Start session' }).click()
+  await dealUntilHeroActs(page)
+  await playToTheEnd(page)
+  await page.getByRole('button', { name: 'Analyse this hand' }).click()
+  await expect(page.getByRole('region', { name: 'Summary' })).toBeVisible({ timeout: 60_000 })
+  await page.getByRole('list', { name: 'Decisions' }).getByRole('button').first().click()
+  await page.getByRole('tab', { name: 'Options', exact: true }).click()
+  const panel = page.getByRole('tabpanel')
+  await expect(panel.getByRole('table')).toBeVisible()
+  // the tab panel is the options table's scroll box (DecisionDetails.module.css)
+  const [scrollWidth, clientWidth] = await panel.evaluate((el) => [el.scrollWidth, el.clientWidth])
+  expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
 })

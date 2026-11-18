@@ -30,6 +30,8 @@ export interface TopBarProps {
   /** Play: the session's tally (`+12.5 bb · 14 hands`), or null with no open session. */
   tally: string | null
   onEndSession: () => void
+  /** a play request is in flight: End session waits (`aria-disabled`, with a title saying why) */
+  endBusy?: boolean
 }
 
 function isStreet(x: string): x is StreetName {
@@ -109,7 +111,12 @@ export function TopBar(props: TopBarProps) {
             <span className={styles.tabularNums} aria-label="Session tally">
               {props.tally}
             </span>
-            <Button size="sm" onClick={props.onEndSession}>
+            <Button
+              size="sm"
+              busy={props.endBusy}
+              title={props.endBusy ? 'Wait for the hand to update' : undefined}
+              onClick={props.onEndSession}
+            >
               End session
             </Button>
           </>
