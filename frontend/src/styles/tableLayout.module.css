@@ -1,0 +1,102 @@
+/*
+ * The layout of the two table screens (Puzzles and Play). A top grid holds the table with the
+ * answer panel under it (`.top`) and the Action panel (`.side`); a full-width row below holds the
+ * results details (`.details`). The Action panel is not sticky: the top row fits the viewport, and
+ * the panel can never cover the details.
+ *
+ * The table's width is capped by the viewport height, so on short screens it shrinks instead of
+ * pushing the answer panel off screen. The table's font minimum is a geometry setting only: the
+ * text on it has its own 11px floor. Puzzles' written height budget (1024×768 and 1280×800)
+ * depends on these numbers: `--below-table` is what the bar, the gaps and the tallest answer
+ * panel leave, tuned so that the capped width gives the rail its 27em minimum height at the
+ * minimum font.
+ * Below 900px the Action panel stacks under the table.
+ */
+.main {
+  --side-w: 19rem;
+  --gap: var(--space-4);
+
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) var(--side-w);
+  /* rows take the height of their content: the top row ends where the answer panel ends */
+  align-content: start;
+  gap: var(--gap);
+  width: 100%;
+  max-width: 100rem;
+  margin-inline: auto;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.main[hidden] {
+  display: none;
+}
+
+@media (width < 1100px) {
+  .main {
+    --side-w: 16rem;
+  }
+}
+
+/* the table and the panel under it */
+.top {
+  --below-table: 27rem;
+
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* 1024×768 and shorter */
+@media (height < 780px) {
+  .top {
+    --table-font-min: 9px;
+    --below-table: 27.8rem;
+  }
+}
+
+/* 1280×800 */
+@media (780px <= height < 820px) {
+  .top {
+    --table-font-min: 10px;
+    --below-table: 27.6rem;
+  }
+}
+
+/* the table: as wide as the column allows, but no taller than the viewport leaves room for */
+.top > :first-child {
+  --table-max-w: min(76rem, calc((100dvh - var(--below-table)) * 1.62));
+}
+
+/*
+ * The Action panel fills the height of the top row. `contain: size` keeps its content from
+ * sizing that row, so a long history scrolls inside the panel instead of growing the page.
+ */
+.side {
+  align-self: stretch;
+  contain: size;
+  overflow: auto;
+}
+
+/* the results details: a full-width row under the top row */
+.details {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+@media (width < 900px) {
+  .main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .top > :first-child {
+    --table-max-w: 76rem;
+  }
+
+  .side {
+    align-self: auto;
+    contain: none;
+    overflow: visible;
+  }
+}

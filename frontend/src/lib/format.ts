@@ -16,6 +16,14 @@ export function formatBb(chips: number): string {
   return `${half && chips < 0 && whole === 0 ? '-' : ''}${whole}${half ? '.5' : ''} bb`
 }
 
+/**
+ * Display only: swaps the space before "bb" for a no-break space, so an amount never splits from
+ * its unit across two lines. `formatBb` itself stays plain, so tests and API comparisons match.
+ */
+export function nowrapUnits(text: string): string {
+  return text.replace(/ (?=bb\b)/g, '\u00a0')
+}
+
 /** A fraction as a percentage: `0.256` -> "26%" (or "25.6%" with one digit). */
 export function formatPct(x: number, digits = 0): string {
   return `${(x * 100).toFixed(digits)}%`

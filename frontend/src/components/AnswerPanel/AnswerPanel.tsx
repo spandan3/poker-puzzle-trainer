@@ -1,4 +1,4 @@
-import { useEffect, useId, useReducer, useRef } from 'react'
+import { useEffect, useId, useReducer, useRef, useSyncExternalStore } from 'react'
 import type { CSSProperties, ChangeEvent, FormEvent, ReactNode, RefObject } from 'react'
 import { flushSync } from 'react-dom'
 import type { ActionView, AttemptIn, Intent, PlayActionChoice } from '../../api/types'
@@ -98,6 +98,31 @@ function reducer(state: AnswerState, msg: Msg): AnswerState {
   }
 }
 
+/**
+ * Below this viewport width the answer panel compacts so that its tallest state fits 1024×768
+ * (the Puzzles height budget): size and intent buttons drop their key hints, the size chips pack
+ * tighter, the custom size shows its bounds as the box's placeholder, "optional" is read but not
+ * drawn, and the Range-read hint is shortened. The shortcuts all still work.
+ */
+const COMPACT_QUERY = '(width < 1100px)'
+
+function subscribeCompact(onChange: () => void) {
+  const query = window.matchMedia?.(COMPACT_QUERY)
+  query?.addEventListener('change', onChange)
+  return () => query?.removeEventListener('change', onChange)
+}
+
+function useNarrow(): boolean {
+  return useSyncExternalStore(
+    subscribeCompact,
+    () => window.matchMedia?.(COMPACT_QUERY).matches ?? false,
+    () => false,
+  )
+}
+
+const RANGE_READ_HELP = "% of Villain's range you're ahead of now"
+const RANGE_READ_HELP_SHORT = "% of range you're ahead of"
+
 const INTENTS: { intent: Intent; label: string; shortcut: ShortcutId }[] = [
   { intent: 'value', label: 'Value', shortcut: 'value' },
   { intent: 'bluff', label: 'Bluff', shortcut: 'bluff' },
@@ -132,6 +157,9 @@ interface Hint {
 }
 
 const NO_HINT: Hint = { attrs: {}, kbd: null }
+
+/** A hint that keeps its attributes (`aria-keyshortcuts`) but draws no key. */
+const NO_HINT_WITH_ATTRS = (h: Hint): Hint => ({ attrs: h.attrs, kbd: null })
 
 /**
  * The <kbd> hint and `aria-keyshortcuts` for a control, from `SHORTCUTS` (none when shortcuts
@@ -179,6 +207,8 @@ function Panel({
     if (!busy) lockRef.current = false
   })
 
+  // puzzles only: Play has the height to spare, so it keeps the roomy layout
+  const compact = useNarrow() && guesses
   const ids = useId()
   const reasonId = `${ids}-reason`
   const hint = makeHint(shortcutsOn)
@@ -209,6 +239,23 @@ function Panel({
   const select = (kind: ActionKind) => {
     if (buttons.find((b) => b.kind === kind)?.enabled) dispatch({ type: 'action', kind })
   }
+
+  // the custom size group, at the end of the size row
+  const customSize =
+    bounds && aggressiveKind ? (
+      <CustomSize
+        id={`${ids}-custom`}
+        bounds={bounds}
+        compact={compact}
+        text={state.custom}
+        selected={state.size === 'custom'}
+        disabledReason={customDisabledReason}
+        error={inline.custom ?? null}
+        inputRef={customRef}
+        hint={compact ? NO_HINT_WITH_ATTRS(hint('customSize')) : hint('customSize')}
+        onChange={(text) => dispatch({ type: 'custom', kind: aggressiveKind, text })}
+      />
+    ) : null
 
   const focusCustom = () => {
     if (!bounds || customDisabled || !aggressiveKind) return false
@@ -287,6 +334,7 @@ function Panel({
     <form
       ref={formRef}
       className={styles.panel}
+      data-compact={compact || undefined}
       aria-label="Your answer"
       aria-busy={busy || undefined}
       onSubmit={handleSubmit}
@@ -312,7 +360,8 @@ function Panel({
           {view.range_read_asked && (
             <PercentField
               label="Range read"
-              help="% of Villain's range you're ahead of now"
+              help={RANGE_READ_HELP}
+              shortHelp={compact ? RANGE_READ_HELP_SHORT : undefined}
               slider="Range read slider"
               text={state.rangeRead}
               skipped={state.rangeSkipped}
@@ -366,6 +415,8 @@ function Panel({
             {sizes.map((s, i) => {
               const key = String(i + 1)
               const h = i < 9 ? hint('size', { key }) : NO_HINT
+              // compact: the digit keys still work (aria-keyshortcuts), the hint is not drawn
+              const shown = compact ? { ...h, kbd: null } : h
               const [name, amount] = s.label.split(' · ')
               return (
                 <button
@@ -381,24 +432,12 @@ function Panel({
                   <span className={styles.sizeName}>{name}</span>
                   <span className={styles.sizeSep}> · </span>
                   <span className={styles.sizeAmount}>{amount}</span>
-                  {h.kbd}
+                  {shown.kbd}
                 </button>
               )
             })}
           </div>
-          {bounds && (
-            <CustomSize
-              id={`${ids}-custom`}
-              bounds={bounds}
-              text={state.custom}
-              selected={state.size === 'custom'}
-              disabledReason={customDisabledReason}
-              error={inline.custom ?? null}
-              inputRef={customRef}
-              hint={hint('customSize')}
-              onChange={(text) => dispatch({ type: 'custom', kind: aggressiveKind, text })}
-            />
-          )}
+          {customSize}
         </div>
       )}
 
@@ -409,7 +448,7 @@ function Panel({
               Intent
             </span>
             {INTENTS.map((i) => {
-              const h = hint(i.shortcut)
+              const h = compact ? NO_HINT_WITH_ATTRS(hint(i.shortcut)) : hint(i.shortcut)
               const pressed = state.intent === i.intent
               return (
                 <button
@@ -426,7 +465,7 @@ function Panel({
                 </button>
               )
             })}
-            <span className={styles.optional}>optional</span>
+            <span className={compact ? styles.srOnly : styles.optional}>optional</span>
           </div>
         ) : (
           <div className={styles.footerSpacer} />
@@ -469,6 +508,8 @@ function Panel({
 function PercentField(props: {
   label: string
   help: string
+  /** A shorter text drawn in place of `help`; `help` stays as the input's description. */
+  shortHelp?: string
   slider: string
   text: string
   error: string | null
@@ -478,7 +519,8 @@ function PercentField(props: {
   onChange: (text: string) => void
   onSkip?: (skipped: boolean) => void
 }) {
-  const { label, help, slider, text, error, skipped, inputRef, hint, onChange, onSkip } = props
+  const { label, help, shortHelp, slider, text, error, skipped, inputRef, hint, onChange, onSkip } =
+    props
   const id = useId()
   const parsed = parsePercent(text)
   const value = typeof parsed === 'number' ? parsed : null
@@ -495,9 +537,20 @@ function PercentField(props: {
           {label}
           {hint.kbd}
         </label>
-        <span id={`${id}-help`} className={styles.fieldHelp}>
-          {help}
-        </span>
+        {shortHelp === undefined ? (
+          <span id={`${id}-help`} className={styles.fieldHelp}>
+            {help}
+          </span>
+        ) : (
+          <>
+            <span className={styles.fieldHelp} aria-hidden="true">
+              {shortHelp}
+            </span>
+            <span id={`${id}-help`} className={styles.srOnly}>
+              {help}
+            </span>
+          </>
+        )}
         {onSkip && (
           <button
             type="button"
@@ -558,6 +611,8 @@ function PercentField(props: {
 function CustomSize(props: {
   id: string
   bounds: { min: number; max: number }
+  /** the bounds are the box's placeholder and title, not text beside it */
+  compact: boolean
   text: string
   selected: boolean
   disabledReason: string | null
@@ -566,9 +621,12 @@ function CustomSize(props: {
   hint: Hint
   onChange: (text: string) => void
 }) {
-  const { id, bounds, text, selected, disabledReason, error, inputRef, hint, onChange } = props
+  const { id, bounds, compact, text, selected, disabledReason, error, inputRef, hint, onChange } =
+    props
   const disabled = disabledReason !== null
-  const range = `${formatBb(bbToChips(bounds.min)).replace(' bb', '')}–${formatBb(bbToChips(bounds.max))}`
+  const low = formatBb(bbToChips(bounds.min)).replace(' bb', '')
+  const range = `${low}–${formatBb(bbToChips(bounds.max))}`
+  const shortRange = `${low}–${formatBb(bbToChips(bounds.max)).replace(' bb', '')}`
   const describedBy = [`${id}-bounds`, error && `${id}-error`, disabled && `${id}-disabled`]
     .filter(Boolean)
     .join(' ')
@@ -579,6 +637,7 @@ function CustomSize(props: {
       data-selected={(selected && !disabled) || undefined}
       data-invalid={error !== null || undefined}
       data-disabled={disabled || undefined}
+      data-compact={compact || undefined}
     >
       <label htmlFor={id} className={styles.customLabel}>
         to {/* the bounds beside the box show the unit */}
@@ -594,14 +653,14 @@ function CustomSize(props: {
         className={styles.customInput}
         value={text}
         disabled={disabled}
-        placeholder={disabled ? 'off' : 'custom'}
-        title={disabledReason ?? undefined}
+        placeholder={disabled ? 'off' : compact ? shortRange : 'custom'}
+        title={disabledReason ?? (compact ? range : undefined)}
         aria-invalid={error !== null || undefined}
         aria-describedby={describedBy}
         onChange={(e) => onChange(e.currentTarget.value)}
         {...hint.attrs}
       />
-      <span id={`${id}-bounds`} className={styles.customBounds}>
+      <span id={`${id}-bounds`} className={compact ? styles.srOnly : styles.customBounds}>
         {range}
       </span>
       {/* always present, so the live region exists before its message arrives */}

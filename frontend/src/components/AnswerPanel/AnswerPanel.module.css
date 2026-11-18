@@ -82,7 +82,7 @@
 .skip {
   height: 1.625rem;
   padding: 0 var(--space-3);
-  border: 1px solid var(--answer-control-border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-text-muted);
@@ -95,7 +95,7 @@
 }
 
 .skip:hover {
-  border-color: var(--answer-control-border-hover);
+  border-color: var(--color-text-muted);
   color: var(--color-text);
 }
 
@@ -205,14 +205,14 @@
   align-items: center;
   height: var(--answer-control-height);
   padding: 0 var(--space-3) 0 var(--space-2);
-  border: 1px solid var(--answer-input-border);
+  border: 1px solid var(--control-border);
   border-radius: var(--answer-radius);
   background: var(--answer-input-bg);
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 
 .percentBox:hover {
-  border-color: var(--answer-control-border-hover);
+  border-color: var(--color-text-muted);
 }
 
 .percentBox:focus-within {
@@ -284,9 +284,10 @@
   min-width: 0;
   height: var(--answer-action-height);
   padding: 0 var(--space-3);
-  border: 1px solid var(--answer-control-border);
+  border: 1px solid var(--control-border);
   border-radius: var(--answer-radius);
   background: var(--answer-control-bg);
+  color: var(--color-text);
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
   cursor: pointer;
@@ -306,7 +307,7 @@
   --kind: var(--answer-aggressive);
 }
 
-/* the kind's colour as a short bar along the bottom edge */
+/* unselected: the kind's colour as a short bar along the bottom edge */
 .action::after {
   position: absolute;
   right: 30%;
@@ -328,36 +329,36 @@
   transform: translateY(1px);
 }
 
+/*
+ * One selected style for an action, a size and an intent: a soft tint of the colour, a 2px border
+ * in it (a 1px border and a 1px inset ring, so nothing shifts) and the label in the text colour.
+ */
 .action[aria-pressed='true'] {
   border-color: var(--kind);
-  background: var(--kind);
-  color: var(--answer-on-filled);
+  background: color-mix(in srgb, var(--kind) 18%, var(--answer-control-bg));
+  box-shadow: inset 0 0 0 1px var(--kind);
+  color: var(--color-text);
 }
 
 .action[aria-pressed='true']:hover:not([aria-disabled='true']) {
-  background: var(--kind);
+  background: color-mix(in srgb, var(--kind) 24%, var(--answer-control-bg));
 }
 
 .action[aria-pressed='true']::after {
   opacity: 0;
 }
 
-.action[aria-pressed='true'] .kbd {
-  border-color: rgb(0 0 0 / 25%);
-  background: rgb(0 0 0 / 12%);
-  color: var(--answer-on-filled);
-}
-
+/* not offered here: it looks unavailable (a dashed outline, no fill, no key hint) */
 .action[aria-disabled='true'] {
-  border-color: transparent;
-  background: rgb(255 255 255 / 3%);
+  border: 1px dashed var(--color-panel-border);
+  background: transparent;
   color: var(--color-text-faint);
   cursor: not-allowed;
-  opacity: 0.55;
 }
 
-.action[aria-disabled='true']::after {
-  opacity: 0;
+.action[aria-disabled='true']::after,
+.action[aria-disabled='true'] .kbd {
+  display: none;
 }
 
 .actionLabel {
@@ -394,7 +395,7 @@
   gap: 0;
   height: var(--answer-control-height);
   padding: 0 var(--space-2) 0 0.625rem;
-  border: 1px solid var(--answer-control-border);
+  border: 1px solid var(--control-border);
   border-radius: var(--answer-radius);
   background: var(--answer-control-bg);
   font-size: var(--text-sm);
@@ -406,7 +407,7 @@
 }
 
 .size:hover {
-  border-color: var(--answer-control-border-hover);
+  border-color: var(--color-text-muted);
   background: var(--answer-control-bg-hover);
 }
 
@@ -460,7 +461,7 @@
   width: 4.75rem;
   height: var(--answer-control-height);
   padding: 0 var(--space-2);
-  border: 1px solid var(--answer-input-border);
+  border: 1px solid var(--control-border);
   border-radius: var(--answer-radius);
   background: var(--answer-input-bg);
   font-weight: var(--weight-bold);
@@ -474,7 +475,7 @@
 }
 
 .customInput:hover:not(:disabled) {
-  border-color: var(--answer-control-border-hover);
+  border-color: var(--color-text-muted);
 }
 
 .customInput:focus-visible {
@@ -514,6 +515,38 @@
   text-align: right;
 }
 
+/*
+ * compact (below 1100px, puzzles): the size chips pack tighter and the custom box shows the
+ * bounds as its placeholder, so the whole size row is one line at 1024
+ */
+.panel[data-compact] .sizes {
+  gap: var(--space-1);
+}
+
+.panel[data-compact] .size {
+  padding: 0 var(--space-2);
+}
+
+.custom[data-compact] .customInput {
+  width: 5.5rem;
+}
+
+/* ...and the footer stays one line: Intent, the message and Submit share 688px */
+.panel[data-compact] .submitArea {
+  flex-basis: 0;
+  gap: var(--space-3);
+}
+
+.panel[data-compact] .submit {
+  flex: none;
+  min-width: 9rem;
+  padding: 0 var(--space-4);
+}
+
+.custom[data-compact] .customInput::placeholder {
+  font-size: var(--text-sm);
+}
+
 /* ---------------------------------------------------------------- intent and submit */
 
 .footer {
@@ -550,7 +583,7 @@
   gap: var(--space-2);
   height: 2.25rem;
   padding: 0 var(--space-2) 0 var(--space-3);
-  border: 1px solid var(--answer-control-border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-pill);
   background: transparent;
   font-size: var(--text-sm);
@@ -563,20 +596,14 @@
 }
 
 .intentButton:hover {
-  border-color: var(--answer-control-border-hover);
+  border-color: var(--color-text-muted);
   background: var(--answer-control-bg);
 }
 
 .intentButton[aria-pressed='true'] {
-  border-color: var(--answer-intent-selected-bg);
-  background: var(--answer-intent-selected-bg);
-  color: var(--answer-intent-selected-text);
-}
-
-.intentButton[aria-pressed='true'] .kbd {
-  border-color: rgb(0 0 0 / 22%);
-  background: rgb(0 0 0 / 8%);
-  color: var(--answer-intent-selected-text);
+  border-color: var(--answer-size-selected-border);
+  background: var(--answer-size-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--answer-size-selected-border);
 }
 
 .optional {

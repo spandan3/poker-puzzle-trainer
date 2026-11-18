@@ -25,6 +25,7 @@ import type { SessionHandsApi } from './SessionHands'
 import { SessionHands } from './SessionHands'
 import { StartPanel } from './StartPanel'
 import styles from './Play.module.css'
+import layout from '../../styles/tableLayout.module.css'
 
 export type PlayPageApi = HandAnalysisApi & SessionHandsApi
 
@@ -120,7 +121,7 @@ export function PlayPage({
 
   if (session === null || hand === null) {
     return (
-      <main className={styles.main} hidden={hidden} aria-busy={busy || undefined}>
+      <main className={layout.main} hidden={hidden} aria-busy={busy || undefined}>
         {heading}
         <div className={styles.startWrap}>
           {flow.state.kind === 'loading' ? (
@@ -161,9 +162,9 @@ export function PlayPage({
   const villainCards = handOver ? (hand.outcome?.villain_cards ?? undefined) : undefined
 
   return (
-    <main className={styles.main} hidden={hidden} aria-busy={busy || revealing || undefined}>
+    <main className={layout.main} hidden={hidden} aria-busy={busy || revealing || undefined}>
       {heading}
-      <div className={styles.play}>
+      <div className={layout.top}>
         <Table
           // a new hand re-mounts the table, so the cards deal in again
           key={hand.id}
@@ -238,7 +239,7 @@ export function PlayPage({
           </div>
         )}
       </div>
-      <HistoryPanel view={shown} toAct={toAct} className={styles.side} />
+      <HistoryPanel view={shown} toAct={toAct} className={layout.side} />
     </main>
   )
 }

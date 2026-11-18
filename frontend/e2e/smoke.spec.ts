@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
@@ -76,16 +77,18 @@ test('reduced motion: cards do not animate', async ({ page }) => {
   expect(timing.name === 'none' || timing.duration === '0s').toBe(true)
 })
 
-test('layout: the tallest answer panel fits 1280×800, even with an error showing', async ({
-  page,
-}) => {
-  // the widest size row: five sizes plus the custom box, served from the fixture
-  const view = readFileSync(
-    resolve(import.meta.dirname, '../src/test/fixtures/puzzle_flop_unopened.json'),
-    'utf8',
-  )
+const FIT_SIZES = [
+  [1024, 768],
+  [1280, 800],
+] as const
+
+const fixtureJson = (name: string) =>
+  readFileSync(resolve(import.meta.dirname, `../src/test/fixtures/${name}.json`), 'utf8')
+
+/** Serves one puzzle fixture as the current puzzle; a submit answers 409, as after a model change. */
+async function routePuzzle(page: Page, name: string) {
   await page.route('**/api/puzzles/current', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: view }),
+    route.fulfill({ status: 200, contentType: 'application/json', body: fixtureJson(name) }),
   )
   await page.route('**/api/puzzles/*/attempts', (route) =>
     route.fulfill({
@@ -97,19 +100,133 @@ test('layout: the tallest answer panel fits 1280×800, even with an error showin
       }),
     }),
   )
-  await page.goto('/')
-  await page.getByRole('textbox', { name: 'Equity' }).fill('40')
-  await page.keyboard.press('Escape')
-  await page.keyboard.press('b')
-  await page.keyboard.press('1')
-  const height = () => page.locator('html').evaluate((el) => el.scrollHeight)
-  const width = () => page.locator('html').evaluate((el) => el.scrollWidth)
-  expect(await height()).toBe(800)
-  await page.getByRole('button', { name: /^Submit/ }).click()
-  await expect(page.getByRole('alert')).toContainText('Villain model changed')
-  expect(await height()).toBe(800)
-  expect(await width()).toBe(1280)
-})
+}
+
+/**
+ * The Puzzles height budget: no page scroll in either direction, and Submit's box wholly inside
+ * the viewport. `slack` is the room below the answer panel's bottom padding, in px.
+ */
+async function expectFits(page: Page, width: number, height: number, state: string) {
+  const fit = await page.evaluate(() => {
+    const html = document.documentElement
+    const form = document.querySelector('form[aria-label="Your answer"]')!.getBoundingClientRect()
+    return {
+      scrollHeight: html.scrollHeight,
+      innerHeight: window.innerHeight,
+      scrollWidth: html.scrollWidth,
+      innerWidth: window.innerWidth,
+      formBottom: form.bottom,
+    }
+  })
+  expect(fit.innerHeight, state).toBe(height)
+  expect(fit.scrollHeight, `${state}: vertical scroll`).toBeLessThanOrEqual(fit.innerHeight)
+  expect(fit.scrollWidth, `${state}: horizontal scroll`).toBeLessThanOrEqual(fit.innerWidth)
+  const submit = (await page.getByRole('button', { name: /^Submit/ }).boundingBox())!
+  expect(submit.y, `${state}: Submit top`).toBeGreaterThanOrEqual(0)
+  expect(submit.y + submit.height, `${state}: Submit bottom`).toBeLessThanOrEqual(height)
+  expect(submit.x + submit.width, `${state}: Submit right`).toBeLessThanOrEqual(width)
+  // the plan's 16 px of slack, so that Windows font metrics still pass
+  expect(height - (fit.formBottom + 16), `${state}: slack`).toBeGreaterThanOrEqual(16)
+}
+
+for (const [width, height] of FIT_SIZES) {
+  test(`layout: the tallest answer panel fits ${width}×${height} in every state, even with an error showing`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    // the widest size row: five sizes plus the custom box, served from the fixture
+    await routePuzzle(page, 'puzzle_flop_unopened')
+    await page.goto('/')
+    await expect(page.getByRole('textbox', { name: 'Equity' })).toBeVisible()
+    await expectFits(page, width, height, 'fresh')
+
+    await page.getByRole('textbox', { name: 'Equity' }).fill('40')
+    await page.getByRole('textbox', { name: 'Range read' }).fill('60')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('b')
+    await page.keyboard.press('1')
+    await page.keyboard.press('v')
+    await expect(page.getByRole('group', { name: 'Size' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Value', exact: false })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await page.waitForTimeout(400) // the size row slides in
+    // the size row is one line (a wrapped row would cost another 48 px)
+    const chips = await page.getByRole('group', { name: 'Size' }).getByRole('button').all()
+    const tops = new Set<number>()
+    for (const chip of chips) tops.add(Math.round((await chip.boundingBox())!.y))
+    expect(tops.size).toBe(1)
+    await expectFits(page, width, height, 'Bet, size, intent')
+
+    await page.getByRole('button', { name: /^Submit/ }).click()
+    await expect(page.getByRole('alert')).toContainText('Villain model changed')
+    await expectFits(page, width, height, 'with the 409 error')
+  })
+
+  test(`layout: a river puzzle and an action without sizes fit ${width}×${height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await routePuzzle(page, 'puzzle_river')
+    await page.goto('/')
+    await expect(page.getByRole('textbox', { name: 'Equity' })).toBeVisible()
+    // the river's one-pixel overflow is gone
+    await expectFits(page, width, height, 'river, fresh')
+
+    await page.getByRole('textbox', { name: 'Equity' }).fill('40')
+    await page.keyboard.press('Escape')
+    const passive = page
+      .locator('[aria-label="Action"] button:is([data-kind="check"], [data-kind="call"])')
+      .and(page.locator(':not([aria-disabled])'))
+      .first()
+    await passive.click()
+    await expect(passive).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('group', { name: 'Size' })).toHaveCount(0)
+    await expectFits(page, width, height, 'river, an action without sizes')
+  })
+
+  test(`layout: pre-flop fits ${width}×${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await routePuzzle(page, 'puzzle_preflop_btn_first_in')
+    await page.goto('/')
+    await expect(page.getByRole('textbox', { name: 'Equity' })).toBeVisible()
+    await expectFits(page, width, height, 'pre-flop, fresh')
+  })
+}
+
+for (const [width, height] of FIT_SIZES) {
+  test(`layout: the Action panel ends with the table column at ${width}×${height}, and a long history scrolls inside it`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    // a river puzzle with 40 extra river entries: far more history than the panel is tall
+    const view = JSON.parse(fixtureJson('puzzle_river')) as { history: Record<string, unknown>[] }
+    const base = view.history.at(-1)!
+    for (let i = 0; i < 40; i++) {
+      view.history.push({ ...base, actor: i % 2 === 0 ? 'villain' : 'hero', street: 'river' })
+    }
+    await page.route('**/api/puzzles/current', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(view) }),
+    )
+    await page.goto('/')
+    await expect(page.getByRole('textbox', { name: 'Equity' })).toBeVisible()
+    const columns = await page.evaluate(() => {
+      const side = document.querySelector('aside')!
+      // the column with the table and the answer panel
+      const top = document.querySelector('section[aria-label="Poker table"]')!.parentElement!
+      return {
+        sideBottom: side.getBoundingClientRect().bottom,
+        topBottom: top.getBoundingClientRect().bottom,
+        sideScroll: side.scrollHeight - side.clientHeight,
+        pageScroll: document.documentElement.scrollHeight - window.innerHeight,
+      }
+    })
+    expect(Math.abs(columns.sideBottom - columns.topBottom)).toBeLessThanOrEqual(1)
+    expect(columns.sideScroll).toBeGreaterThan(0)
+    expect(columns.pageScroll).toBeLessThanOrEqual(0)
+  })
+}
 
 for (const [width, height] of [
   [1024, 768],

@@ -1,44 +1,4 @@
-/*
- * The Play page. The same shape as the Puzzles screen: the table and the panel under it on the
- * left, the history on the right, inside one viewport at 1280×800 and 1024×768.
- */
-.main {
-  --side-w: 19rem;
-  --gap: var(--space-4);
-  /* the top bar, gaps and the tallest panel (sizes shown): what the table leaves free vertically */
-  --below-table: 26rem;
-
-  display: grid;
-  flex: 1;
-  grid-template-columns: minmax(0, 1fr) var(--side-w);
-  align-items: start;
-  gap: var(--gap);
-  width: 100%;
-  max-width: 100rem;
-  margin-inline: auto;
-  padding: var(--space-3) var(--space-4) var(--space-4);
-}
-
-.main[hidden] {
-  display: none;
-}
-
-.play {
-  display: grid;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.play > section:first-child {
-  --table-max-w: min(76rem, calc((100dvh - var(--below-table)) * 1.62));
-}
-
-@media (height < 800px) {
-  .play > section:first-child {
-    --table-font-min: 9.5px;
-  }
-}
-
+/* The Play page. Its grid, table cap and Action panel are in `styles/tableLayout.module.css`. */
 .slot {
   min-width: 0;
   border-radius: var(--radius-lg);
@@ -46,34 +6,6 @@
 
 .slot:focus-visible {
   box-shadow: none;
-}
-
-.side {
-  position: sticky;
-  top: var(--space-3);
-  max-height: calc(100dvh - 5rem);
-  overflow: auto;
-}
-
-@media (width < 1100px) {
-  .main {
-    --side-w: 16rem;
-  }
-}
-
-@media (width < 900px) {
-  .main {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .play > section:first-child {
-    --table-max-w: 76rem;
-  }
-
-  .side {
-    position: static;
-    max-height: none;
-  }
 }
 
 /* ---------------------------------------------------------------- hand over */

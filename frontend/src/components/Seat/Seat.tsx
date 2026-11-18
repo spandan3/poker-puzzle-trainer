@@ -36,7 +36,7 @@ export function Seat({ seat, className }: SeatProps) {
         ))}
       </div>
 
-      <div className={styles.plate}>
+      <div className={styles.plate} data-part="plate">
         <div className={styles.row}>
           <span className={styles.name}>{seat.name}</span>
           <span className={styles.position}>{seat.position}</span>
