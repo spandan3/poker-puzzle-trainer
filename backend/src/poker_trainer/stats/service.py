@@ -252,6 +252,7 @@ def compute(
     first = [r for r in ordered if r.is_first]
     return {
         "tz": tz.key,
+        "rolling_window": ROLLING_WINDOW,
         "totals": {"first_attempts": len(first), "retries": len(ordered) - len(first)},
         "headline": _headline(first),
         "trend": _trend(first),

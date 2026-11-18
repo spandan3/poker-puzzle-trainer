@@ -145,6 +145,8 @@ describe('LineChart', () => {
       />,
     )
     expect(screen.getByText('No range reads yet.')).toBeInTheDocument()
+    // a static message: plain text, not a live region
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.queryByTestId('line-chart')).not.toBeInTheDocument()
     expect(container.querySelector('line')).toBeNull()
   })
@@ -170,6 +172,35 @@ describe('LineChart', () => {
       expect(lastLabel).toHaveTextContent('4.5 bb')
       fireEvent.mouseLeave(screen.getByTestId('line-chart'))
       expect(screen.queryByTestId('chart-tooltip')).not.toBeInTheDocument()
+    })
+
+    it('is placed against the SVG box, not the figure, with Show data open', () => {
+      const { container } = render(
+        <LineChart
+          title="T"
+          yLabel="bb"
+          format={fmt}
+          series={[
+            { label: 'A', points },
+            { label: 'B', points: points.map((p) => ({ ...p, y: p.y / 2 })) },
+          ]}
+        />,
+      )
+      openData()
+      hover(container, 560)
+      const tip = screen.getByTestId('chart-tooltip')
+      const plot = screen.getByTestId('chart-plot')
+      // the tooltip's containing box holds the SVG and nothing else that takes height
+      expect(tip.parentElement).toBe(plot)
+      expect(plot).toHaveClass('plot')
+      expect([...plot.children].map((c) => c.tagName.toLowerCase())).toEqual(['svg', 'div'])
+      expect(plot).not.toContainElement(document.querySelector('details'))
+      expect(plot).not.toContainElement(container.querySelector('ul'))
+      // so its % position is the hover dot's place in the SVG's own 560 x 240 box
+      const dot = screen.getByTestId('hover-dot')
+      expect(tip.style.left).toBe(`${(Number(dot.getAttribute('cx')) / 560) * 100}%`)
+      expect(tip.style.top).toBe(`${(Number(dot.getAttribute('cy')) / 240) * 100}%`)
+      expect(Number(dot.getAttribute('cx'))).toBe(560 - 64) // x = 3, the right edge of the plot
     })
 
     it('finds the nearest point and uses tooltipLabel when given', () => {
@@ -208,9 +239,9 @@ describe('LineChart', () => {
       const rect = band.querySelector('rect')!
       const left = Number(rect.getAttribute('x'))
       const right = left + Number(rect.getAttribute('width'))
-      // x = 50 is the middle of 1..100: the band ends there and starts at the plot's left edge
-      expect(right).toBeGreaterThan(left)
-      expect(right).toBeLessThan(560 - 64)
+      // the band starts at the plot's left edge and ends at sx(50): 40 + (50 - 1) / (100 - 1) * 456
+      expect(left).toBe(40)
+      expect(right).toBeCloseTo(40 + (49 / 99) * 456, 6)
       expect(container.querySelectorAll('rect')).toHaveLength(1)
     })
 

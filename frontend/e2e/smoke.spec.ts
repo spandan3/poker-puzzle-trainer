@@ -468,6 +468,24 @@ for (const [width, height] of [
     expect(boxes[0]!.y).toBe(boxes[2]!.y)
     expect(boxes[3]!.y).toBe(boxes[5]!.y)
     expect(boxes[3]!.y).toBeGreaterThan(boxes[0]!.y)
+
+    // the tooltip sits 10 px above the hovered point, with "Show data" open below the chart too
+    const figure = page
+      .locator('figure')
+      .filter({ has: page.getByTestId('line-chart') })
+      .first()
+    await figure.getByText('Show data').click()
+    await expect(figure.getByRole('table')).toBeVisible()
+    const svg = figure.getByTestId('line-chart')
+    const svgBox = (await svg.boundingBox())!
+    await page.mouse.move(svgBox.x + svgBox.width * 0.4, svgBox.y + svgBox.height / 2)
+    const tip = figure.getByTestId('chart-tooltip')
+    await expect(tip).toBeVisible()
+    const dot = (await svg.getByTestId('hover-dot').boundingBox())!
+    const tipBox = (await tip.boundingBox())!
+    const gap = dot.y + dot.height / 2 - (tipBox.y + tipBox.height)
+    expect(gap).toBeGreaterThanOrEqual(8)
+    expect(gap).toBeLessThanOrEqual(12)
   })
 }
 

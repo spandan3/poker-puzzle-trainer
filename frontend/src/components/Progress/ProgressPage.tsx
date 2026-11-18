@@ -132,7 +132,7 @@ export function ProgressPage({
         ) : (
           <>
             <StatTiles stats={load.stats} />
-            <TrendCharts trend={load.stats.trend} />
+            <TrendCharts trend={load.stats.trend} rollingWindow={load.stats.rolling_window} />
             <DailyGoal days={load.stats.days} onNavigate={onNavigate} utcNote={load.utcNote} />
             <LeakList leaks={load.stats.leaks} />
             <Breakdowns breakdowns={load.stats.breakdowns} />

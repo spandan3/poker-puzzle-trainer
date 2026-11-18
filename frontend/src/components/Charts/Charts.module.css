@@ -4,6 +4,11 @@
   min-width: 0;
 }
 
+/* the SVG and its tooltip: the tooltip's % position resolves against the SVG's own box */
+.plot {
+  position: relative;
+}
+
 .svg {
   display: block;
   width: 100%;

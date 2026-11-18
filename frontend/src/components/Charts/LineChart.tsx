@@ -107,9 +107,7 @@ export function LineChart({
   if (empty !== undefined && ys.length === 0) {
     return (
       <figure className={styles.figure}>
-        <p className={styles.empty} role="status">
-          {empty}
-        </p>
+        <p className={styles.empty}>{empty}</p>
       </figure>
     )
   }
@@ -147,90 +145,94 @@ export function LineChart({
           ))}
         </ul>
       )}
-      <svg
-        className={styles.svg}
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label={title}
-        data-testid="line-chart"
-        onMouseMove={onMove}
-        onMouseLeave={() => setHover(null)}
-      >
-        {warmUpOn && (
-          <g data-testid="warm-up">
-            <rect
-              className={styles.warmUp}
-              x={M.left}
-              y={M.top}
-              width={Math.max(warmUpRight - M.left, 0)}
-              height={plotH}
-            />
-            <text className={styles.warmUpLabel} x={M.left + 4} y={M.top + 12}>
-              Fewer than {warmUp} puzzles
-            </text>
-          </g>
-        )}
-        <text className={styles.unit} x={0} y={10}>
-          {yLabel}
-        </text>
-        {scale.ticks.map((t) => (
-          <g key={t}>
-            <line
-              className={t === 0 ? styles.axis : styles.grid}
-              x1={M.left}
-              x2={width - M.right}
-              y1={sy(t)}
-              y2={sy(t)}
-            />
-            <text className={styles.tick} x={M.left - 6} y={sy(t) + 4} textAnchor="end">
+      {/* the tooltip is placed in % of this box, which holds only the SVG (not the legend or the data table) */}
+      <div className={styles.plot} data-testid="chart-plot">
+        <svg
+          className={styles.svg}
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label={title}
+          data-testid="line-chart"
+          onMouseMove={onMove}
+          onMouseLeave={() => setHover(null)}
+        >
+          {warmUpOn && (
+            <g data-testid="warm-up">
+              <rect
+                className={styles.warmUp}
+                x={M.left}
+                y={M.top}
+                width={Math.max(warmUpRight - M.left, 0)}
+                height={plotH}
+              />
+              <text className={styles.warmUpLabel} x={M.left + 4} y={M.top + 12}>
+                Fewer than {warmUp} puzzles
+              </text>
+            </g>
+          )}
+          <text className={styles.unit} x={0} y={10}>
+            {yLabel}
+          </text>
+          {scale.ticks.map((t) => (
+            <g key={t}>
+              <line
+                className={t === 0 ? styles.axis : styles.grid}
+                x1={M.left}
+                x2={width - M.right}
+                y1={sy(t)}
+                y2={sy(t)}
+              />
+              <text className={styles.tick} x={M.left - 6} y={sy(t) + 4} textAnchor="end">
+                {t}
+              </text>
+            </g>
+          ))}
+          {xTicks.map((t) => (
+            <text key={t} className={styles.tick} x={sx(t)} y={height - 6} textAnchor="middle">
               {t}
             </text>
-          </g>
-        ))}
-        {xTicks.map((t) => (
-          <text key={t} className={styles.tick} x={sx(t)} y={height - 6} textAnchor="middle">
-            {t}
-          </text>
-        ))}
-        {series.map((s, i) => {
-          const last = [...s.points].reverse().find((p) => p.y !== null)
-          return (
-            <g key={s.label} className={styles[`s${i % 2}`]}>
-              <path className={styles.line} d={pathOf(s.points)} data-series={s.label} />
-              {last && last.y !== null && (
-                <>
-                  <circle className={styles.dot} cx={sx(last.x)} cy={sy(last.y)} r={3.5} />
-                  <text className={styles.last} x={sx(last.x) + 8} y={sy(last.y) + 4}>
-                    {format(last.y)}
-                  </text>
-                </>
-              )}
-            </g>
-          )
-        })}
+          ))}
+          {series.map((s, i) => {
+            const last = [...s.points].reverse().find((p) => p.y !== null)
+            return (
+              <g key={s.label} className={styles[`s${i % 2}`]}>
+                <path className={styles.line} d={pathOf(s.points)} data-series={s.label} />
+                {last && last.y !== null && (
+                  <>
+                    <circle className={styles.dot} cx={sx(last.x)} cy={sy(last.y)} r={3.5} />
+                    <text className={styles.last} x={sx(last.x) + 8} y={sy(last.y) + 4}>
+                      {format(last.y)}
+                    </text>
+                  </>
+                )}
+              </g>
+            )
+          })}
+          {hover && (
+            <circle
+              className={`${styles.hoverDot} ${styles[`s${hover.series % 2}`]}`}
+              data-testid="hover-dot"
+              cx={sx(hover.x)}
+              cy={sy(hover.y)}
+              r={4.5}
+            />
+          )}
+        </svg>
         {hover && (
-          <circle
-            className={`${styles.hoverDot} ${styles[`s${hover.series % 2}`]}`}
-            cx={sx(hover.x)}
-            cy={sy(hover.y)}
-            r={4.5}
-          />
+          <div
+            className={styles.tooltip}
+            data-testid="chart-tooltip"
+            data-side={sx(hover.x) > width * 0.6 ? 'left' : 'right'}
+            aria-hidden="true"
+            style={{
+              left: `${(sx(hover.x) / width) * 100}%`,
+              top: `${(sy(hover.y) / height) * 100}%`,
+            }}
+          >
+            {tip(hover.x, hover.y)}
+          </div>
         )}
-      </svg>
-      {hover && (
-        <div
-          className={styles.tooltip}
-          data-testid="chart-tooltip"
-          data-side={sx(hover.x) > width * 0.6 ? 'left' : 'right'}
-          aria-hidden="true"
-          style={{
-            left: `${(sx(hover.x) / width) * 100}%`,
-            top: `${(sy(hover.y) / height) * 100}%`,
-          }}
-        >
-          {tip(hover.x, hover.y)}
-        </div>
-      )}
+      </div>
       <p className={styles.srOnly}>{summary}</p>
       <details
         className={styles.data}
