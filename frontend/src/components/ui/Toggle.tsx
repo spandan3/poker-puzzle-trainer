@@ -12,11 +12,13 @@ export interface ToggleProps {
 /** A switch (`role="switch"`): Enter or Space flips it. */
 export function Toggle({ label, on, onChange, description }: ToggleProps) {
   const descId = useId()
+  const labelId = useId()
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
+      aria-labelledby={labelId}
       aria-describedby={description ? descId : undefined}
       className={styles.toggle}
       onClick={() => onChange(!on)}
@@ -25,7 +27,7 @@ export function Toggle({ label, on, onChange, description }: ToggleProps) {
         <span className={styles.thumb} />
       </span>
       <span className={styles.toggleText}>
-        {label}
+        <span id={labelId}>{label}</span>
         {description && (
           <span id={descId} className={styles.toggleDesc}>
             {description}

@@ -54,6 +54,11 @@ function UiGallery() {
           <option value="turn">Turn</option>
           <option value="river">River</option>
         </Select>
+        <div style={{ marginTop: 'var(--space-3)' }}>
+          <Select label="Street (disabled)" value="" onChange={() => {}} disabled>
+            <option value="">Any street</option>
+          </Select>
+        </div>
       </Panel>
 
       <Panel title="Badges">
@@ -74,6 +79,12 @@ function UiGallery() {
             description="Shows the Villain's profile on the table."
             on={profile}
             onChange={setProfile}
+          />
+          <Toggle
+            label="Shortcuts (on, with a description)"
+            description="Single keys answer and move on."
+            on
+            onChange={() => {}}
           />
         </div>
       </Panel>

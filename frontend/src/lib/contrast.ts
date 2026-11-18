@@ -58,7 +58,9 @@ const VAR = /^var\(\s*(--[\w-]+)\s*\)$/
 /**
  * The custom properties declared in the `:root` blocks of the given CSS texts, with `var(--x)`
  * aliases resolved. Reading a gradient token (or an alias of one) throws an error that names it,
- * so a gradient can't be mistaken for a colour.
+ * so a gradient can't be mistaken for a colour. The values are lazy getters, so a gradient only
+ * throws when that token is read: enumerating the whole object (`Object.values`, a spread,
+ * `JSON.stringify`, a diff print) throws on the first gradient.
  */
 export function resolveTokens(cssTexts: string[]): Record<string, string> {
   const raw: Record<string, string> = {}
@@ -86,20 +88,23 @@ export function resolveTokens(cssTexts: string[]): Record<string, string> {
   return out
 }
 
-/** `fg` at `alpha` laid over the opaque `bg`. */
+/** `fg` (at `alpha`, times its own alpha) laid over the opaque `bg`. */
 export function composite(fg: string, alpha: number, bg: string): string {
   const f = parseColor(fg)
   const b = parseColor(bg)
+  if (b.a < 1) throw new Error(`composite needs an opaque background, got ${bg}`)
+  alpha *= f.a
   const mix = (x: number, y: number) => Math.round(x * alpha + y * (1 - alpha))
   const hex = (n: number) => n.toString(16).padStart(2, '0')
   return `#${hex(mix(f.r, b.r))}${hex(mix(f.g, b.g))}${hex(mix(f.b, b.b))}`
 }
 
 function luminance(colour: string): number {
-  const { r, g, b } = parseColor(colour)
+  const { r, g, b, a } = parseColor(colour)
+  if (a < 1) throw new Error(`translucent colour ${colour}: composite it first`)
   const lin = (v: number) => {
     const s = v / 255
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
   }
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
 }
