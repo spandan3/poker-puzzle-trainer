@@ -49,6 +49,7 @@ function fakeApi(overrides: Partial<FlowApi> = {}) {
       ...settingsFixture(),
       ...patch,
     })),
+    checkLlm: vi.fn<FlowApi['checkLlm']>(async () => settingsFixture()),
     ...overrides,
   }
   return api
@@ -388,6 +389,127 @@ describe('settings', () => {
     await act(async () => first.reject(new ApiError(0, 'down')))
     expect(result.current.settings?.show_pot_odds).toBe(true)
     expect(result.current.notice).toBeNull()
+  })
+})
+
+describe('the local model check', () => {
+  const ready: SettingsView = {
+    ...settingsFixture(),
+    llm_provider: 'ollama',
+    llm_status: 'ready',
+    llm_model: 'llama3.2:3b',
+    llm_detail: null,
+  }
+
+  it('replaces the llm fields with the response and resolves true', async () => {
+    const api = fakeApi({ checkLlm: vi.fn(async () => ready) })
+    const { result } = setup(api)
+    await waitFor(() => expect(result.current.settings).not.toBeNull())
+    let ok: boolean | undefined
+    await act(async () => {
+      ok = await result.current.checkLlm()
+    })
+    expect(ok).toBe(true)
+    expect(result.current.settings?.llm_status).toBe('ready')
+    expect(result.current.settings?.llm_model).toBe('llama3.2:3b')
+  })
+
+  it('keeps the settings and resolves false when the check fails', async () => {
+    const api = fakeApi({
+      checkLlm: vi.fn(async () => {
+        throw new ApiError(0, 'down')
+      }),
+    })
+    const { result } = setup(api)
+    await waitFor(() => expect(result.current.settings).not.toBeNull())
+    const before = result.current.settings
+    let ok: boolean | undefined
+    await act(async () => {
+      ok = await result.current.checkLlm()
+    })
+    expect(ok).toBe(false)
+    expect(result.current.settings).toEqual(before)
+  })
+
+  it('a later PATCH answer with an older llm status leaves the check result in place', async () => {
+    const save = deferred<SettingsView>()
+    const api = fakeApi({
+      patchSettings: vi.fn(() => save.promise),
+      checkLlm: vi.fn(async () => ready),
+    })
+    const { result } = setup(api)
+    await waitFor(() => expect(result.current.settings).not.toBeNull())
+    act(() => {
+      void result.current.setSetting({ show_pot_odds: false })
+    })
+    await act(async () => {
+      await result.current.checkLlm()
+    })
+    expect(result.current.settings?.llm_status).toBe('ready')
+    // the PATCH read the cached probe: older than the check
+    await act(async () => {
+      save.resolve({
+        ...settingsFixture(),
+        show_pot_odds: false,
+        daily_goal: 17,
+        llm_status: 'unavailable',
+        llm_detail: 'old',
+      })
+      await save.promise
+    })
+    expect(result.current.settings?.llm_status).toBe('ready')
+    expect(result.current.settings?.llm_detail).toBeNull()
+    expect(result.current.settings?.daily_goal).toBe(17)
+    expect(result.current.settings?.show_pot_odds).toBe(false)
+  })
+
+  it('only the latest of two checks applies', async () => {
+    const first = deferred<SettingsView>()
+    const second = deferred<SettingsView>()
+    const checkLlm = vi
+      .fn<FlowApi['checkLlm']>()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+    const { result } = setup(fakeApi({ checkLlm }))
+    await waitFor(() => expect(result.current.settings).not.toBeNull())
+    act(() => {
+      void result.current.checkLlm()
+      void result.current.checkLlm()
+    })
+    await act(async () => {
+      second.resolve(ready)
+      await second.promise
+    })
+    await act(async () => {
+      first.resolve({ ...ready, llm_status: 'unavailable', llm_detail: 'older' })
+      await first.promise
+    })
+    expect(result.current.settings?.llm_status).toBe('ready')
+  })
+})
+
+describe('settings that fail to load', () => {
+  it('sets settingsError, and reloadSettings retries', async () => {
+    const getSettings = vi
+      .fn<FlowApi['getSettings']>()
+      .mockRejectedValueOnce(new ApiError(0, 'down'))
+      .mockResolvedValue(settingsFixture())
+    const { result } = setup(fakeApi({ getSettings }))
+    await waitFor(() => expect(result.current.settingsError).toBe(true))
+    expect(result.current.settings).toBeNull()
+    act(() => result.current.reloadSettings())
+    expect(result.current.settingsError).toBe(false)
+    await waitFor(() => expect(result.current.settings).not.toBeNull())
+    expect(result.current.settingsError).toBe(false)
+  })
+
+  it('a retry that fails again keeps the error', async () => {
+    const getSettings = vi.fn<FlowApi['getSettings']>().mockRejectedValue(new ApiError(0, 'down'))
+    const { result } = setup(fakeApi({ getSettings }))
+    await waitFor(() => expect(result.current.settingsError).toBe(true))
+    act(() => result.current.reloadSettings())
+    await waitFor(() => expect(getSettings).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(result.current.settingsError).toBe(true))
   })
 })
 

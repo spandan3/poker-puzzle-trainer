@@ -13,6 +13,8 @@ describe('pageFromPath', () => {
     expect(pageFromPath('/progress/')).toBe('progress')
     expect(pageFromPath('/play')).toBe('play')
     expect(pageFromPath('/play/')).toBe('play')
+    expect(pageFromPath('/settings')).toBe('settings')
+    expect(pageFromPath('/settings/')).toBe('settings')
     expect(pageFromPath('/elsewhere')).toBe('puzzles')
   })
 
@@ -20,6 +22,7 @@ describe('pageFromPath', () => {
     expect(pathOf('puzzles')).toBe('/')
     expect(pathOf('progress')).toBe('/progress')
     expect(pathOf('play')).toBe('/play')
+    expect(pathOf('settings')).toBe('/settings')
   })
 })
 

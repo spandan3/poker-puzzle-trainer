@@ -22,6 +22,7 @@ export type FlowApi = Pick<
   | 'submitAttempt'
   | 'getSettings'
   | 'patchSettings'
+  | 'checkLlm'
 >
 
 /** What was on screen before a load or an error: kept so the page doesn't collapse. */
@@ -46,6 +47,14 @@ export type FlowState =
 export interface PuzzleFlow {
   state: FlowState
   settings: SettingsView | null
+  /** The first `GET /api/settings` failed (the Settings page offers a retry). */
+  settingsError: boolean
+  reloadSettings: () => void
+  /**
+   * Re-probes the local model (`POST /api/settings/llm-check`) and takes its `llm_*` fields.
+   * Resolves true when it did, false when the request failed (the settings stay as they were).
+   */
+  checkLlm: () => Promise<boolean>
   /** A failed settings save (the change is reverted), shown as a dismissable warning. */
   notice: string | null
   dismissNotice: () => void
@@ -215,6 +224,7 @@ export function usePuzzleFlow(
 ): PuzzleFlow {
   const [state, dispatch] = useReducer(reducer, INITIAL)
   const [settings, setSettings] = useState<SettingsView | null>(null)
+  const [settingsError, setSettingsError] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [street, setStreetState] = useState<StreetName | null>(readStreet)
 
@@ -328,8 +338,43 @@ export function usePuzzleFlow(
     if (settingsStarted.current) return
     settingsStarted.current = true
     api.getSettings().then(setSettings, () => {
-      // settings are optional for play: the controls keep their defaults
+      // settings are optional for play: the controls keep their defaults, and the Settings page
+      // says it couldn't load them and offers a retry
+      setSettingsError(true)
     })
+  }, [api])
+
+  const reloadSettings = useCallback(() => {
+    setSettingsError(false)
+    api.getSettings().then(
+      (view) => setSettings((now) => now ?? view),
+      () => setSettingsError(true),
+    )
+  }, [api])
+
+  // The `llm_*` fields have a sequence of their own (S16): a PATCH answer carries the cached
+  // probe, which can be older than a check that finished first, so it never replaces them.
+  const llmSeq = useRef(0)
+  const checkLlm = useCallback((): Promise<boolean> => {
+    const mine = ++llmSeq.current
+    return api.checkLlm().then(
+      (view) => {
+        if (mine === llmSeq.current) {
+          setSettings((now) =>
+            now
+              ? {
+                  ...now,
+                  llm_status: view.llm_status,
+                  llm_detail: view.llm_detail,
+                  llm_model: view.llm_model,
+                }
+              : view,
+          )
+        }
+        return true
+      },
+      () => false,
+    )
   }, [api])
 
   useEffect(() => {
@@ -406,7 +451,8 @@ export function usePuzzleFlow(
       const latest = () => keys.some((key) => lastSave.current.get(key) === seq)
       return api.patchSettings(patch).then(
         (view) => {
-          if (latest()) setSettings(view)
+          // the user fields only: `llm_*` come from the check (and the first load)
+          if (latest()) setSettings((now) => (now ? withUserFields(now, view) : view))
           return true
         },
         () => {
@@ -430,6 +476,9 @@ export function usePuzzleFlow(
   return {
     state,
     settings,
+    settingsError,
+    reloadSettings,
+    checkLlm,
     notice,
     dismissNotice,
     street,
@@ -451,4 +500,14 @@ function pick(from: SettingsView, patch: SettingsPatch): Partial<SettingsView> {
     ;(out as Record<string, unknown>)[key] = from[key]
   }
   return out
+}
+
+/** `view`'s user-set fields over `now`, keeping `now`'s `llm_*` fields. */
+function withUserFields(now: SettingsView, view: SettingsView): SettingsView {
+  return {
+    ...view,
+    llm_status: now.llm_status,
+    llm_detail: now.llm_detail,
+    llm_model: now.llm_model,
+  }
 }

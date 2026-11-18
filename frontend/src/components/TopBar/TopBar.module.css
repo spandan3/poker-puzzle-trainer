@@ -179,3 +179,26 @@
 .secondary:hover {
   border-color: var(--color-text-faint);
 }
+
+.settingsLink {
+  display: inline-grid;
+  place-items: center;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+}
+
+.settingsLink:hover {
+  color: var(--color-text);
+}
+
+.settingsLink[aria-current='page'] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.settingsLink:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

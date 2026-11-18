@@ -17,6 +17,16 @@ describe('ShortcutsOverlay', () => {
     expect(dialog.querySelector('[data-shortcut-row="fold"]')).not.toBeNull()
   })
 
+  it('on Settings lists the Puzzles and the Play groups', () => {
+    render(<ShortcutsOverlay open page="settings" onClose={() => {}} />)
+    const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
+    // the guess keys (Puzzles) and the action keys (Play) are both there
+    expect(dialog.querySelector('[data-shortcut-row="focusEquity"]')).not.toBeNull()
+    expect(dialog.querySelector('[data-shortcut-row="value"]')).not.toBeNull()
+    expect(dialog.querySelector('[data-shortcut-row="fold"]')).not.toBeNull()
+    expect(dialog.querySelector('[data-shortcut-row="next"]')).not.toBeNull()
+  })
+
   it('renders nothing when closed', () => {
     render(<ShortcutsOverlay open={false} onClose={() => {}} />)
     expect(screen.queryByRole('dialog')).toBeNull()

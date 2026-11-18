@@ -73,6 +73,29 @@ describe('useExplanation', () => {
     expect(fn).not.toHaveBeenCalled()
   })
 
+  it('fetches the rewrite once when the status changes from unavailable to ready', async () => {
+    const { fn, pending } = fakeFetch()
+    const result = attemptFixture('bet')
+    const { result: hook, rerender } = renderHook(
+      ({ llm }: { llm: LlmSettings }) => useResult(result, llm, fn),
+      { wrapper: strict, initialProps: { llm: unavailable } },
+    )
+    expect(fn).not.toHaveBeenCalled()
+    rerender({ llm: ready })
+    expect(hook.current?.pendingModel).toBe('llama3.2:3b')
+    // StrictMode's first effect is aborted; one live request remains
+    expect(pending.filter((p) => !p.signal.aborted)).toHaveLength(1)
+    const llm = explanationLlmFixture()
+    await act(async () => {
+      pending.forEach((p) => p.resolve(llm))
+    })
+    await waitFor(() => expect(hook.current?.explanation).toEqual(llm))
+    // an unchanged status makes no second request
+    const calls = fn.mock.calls.length
+    rerender({ llm: { ...ready } })
+    expect(fn.mock.calls.length).toBe(calls)
+  })
+
   it('returns null without a result', () => {
     const { fn } = fakeFetch()
     const { result: hook } = renderHook(() => useResult(null, ready, fn))

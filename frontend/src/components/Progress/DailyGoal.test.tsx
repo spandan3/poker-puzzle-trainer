@@ -6,63 +6,28 @@ import { DailyGoal } from './DailyGoal'
 
 const days = statsFixture().days
 
-function setup(onGoal = vi.fn(async () => true), goal = 3) {
-  const user = userEvent.setup()
-  const view = render(<DailyGoal days={days} goal={goal} onGoal={onGoal} />)
-  return { user, onGoal, ...view }
-}
-
-const input = () => screen.getByRole('spinbutton', { name: 'Puzzles per day' })
-
 describe('DailyGoal', () => {
-  it('commits a valid goal on Enter and on blur', async () => {
-    const { user, onGoal } = setup()
-    await user.clear(input())
-    await user.type(input(), '12{Enter}')
-    expect(onGoal).toHaveBeenLastCalledWith(12)
-    await user.clear(input())
-    await user.type(input(), '15')
-    await user.tab()
-    expect(onGoal).toHaveBeenLastCalledWith(15)
-  })
-
-  it.each(['0', '501', '2.5', ''])('rejects %j with a message and saves nothing', async (text) => {
-    const { user, onGoal } = setup()
-    await user.clear(input())
-    if (text !== '') await user.type(input(), text)
-    await user.tab()
-    expect(onGoal).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert')).toHaveTextContent('Enter a whole number from 1 to 500')
-    expect(input()).toHaveAttribute('aria-invalid', 'true')
-  })
-
-  it('does not save an unchanged goal', async () => {
-    const { user, onGoal } = setup()
-    await user.click(input())
-    await user.tab()
-    expect(onGoal).not.toHaveBeenCalled()
-  })
-
-  it('shows the stats goal in the summary and the chart, not the box value', () => {
-    setup(
-      vi.fn(async () => true),
-      8,
-    )
-    expect(input()).toHaveValue(8)
+  it('shows the stats goal, the summary and the chart, and no goal input', () => {
+    render(<DailyGoal days={days} />)
+    expect(screen.getByText(/Goal: 3 a day/)).toBeVisible()
     expect(screen.getByText(/Today 1 \/ 3/)).toBeVisible()
     expect(screen.getByTestId('bar-chart')).toHaveAccessibleName(/goal 3/)
+    expect(screen.queryByRole('spinbutton')).toBeNull()
   })
 
-  it('follows a goal that changes from outside', () => {
-    const { rerender } = setup()
-    rerender(<DailyGoal days={days} goal={8} onGoal={async () => true} />)
-    expect(input()).toHaveValue(8)
+  it('links to Settings; a plain click goes through onNavigate', async () => {
+    const onNavigate = vi.fn()
+    render(<DailyGoal days={days} onNavigate={onNavigate} />)
+    const link = screen.getByRole('link', { name: 'Change in Settings' })
+    expect(link).toHaveAttribute('href', '/settings')
+    await userEvent.click(link)
+    expect(onNavigate).toHaveBeenCalledWith('settings')
   })
 
   it('shows the UTC note only when asked', () => {
-    const { rerender } = setup()
+    const { rerender } = render(<DailyGoal days={days} />)
     expect(screen.queryByTestId('utc-note')).toBeNull()
-    rerender(<DailyGoal days={days} goal={3} onGoal={async () => true} utcNote />)
+    rerender(<DailyGoal days={days} utcNote />)
     expect(screen.getByTestId('utc-note')).toBeVisible()
   })
 })
