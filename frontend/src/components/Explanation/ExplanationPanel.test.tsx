@@ -127,7 +127,7 @@ describe('status line and footer', () => {
   it('off: points to the setup', () => {
     const { container } = render(<ExplanationPanel explanation={explanation} llmStatus="off" />)
     expect(footer(container)).toBe(
-      'Explanations come from templates. A local model (Ollama) can reword them: see Settings.',
+      "Explanations come from the trainer's templates. A local model can reword them: see Settings.",
     )
   })
 
@@ -171,15 +171,15 @@ describe('status line and footer', () => {
   it.each([
     [
       'Ollama is running but the model llama3.2:3b isn\'t pulled: run "ollama pull llama3.2:3b".',
-      "The local model isn't available: Ollama is running but the model llama3.2:3b isn't pulled: run \"ollama pull llama3.2:3b\". Check it in Settings once it's ready.",
+      "The local model isn't available: Ollama is running but the model llama3.2:3b isn't pulled: run \"ollama pull llama3.2:3b\". Use Check again in Settings once it's running.",
     ],
     [
       "Ollama isn't answering at http://127.0.0.1:11434.",
-      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Check it in Settings once it's ready.",
+      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Use Check again in Settings once it's running.",
     ],
     [
       'Not checked yet.',
-      "The local model isn't available: Not checked yet. Check it in Settings once it's ready.",
+      "The local model isn't available: Not checked yet. Use Check again in Settings once it's running.",
     ],
   ])('unavailable: shows the settings detail once stopped (%s)', (detail, text) => {
     const { container } = render(
@@ -193,7 +193,7 @@ describe('status line and footer', () => {
       <ExplanationPanel explanation={explanation} llmStatus="unavailable" />,
     )
     expect(footer(container)).toBe(
-      "The local model isn't available. Check it in Settings once it's ready.",
+      "The local model isn't available. Use Check again in Settings once it's running.",
     )
   })
 
@@ -218,7 +218,7 @@ describe('status line and footer', () => {
       />,
     )
     expect(footer(container)).toBe(
-      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Check it in Settings once it's ready.",
+      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Use Check again in Settings once it's running.",
     )
   })
 

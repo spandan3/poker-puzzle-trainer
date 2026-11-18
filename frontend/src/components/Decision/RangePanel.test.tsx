@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { decisionFromAttempt } from '../../lib/decision'
 import { bbLabel } from '../../lib/format'
+import { optionLabel } from '../../lib/result'
 import { attemptFixture, puzzleFixture } from '../../test/fixture'
 import { neverContinuesAttempt } from '../../test/synthetic'
 import { RangePanel } from './RangePanel'
@@ -51,6 +52,22 @@ describe('RangePanel', () => {
     expect(screen.getByText('Folds: 34%')).toBeInTheDocument()
     fireEvent.click(within(group).getByRole('radio', { name: 'All-in' }))
     expect(screen.getByText('Folds: 83%')).toBeInTheDocument()
+  })
+
+  it('defaults continues-vs to the best play when it differs from the chosen one', () => {
+    // the bet fixture with Hero's answer moved to the all-in: best (Bet 33%) and chosen both have grids
+    const base = betDecision()
+    const options = base.options.map((o) => ({ ...o, is_chosen: o.label === 'all-in' }))
+    const d = { ...base, options, chosenLabel: 'All-in (yours)' }
+    const best = options.find((o) => o.is_best)!
+    expect(best.is_chosen).toBe(false)
+    expect(best.continue_grid).not.toBeNull()
+    render(<RangePanel decision={d} />)
+    const group = screen.getByRole('radiogroup', { name: 'Continues vs' })
+    expect(within(group).getByRole('radio', { name: 'All-in (yours)' })).toBeInTheDocument()
+    expect(within(group).getByRole('radio', { checked: true })).toHaveTextContent(
+      optionLabel(best.label),
+    )
   })
 
   it('has no continues-vs selector when no option has a grid', () => {

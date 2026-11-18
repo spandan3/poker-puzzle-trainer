@@ -536,3 +536,56 @@ test('a Settings round trip: Pot odds off survives navigation and a reload, and 
     await request.patch('/api/settings', { data: { show_pot_odds: true } })
   }
 })
+
+for (const [width, height] of FIT_SIZES) {
+  test(`results: the Action panel never covers the details, and no tab scrolls sideways at ${width}×${height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await page.goto('/')
+    await page.getByRole('textbox', { name: 'Equity' }).fill('50')
+    await page.keyboard.press('Escape')
+    const action = page.locator('[aria-label="Action"] button:not([aria-disabled])').first()
+    await action.click()
+    const kind = await action.getAttribute('data-kind')
+    if (kind === 'bet' || kind === 'raise') {
+      await page.getByRole('group', { name: 'Size' }).getByRole('button').first().click()
+    }
+    await page.getByRole('button', { name: /^Submit/ }).click()
+    await expect(page.getByRole('region', { name: 'Result' })).toBeVisible()
+
+    const noSideScroll = async (tab: string) => {
+      const over = await page.evaluate(() => {
+        const html = document.documentElement
+        const panel = document.querySelector('[role="tabpanel"]:not([hidden])')!
+        return {
+          page: html.scrollWidth - html.clientWidth,
+          panel: panel.scrollWidth - panel.clientWidth,
+        }
+      })
+      expect(over.page, `${tab}: page scrolls sideways`).toBeLessThanOrEqual(0)
+      expect(over.panel, `${tab}: tab panel scrolls sideways`).toBeLessThanOrEqual(0)
+    }
+    for (const tab of ['Why', 'Options', 'Maths', 'Range', 'Hand']) {
+      await page.getByRole('tab', { name: tab }).click()
+      await noSideScroll(tab)
+    }
+
+    await page.getByRole('tab', { name: 'Maths' }).click()
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    const boxes = await page.evaluate(() => {
+      const rect = (el: Element) => el.getBoundingClientRect().toJSON()
+      return {
+        side: rect(document.querySelector('aside')!),
+        details: rect(document.querySelector('section[aria-label="Details"]')!),
+      }
+    })
+    const { side, details } = boxes
+    const overlap =
+      side.left < details.right &&
+      details.left < side.right &&
+      side.top < details.bottom &&
+      details.top < side.bottom
+    expect(overlap, 'the Action panel and the details overlap').toBe(false)
+  })
+}

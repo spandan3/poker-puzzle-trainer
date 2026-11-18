@@ -1,7 +1,15 @@
 import { forwardRef } from 'react'
 import type { AttemptResult } from '../../api/types'
+import { nowrapUnits } from '../../lib/format'
 import { guessLines, heroFolded, SCORE_LABELS, VERDICT_LABELS, verdictLine } from '../../lib/result'
+import { Badge, Button } from '../ui'
+import type { BadgeTone } from '../ui'
 import styles from './ResultSummary.module.css'
+
+const SCORE_TONES: Record<string, BadgeTone> = { great: 'best', good: 'fine', off: 'mistake' }
+
+/** The one note on how the hand was judged: after a fold the sampled run-out doesn't apply. */
+const FOLD_NOTE = "Graded against Villain's whole range."
 
 export interface ResultSummaryProps {
   result: AttemptResult
@@ -28,7 +36,7 @@ export const ResultSummary = forwardRef<HTMLButtonElement, ResultSummaryProps>(
           <span className={styles.verdict} data-verdict={grade.verdict}>
             {verdict}
           </span>
-          <span className={styles.line}>{verdictLine(result)}</span>
+          <span className={styles.line}>{nowrapUnits(verdictLine(result))}</span>
         </div>
 
         <dl className={styles.facts}>
@@ -39,7 +47,7 @@ export const ResultSummary = forwardRef<HTMLButtonElement, ResultSummaryProps>(
                 you {g.guess} · actual {g.actual}
                 {g.score && (
                   <span className={styles.score} data-score={g.score}>
-                    {SCORE_LABELS[g.score]}
+                    <Badge tone={SCORE_TONES[g.score] ?? 'neutral'}>{SCORE_LABELS[g.score]}</Badge>
                   </span>
                 )}
               </dd>
@@ -50,29 +58,23 @@ export const ResultSummary = forwardRef<HTMLButtonElement, ResultSummaryProps>(
         {grade.intent_flag && <p className={styles.note}>{grade.intent_flag}</p>}
 
         <div className={styles.foot}>
-          {/* after a fold the run-out note would contradict the fold screen */}
-          {!heroFolded(result) && <p className={styles.muted}>{result.judged_on_range_note}</p>}
-          <button type="button" className={styles.details} onClick={onDetails}>
+          <p className={styles.muted}>
+            {heroFolded(result) ? FOLD_NOTE : result.judged_on_range_note}
+          </p>
+          <Button variant="secondary" onClick={onDetails}>
             Details
-          </button>
-          <button
+          </Button>
+          <Button
             ref={nextRef}
-            type="button"
-            className={styles.next}
-            onClick={() => {
-              if (!loading) onNext()
-            }}
-            aria-disabled={loading || undefined}
+            variant="primary"
+            kbd={shortcutsOn ? 'N' : undefined}
+            busy={loading}
+            onClick={() => onNext()}
             aria-keyshortcuts={shortcutsOn ? 'N' : undefined}
             data-shortcut={shortcutsOn ? 'next' : undefined}
           >
             {loading ? 'Dealing…' : 'Next puzzle'}
-            {shortcutsOn && (
-              <kbd className={styles.kbd} aria-hidden="true">
-                N
-              </kbd>
-            )}
-          </button>
+          </Button>
         </div>
       </section>
     )

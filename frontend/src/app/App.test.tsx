@@ -181,6 +181,23 @@ describe('App', () => {
     for (const card of view.board) expect(inDom(card)).not.toBeNull()
   })
 
+  it('does not deal the board again on a fold result: dealFrom stays 0', async () => {
+    const view = puzzleFixture('facing_postflop_raise')
+    fakeServer({ puzzles: [view], attempt: attemptFixture('fold') })
+    const { user } = setup()
+    await user.type(await screen.findByRole('textbox', { name: 'Equity' }), '45')
+    const board = () => [...document.querySelectorAll('[data-centre-budget] [data-face="up"]')]
+    const before = board()
+    expect(before).toHaveLength(view.board.length)
+    await user.click(screen.getByRole('button', { name: /^Fold/ }))
+    await user.click(screen.getByRole('button', { name: /^Submit/ }))
+    await screen.findByRole('region', { name: 'Result' })
+    // the same cards, still in place: no run-out is dealt and nothing is re-mounted
+    const after = board()
+    expect(after).toHaveLength(view.board.length)
+    after.forEach((el, i) => expect(el).toBe(before[i]))
+  })
+
   it('shows all five board cards after a bet', async () => {
     fakeServer()
     const attempt = attemptFixture('bet')

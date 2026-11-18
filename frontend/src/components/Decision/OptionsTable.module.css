@@ -8,7 +8,7 @@
 .caption {
   padding-bottom: var(--space-2);
   color: var(--color-text-muted);
-  font-size: var(--text-xs);
+  font-size: var(--text-label);
   text-align: left;
 }
 
@@ -22,7 +22,7 @@
 
 .table thead th {
   color: var(--color-text-muted);
-  font-size: var(--text-xs);
+  font-size: var(--text-label);
   font-weight: var(--weight-semibold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -43,21 +43,13 @@
   background: color-mix(in srgb, var(--badge-you) 10%, transparent);
 }
 
-.badge {
-  padding: 0 0.4rem;
-  border: 1px solid var(--badge-colour);
-  border-radius: var(--radius-pill);
-  color: var(--badge-colour);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+/* the Size cells and the long headers may wrap; the numbers never do */
+.table th.wrap,
+.table td.wrap {
+  max-width: 11ch;
+  white-space: normal;
 }
 
-.badge[data-kind='best'] {
-  --badge-colour: var(--badge-best);
-}
-
-.badge[data-kind='you'] {
-  --badge-colour: var(--badge-you);
+.table td.wrap {
+  max-width: 16ch;
 }
