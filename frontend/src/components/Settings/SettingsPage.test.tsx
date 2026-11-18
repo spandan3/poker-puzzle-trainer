@@ -177,5 +177,15 @@ describe('SettingsPage', () => {
       await user.click(within(alert).getByRole('button', { name: 'Retry' }))
       expect(props.onRetry).toHaveBeenCalledTimes(1)
     })
+
+    it('Retry moves focus to the loading status, and back to Retry if it fails again', async () => {
+      const { user, props, rerender } = setup({ settings: null, settingsError: true })
+      await user.click(screen.getByRole('button', { name: 'Retry' }))
+      // the parent clears the error: the button is replaced by the loading status
+      rerender(<SettingsPage {...props} settings={null} settingsError={false} />)
+      expect(screen.getByRole('status')).toHaveFocus()
+      rerender(<SettingsPage {...props} settings={null} settingsError={true} />)
+      expect(screen.getByRole('button', { name: 'Retry' })).toHaveFocus()
+    })
   })
 })

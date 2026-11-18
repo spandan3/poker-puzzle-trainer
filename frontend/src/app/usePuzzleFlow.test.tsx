@@ -513,6 +513,92 @@ describe('settings that fail to load', () => {
   })
 })
 
+describe('settings races and errors', () => {
+  const ready: SettingsView = {
+    ...settingsFixture(),
+    llm_provider: 'ollama',
+    llm_status: 'ready',
+    llm_model: 'llama3.2:3b',
+    llm_detail: null,
+  }
+
+  it('the first GET does not overwrite a field a PATCH changed while it was in flight', async () => {
+    const load = deferred<SettingsView>()
+    const patchSettings = vi.fn<FlowApi['patchSettings']>(async (patch) => ({
+      ...settingsFixture(),
+      ...patch,
+    }))
+    const { result } = setup(fakeApi({ getSettings: vi.fn(() => load.promise), patchSettings }))
+    expect(result.current.settings).toBeNull()
+    await act(async () => {
+      await result.current.setSetting({ show_pot_odds: false })
+    })
+    expect(result.current.settings?.show_pot_odds).toBe(false)
+    await act(async () => {
+      load.resolve({ ...settingsFixture(), show_pot_odds: true })
+      await load.promise
+    })
+    expect(result.current.settings?.show_pot_odds).toBe(false)
+  })
+
+  it('a queued update is not overwritten by an optimistic one (functional update)', async () => {
+    const save = deferred<SettingsView>()
+    const api = fakeApi({
+      patchSettings: vi.fn(() => save.promise),
+      checkLlm: vi.fn(async () => ready),
+    })
+    const { result } = setup(api)
+    await waitFor(() => expect(result.current.settings).not.toBeNull())
+    // the check's answer and a toggle land in one batch
+    await act(async () => {
+      const check = result.current.checkLlm()
+      await check
+      void result.current.setSetting({ show_pot_odds: false })
+    })
+    expect(result.current.settings?.llm_status).toBe('ready')
+    expect(result.current.settings?.show_pot_odds).toBe(false)
+  })
+
+  it('a failed save reverts only its own field and keeps a newer check', async () => {
+    const save = deferred<SettingsView>()
+    const api = fakeApi({
+      patchSettings: vi.fn(() => save.promise),
+      checkLlm: vi.fn(async () => ready),
+    })
+    const { result } = setup(api)
+    await waitFor(() => expect(result.current.settings).not.toBeNull())
+    const was = result.current.settings!.show_pot_odds
+    act(() => {
+      void result.current.setSetting({ show_pot_odds: !was })
+    })
+    expect(result.current.settings?.show_pot_odds).toBe(!was)
+    await act(async () => {
+      await result.current.checkLlm()
+    })
+    await act(async () => {
+      save.reject(new ApiError(0, 'down'))
+      await save.promise.catch(() => undefined)
+    })
+    expect(result.current.settings?.show_pot_odds).toBe(was)
+    expect(result.current.settings?.llm_status).toBe('ready')
+  })
+
+  it('settingsError clears once a PATCH has filled the settings', async () => {
+    const getSettings = vi.fn<FlowApi['getSettings']>().mockRejectedValue(new ApiError(0, 'down'))
+    const patchSettings = vi.fn<FlowApi['patchSettings']>(async (patch) => ({
+      ...settingsFixture(),
+      ...patch,
+    }))
+    const { result } = setup(fakeApi({ getSettings, patchSettings }))
+    await waitFor(() => expect(result.current.settingsError).toBe(true))
+    await act(async () => {
+      await result.current.setSetting({ show_pot_odds: false })
+    })
+    expect(result.current.settings).not.toBeNull()
+    expect(result.current.settingsError).toBe(false)
+  })
+})
+
 describe('setSetting result', () => {
   it('resolves true when the save succeeds and false when it fails', async () => {
     const patchSettings = vi

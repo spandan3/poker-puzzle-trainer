@@ -42,3 +42,13 @@
   font-size: var(--text-sm);
   font-style: italic;
 }
+
+.footerLink {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.footerLink:hover {
+  color: var(--color-text);
+}

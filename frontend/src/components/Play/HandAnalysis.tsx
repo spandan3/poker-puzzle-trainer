@@ -8,6 +8,7 @@ import { useExplanation } from '../../app/useExplanation'
 import { decisionFromReview } from '../../lib/decision'
 import { formatEvBb } from '../../lib/format'
 import { STREET_LABELS } from '../../lib/history'
+import type { Page } from '../../lib/page'
 import { revealShowdownLine } from '../../lib/play'
 import { gradeLine, reviewChosenLabel, VERDICT_LABELS } from '../../lib/result'
 import { Card } from '../Card/Card'
@@ -24,6 +25,8 @@ export interface HandAnalysisProps {
   api?: HandAnalysisApi
   /** the settings' LLM fields: whether the Why tab asks for a reworded explanation */
   settings: LlmSettings | null
+  /** the Why tab's "Settings" link */
+  onNavigate?: (page: Page) => void
   onClose: () => void
 }
 
@@ -40,7 +43,13 @@ function stepTitle(review: DecisionReview): string {
  * The analysis of one finished hand: loads what is stored, grades what is missing (showing the
  * progress), then the summary, the steps and, for the step picked, the details tabs.
  */
-export function HandAnalysis({ handId, api = client, settings, onClose }: HandAnalysisProps) {
+export function HandAnalysis({
+  handId,
+  api = client,
+  settings,
+  onNavigate,
+  onClose,
+}: HandAnalysisProps) {
   const { analysis, progress, error, retry } = useHandAnalysis(handId, api)
   const rootRef = useRef<HTMLElement>(null)
   useEffect(() => rootRef.current?.focus({ preventScroll: true }), [handId])
@@ -71,7 +80,15 @@ export function HandAnalysis({ handId, api = client, settings, onClose }: HandAn
   } else if (analysis.decisions.length === 0) {
     body = <p className={styles.status}>You made no decision in this hand.</p>
   } else {
-    body = <Finished handId={handId} analysis={analysis} api={api} settings={settings} />
+    body = (
+      <Finished
+        handId={handId}
+        analysis={analysis}
+        api={api}
+        settings={settings}
+        onNavigate={onNavigate}
+      />
+    )
   }
 
   return (
@@ -97,11 +114,13 @@ function Finished({
   analysis,
   api,
   settings,
+  onNavigate,
 }: {
   handId: number
   analysis: Analysis
   api: HandAnalysisApi
   settings: LlmSettings | null
+  onNavigate?: (page: Page) => void
 }) {
   const reviews = analysis.decisions.filter((d): d is DecisionReview => d !== null)
   const { summary } = analysis
@@ -167,6 +186,7 @@ function Finished({
         analysis={analysis}
         api={api}
         settings={settings}
+        onNavigate={onNavigate}
       />
     </div>
   )
@@ -178,12 +198,14 @@ function StepDetails({
   analysis,
   api,
   settings,
+  onNavigate,
 }: {
   handId: number
   review: DecisionReview
   analysis: Analysis
   api: HandAnalysisApi
   settings: LlmSettings | null
+  onNavigate?: (page: Page) => void
 }) {
   const graded = isGraded(review)
   const explained = useExplanation(
@@ -213,6 +235,7 @@ function StepDetails({
             requestFailed={explained?.requestFailed}
             llmStatus={settings?.llm_status}
             llmDetail={settings?.llm_detail}
+            onNavigate={onNavigate}
           />
         }
         handTab={<PlayHandTab analysis={analysis} review={review} />}

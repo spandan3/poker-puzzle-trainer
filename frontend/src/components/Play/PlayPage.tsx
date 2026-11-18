@@ -8,6 +8,7 @@ import {
   HOLE_DEAL_MS,
   HOLE_STAGGER_MS,
 } from '../../lib/dealTiming'
+import type { Page } from '../../lib/page'
 import { seatsFromView } from '../../lib/seats'
 import { tableAt, toActAt } from '../../lib/play'
 import type { Command } from '../../lib/shortcuts'
@@ -37,6 +38,8 @@ export interface PlayPageProps {
   shortcutsOn: boolean
   /** the analysis and hand-list requests (the real client by default; a fake in tests) */
   api?: PlayPageApi
+  /** the analysis's "Settings" link */
+  onNavigate?: (page: Page) => void
   /** the page is not on show (it stays mounted) */
   hidden?: boolean
 }
@@ -49,6 +52,7 @@ export function PlayPage({
   settings,
   shortcutsOn,
   api = client,
+  onNavigate,
   hidden = false,
 }: PlayPageProps) {
   const { session, shownCount, revealing, busy } = flow
@@ -129,6 +133,7 @@ export function PlayPage({
                 handId={analysing}
                 api={api}
                 settings={settings}
+                onNavigate={onNavigate}
                 onClose={closeAnalysis}
               />
             </div>
@@ -172,6 +177,7 @@ export function PlayPage({
               handId={analysing}
               api={api}
               settings={settings}
+              onNavigate={onNavigate}
               onClose={closeAnalysis}
             />
           ) : handOver ? (

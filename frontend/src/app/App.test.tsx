@@ -211,6 +211,17 @@ describe('App', () => {
     expect(screen.getByRole('table')).toBeVisible()
   })
 
+  it('the Why footer links to Settings in the app', async () => {
+    fakeServer()
+    const { user } = setup()
+    await answerCheck(user)
+    await user.click(
+      await within(await screen.findByRole('tabpanel')).findByRole('link', { name: 'Settings' }),
+    )
+    expect(window.location.pathname).toBe('/settings')
+    expect(await screen.findByRole('heading', { level: 2, name: 'Settings' })).toBeVisible()
+  })
+
   it('N after a result loads the next puzzle and keeps focus on the page', async () => {
     const { calls } = fakeServer()
     const { user } = setup()

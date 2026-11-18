@@ -200,6 +200,12 @@ describe('ConfirmDialog', () => {
       </StrictMode>,
     )
     const opener = screen.getByRole('button', { name: 'Open' })
+    // jsdom has no inert: mimic a modal's, where the page behind refuses focus while it is open
+    const realFocus = opener.focus.bind(opener)
+    opener.focus = (options?: FocusOptions) => {
+      if (document.querySelector('dialog[open]')) return
+      realFocus(options)
+    }
     await userEvent.click(opener)
     expect(screen.getByRole('button', { name: 'Stay' })).toHaveFocus()
     await userEvent.keyboard('{Escape}')

@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import type { Explanation } from '../../api/types'
 import { formatEvBb, formatPct } from '../../lib/format'
 import { guessLines } from '../../lib/result'
@@ -128,6 +129,20 @@ describe('status line and footer', () => {
     expect(footer(container)).toBe(
       'Explanations come from templates. A local model (Ollama) can reword them: see Settings.',
     )
+  })
+
+  it('the footer links "Settings" to the Settings page, through onNavigate on a plain click', async () => {
+    const onNavigate = vi.fn()
+    render(<ExplanationPanel explanation={explanation} llmStatus="off" onNavigate={onNavigate} />)
+    const link = screen.getByRole('link', { name: 'Settings' })
+    expect(link).toHaveAttribute('href', '/settings')
+    await userEvent.click(link)
+    expect(onNavigate).toHaveBeenCalledWith('settings')
+  })
+
+  it('an unavailable note links the word too', () => {
+    render(<ExplanationPanel explanation={explanation} llmStatus="unavailable" />)
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
   })
 
   it('no footer names a file or a path', () => {
