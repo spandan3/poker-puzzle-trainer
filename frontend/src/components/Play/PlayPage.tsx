@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { Ref } from 'react'
 import * as client from '../../api/client'
 import type { CustomSizes, PlayHandView, SettingsView } from '../../api/types'
 import type { PlayFlow } from '../../app/usePlayFlow'
@@ -38,6 +39,8 @@ export interface PlayPageProps {
   shortcutsOn: boolean
   /** the analysis and hand-list requests (the real client by default; a fake in tests) */
   api?: PlayPageApi
+  /** the page heading, so the app can focus it after a nav-link click */
+  headingRef?: Ref<HTMLHeadingElement>
   /** the analysis's "Settings" link */
   onNavigate?: (page: Page) => void
   /** the page is not on show (it stays mounted) */
@@ -53,6 +56,7 @@ export function PlayPage({
   shortcutsOn,
   api = client,
   onNavigate,
+  headingRef,
   hidden = false,
 }: PlayPageProps) {
   const { session, shownCount, revealing, busy } = flow
@@ -107,9 +111,17 @@ export function PlayPage({
   }
   useShortcuts(onCommand, shortcutsOn && !hidden)
 
+  // visually hidden: the table needs the height, but every page has an h2
+  const heading = (
+    <h2 className={styles.srOnly} ref={headingRef} tabIndex={-1}>
+      Play
+    </h2>
+  )
+
   if (session === null || hand === null) {
     return (
       <main className={styles.main} hidden={hidden} aria-busy={busy || undefined}>
+        {heading}
         <div className={styles.startWrap}>
           {flow.state.kind === 'loading' ? (
             <p className={styles.loading} role="status">
@@ -150,6 +162,7 @@ export function PlayPage({
 
   return (
     <main className={styles.main} hidden={hidden} aria-busy={busy || revealing || undefined}>
+      {heading}
       <div className={styles.play}>
         <Table
           // a new hand re-mounts the table, so the cards deal in again

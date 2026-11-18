@@ -47,9 +47,6 @@ function InteractiveTopBar() {
   const settings = settingsFixture()
   const [street, setStreet] = useState<StreetName | null>(null)
   const [profile, setProfile] = useState<string | null>(null)
-  const [potOdds, setPotOdds] = useState(true)
-  const [showProfile, setShowProfile] = useState(false)
-  const [shortcuts, setShortcuts] = useState(true)
   return (
     <TopBar
       page="puzzles"
@@ -59,12 +56,7 @@ function InteractiveTopBar() {
       profile={profile}
       profiles={settings.profiles}
       onProfile={setProfile}
-      showPotOdds={potOdds}
-      onShowPotOdds={setPotOdds}
-      showProfile={showProfile}
-      onShowProfile={setShowProfile}
-      shortcutsOn={shortcuts}
-      onShortcutsOn={setShortcuts}
+      shortcutsOn
       onHelp={() => undefined}
       onNewPuzzle={() => undefined}
       tally={null}

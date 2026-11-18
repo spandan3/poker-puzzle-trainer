@@ -44,6 +44,8 @@ export const HandOverPanel = forwardRef<HTMLButtonElement, HandOverPanelProps>(
             type="button"
             className={styles.primary}
             aria-disabled={busy || undefined}
+            // the page's own focus target: App leaves it alone after a navigation
+            data-primary-focus=""
             onClick={() => {
               if (!busy) onNext(topUp)
             }}

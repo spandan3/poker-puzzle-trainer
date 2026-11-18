@@ -317,16 +317,105 @@ for (const [width, height] of [
   })
 }
 
-test('layout: the top bar stays one row at 1280 with a wide fallback font', async ({ page }) => {
-  // CI's Linux runner falls back to a wider font than most desktops; DejaVu Sans stands in for it
-  // (where it isn't installed the browser uses its default and the check still holds).
-  await page.setViewportSize({ width: 1280, height: 800 })
-  await page.goto('/')
-  await page.addStyleTag({
-    content: 'body, button, select, input { font-family: "DejaVu Sans", sans-serif !important; }',
-  })
-  const header = page.locator('header')
-  await expect(header.getByRole('button', { name: /New puzzle/ })).toBeVisible()
-  const box = await header.boundingBox()
-  expect(box!.height).toBeLessThan(70)
+// One row means nothing overflows the bar and every control's box lies inside the bar and the
+// viewport. CI's Linux runner falls back to a wider font than most desktops; DejaVu Sans stands in
+// for it (where it isn't installed the browser uses its default and the check still holds).
+for (const [width, height] of [
+  [1024, 768],
+  [1280, 800],
+] as const) {
+  for (const [name, path] of [
+    ['Puzzles', '/'],
+    ['Play', '/play'],
+    ['Progress', '/progress'],
+    ['Settings', '/settings'],
+  ] as const) {
+    test(`layout: the top bar is one row on ${name} at ${width}×${height} with a wide fallback font`, async ({
+      page,
+      request,
+    }) => {
+      // Play with a session open carries the bar's longest content: the tally and End session
+      if (name === 'Play') expect((await request.post('/api/play/sessions')).ok()).toBe(true)
+      try {
+        await page.setViewportSize({ width, height })
+        await page.goto(path)
+        await page.addStyleTag({
+          content:
+            'body, button, select, input { font-family: "DejaVu Sans", sans-serif !important; }',
+        })
+        const header = page.getByRole('banner')
+        await expect(header.getByRole('link', { name: 'Settings' })).toBeVisible()
+        if (name === 'Puzzles') {
+          await expect(header.getByRole('button', { name: /New puzzle/ })).toBeVisible()
+        }
+        if (name === 'Play') {
+          await expect(header.getByRole('button', { name: 'End session' })).toBeVisible()
+        }
+        const bar = (await header.boundingBox())!
+        const overflow = await header.evaluate((el) => el.scrollWidth - el.clientWidth)
+        const outside: string[] = []
+        for (const control of await header.locator('a[href], button, select, input').all()) {
+          const box = await control.boundingBox()
+          if (box === null) continue
+          const inBar =
+            box.x >= bar.x - 0.5 &&
+            box.x + box.width <= bar.x + bar.width + 0.5 &&
+            box.y >= bar.y - 0.5 &&
+            box.y + box.height <= bar.y + bar.height + 0.5
+          const inViewport = box.x >= -0.5 && box.x + box.width <= width + 0.5
+          if (!inBar || !inViewport) {
+            outside.push(
+              (await control.textContent()) || (await control.getAttribute('aria-label')) || '?',
+            )
+          }
+        }
+        const fit = { overflow, outside }
+        expect(fit.overflow).toBeLessThanOrEqual(0)
+        expect(fit.outside).toEqual([])
+      } finally {
+        if (name === 'Play') {
+          const current = await request.get('/api/play/sessions/current')
+          if (current.ok()) {
+            const { id } = (await current.json()) as { id: number }
+            await request.post(`/api/play/sessions/${id}/end`)
+          }
+        }
+      }
+    })
+  }
+}
+
+test('a Settings round trip: Pot odds off survives navigation and a reload, and is restored', async ({
+  page,
+  request,
+}) => {
+  const fixtureText = (name: string) =>
+    readFileSync(resolve(import.meta.dirname, `../src/test/fixtures/${name}.json`), 'utf8')
+  // a puzzle that faces a bet, so the table has a pot-odds line to hide
+  await page.route('**/api/puzzles/current', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: fixtureText('puzzle_facing_all_in'),
+    }),
+  )
+  try {
+    await page.goto('/')
+    await expect(page.getByText(/Pot odds: call needs/)).toBeVisible()
+    await page.getByRole('link', { name: 'Settings' }).click()
+    await page.getByRole('switch', { name: /Pot odds/ }).click()
+    await expect(page.getByRole('switch', { name: /Pot odds/ })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    )
+    await page.getByRole('link', { name: 'Puzzles' }).click()
+    await expect(page.getByRole('textbox', { name: 'Equity' })).toBeVisible()
+    await expect(page.getByText(/Pot odds: call needs/)).toHaveCount(0)
+    await page.reload()
+    await expect(page.getByRole('textbox', { name: 'Equity' })).toBeVisible()
+    await expect(page.getByText(/Pot odds: call needs/)).toHaveCount(0)
+  } finally {
+    // the database is shared across tests
+    await request.patch('/api/settings', { data: { show_pot_odds: true } })
+  }
 })

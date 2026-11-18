@@ -1,10 +1,9 @@
-import { useId } from 'react'
 import type { ProfileInfo, StreetName } from '../../api/types'
 import { STREET_LABELS, STREET_ORDER } from '../../lib/history'
 import type { Page } from '../../lib/page'
 import { isPlainLeftClick, pathOf } from '../../lib/page'
 import { shortcut } from '../../lib/shortcuts'
-import { Toggle } from '../ui'
+import { Button, Select } from '../ui'
 import styles from './TopBar.module.css'
 
 const NAV: { page: Page; label: string }[] = [
@@ -24,12 +23,8 @@ export interface TopBarProps {
   profile: string | null
   profiles: Pick<ProfileInfo, 'name' | 'label'>[]
   onProfile: (profile: string | null) => void
-  showPotOdds: boolean
-  onShowPotOdds: (on: boolean) => void
-  showProfile: boolean
-  onShowProfile: (on: boolean) => void
+  /** whether single-key shortcuts are on: the key hints show (the switch itself is in Settings) */
   shortcutsOn: boolean
-  onShortcutsOn: (on: boolean) => void
   onHelp: () => void
   onNewPuzzle: () => void
   /** Play: the session's tally (`+12.5 bb · 14 hands`), or null with no open session. */
@@ -46,8 +41,6 @@ export function TopBar(props: TopBarProps) {
     props.shortcutsOn && props.page !== 'progress'
       ? { 'data-shortcut': id, 'aria-keyshortcuts': shortcut(id).aria }
       : {}
-  const streetId = useId()
-  const profileId = useId()
   const onPuzzles = props.page === 'puzzles'
   const onPlay = props.page === 'play'
   // Progress and Settings have no puzzle controls and no shortcuts of their own
@@ -83,59 +76,43 @@ export function TopBar(props: TopBarProps) {
       <div className={styles.controls}>
         {onPuzzles && (
           <>
-            <div className={styles.field}>
-              <label htmlFor={streetId}>Street</label>
-              <select
-                id={streetId}
-                className={styles.select}
-                value={props.street ?? ''}
-                onChange={(e) => props.onStreet(isStreet(e.target.value) ? e.target.value : null)}
-              >
-                <option value="">Any street</option>
-                {STREET_ORDER.map((s) => (
-                  <option key={s} value={s}>
-                    {STREET_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label="Street"
+              value={props.street ?? ''}
+              onChange={(value) => props.onStreet(isStreet(value) ? value : null)}
+            >
+              <option value="">Any street</option>
+              {STREET_ORDER.map((st) => (
+                <option key={st} value={st}>
+                  {STREET_LABELS[st]}
+                </option>
+              ))}
+            </Select>
 
-            <div className={styles.field}>
-              <label htmlFor={profileId}>Villain</label>
-              <select
-                id={profileId}
-                className={styles.select}
-                value={props.profile ?? ''}
-                onChange={(e) => props.onProfile(e.target.value === '' ? null : e.target.value)}
-              >
-                <option value="">Random</option>
-                {props.profiles.map((p) => (
-                  <option key={p.name} value={p.name}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label="Villain"
+              value={props.profile ?? ''}
+              onChange={(value) => props.onProfile(value === '' ? null : value)}
+            >
+              <option value="">Random</option>
+              {props.profiles.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.label}
+                </option>
+              ))}
+            </Select>
           </>
         )}
 
         {onPlay && props.tally !== null && (
           <>
-            <span className={styles.tally} aria-label="Session tally">
+            <span className={styles.tabularNums} aria-label="Session tally">
               {props.tally}
             </span>
-            <button type="button" className={styles.secondary} onClick={props.onEndSession}>
+            <Button size="sm" onClick={props.onEndSession}>
               End session
-            </button>
+            </Button>
           </>
-        )}
-
-        {!onProgress && (
-          <div className={styles.toggles}>
-            <Toggle label="Pot odds" on={props.showPotOdds} onChange={props.onShowPotOdds} />
-            <Toggle label="Show profile" on={props.showProfile} onChange={props.onShowProfile} />
-            <Toggle label="Shortcuts" on={props.shortcutsOn} onChange={props.onShortcutsOn} />
-          </div>
         )}
 
         {/* shortcuts are off on Progress, so there is nothing to show help for */}
@@ -154,19 +131,14 @@ export function TopBar(props: TopBarProps) {
           </button>
         )}
         {onPuzzles && (
-          <button
-            type="button"
-            className={styles.primary}
+          <Button
+            variant="primary"
+            kbd={props.shortcutsOn ? 'N' : undefined}
             onClick={props.onNewPuzzle}
             {...hintAttrs('next')}
           >
             New puzzle
-            {props.shortcutsOn && (
-              <kbd className={styles.kbd} aria-hidden="true">
-                N
-              </kbd>
-            )}
-          </button>
+          </Button>
         )}
       </div>
 

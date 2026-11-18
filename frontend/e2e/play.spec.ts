@@ -146,21 +146,3 @@ test('analyse a hand: progress, summary, every tab, close, and reopen it from th
   await expect(page.getByText(/^Analysing decision/)).toHaveCount(0)
   expect(posts).toEqual([])
 })
-
-test('layout: the top bar stays one row at 1280 on Play with a wide fallback font', async ({
-  page,
-  request,
-}) => {
-  // a session open, so the bar carries its longest content: the tally and End session
-  const started = await request.post('/api/play/sessions')
-  expect(started.ok()).toBe(true)
-  await page.setViewportSize({ width: 1280, height: 800 })
-  await page.goto('/play')
-  await page.addStyleTag({
-    content: 'body, button, select, input { font-family: "DejaVu Sans", sans-serif !important; }',
-  })
-  const header = page.locator('header')
-  await expect(header.getByRole('button', { name: 'End session' })).toBeVisible()
-  const box = await header.boundingBox()
-  expect(box!.height).toBeLessThan(70)
-})

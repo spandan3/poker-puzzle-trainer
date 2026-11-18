@@ -160,17 +160,47 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
     }
   }, [state.kind, view?.id])
 
-  // A page switch: back to the top, the tab's title follows, and the heading of Progress or Settings takes focus
-  // (the link that was clicked has just left the page's flow). Not on the first render.
+  // A page switch: back to the top and the tab's title follows. After a click on a nav link (a
+  // user navigation: not the first render, not Back/Forward, not Replay) the page's heading takes
+  // focus, because the link that was clicked has just left the page's flow. Unless the page has a
+  // primary target of its own on show: Next puzzle (a result) or Next hand (a hand is over).
   const titleRef = useRef<HTMLHeadingElement>(null)
+  const puzzlesHeadingRef = useRef<HTMLHeadingElement>(null)
+  const playHeadingRef = useRef<HTMLHeadingElement>(null)
+  const focusAfterNav = useRef(false)
+  const goTo = (next: Page) => {
+    // a click on the page already on show moves nothing, so it must not arm the next switch
+    focusAfterNav.current = next !== page
+    navigate(next)
+  }
   const switchedFrom = useRef(page) // also makes StrictMode's second effect run a no-op
   useEffect(() => {
     document.title = TITLES[page]
     if (switchedFrom.current === page) return
     switchedFrom.current = page
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-    if (page === 'progress' || page === 'settings') titleRef.current?.focus({ preventScroll: true })
-  }, [page])
+    if (!focusAfterNav.current) return
+    focusAfterNav.current = false
+    if (page === 'puzzles' && state.kind === 'result' && nextRef.current) {
+      nextRef.current.focus({ preventScroll: true })
+      return
+    }
+    // PlayPage's own effect (a child, so it ran first) has focused Next hand when the hand is over
+    const active = document.activeElement
+    if (
+      page === 'play' &&
+      active instanceof HTMLElement &&
+      active.dataset.primaryFocus !== undefined
+    )
+      return
+    const heading = {
+      puzzles: puzzlesHeadingRef,
+      play: playHeadingRef,
+      progress: titleRef,
+      settings: titleRef,
+    }[page]
+    heading.current?.focus({ preventScroll: true })
+  }, [page, state.kind])
 
   const onNewPuzzle = () => {
     if (state.kind === 'answering') flow.requestSkip()
@@ -191,18 +221,13 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
     <div className={styles.app}>
       <TopBar
         page={page}
-        onNavigate={navigate}
+        onNavigate={goTo}
         street={flow.street}
         onStreet={flow.setStreet}
         profile={settings?.profile ?? null}
         profiles={settings?.profiles ?? []}
         onProfile={(profile) => flow.setSetting({ profile })}
-        showPotOdds={showPotOdds}
-        onShowPotOdds={(on) => flow.setSetting({ show_pot_odds: on })}
-        showProfile={showProfile}
-        onShowProfile={(on) => flow.setSetting({ show_profile: on })}
         shortcutsOn={shortcutsOn}
-        onShortcutsOn={setShortcutsOn}
         onHelp={() => setHelpOpen(true)}
         onNewPuzzle={onNewPuzzle}
         tally={play.session ? tallyText(shownTally(play.session, play.revealing)) : null}
@@ -255,7 +280,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
             api={progressApi}
             profiles={settings?.profiles ?? null}
             titleRef={titleRef}
-            onNavigate={navigate}
+            onNavigate={goTo}
             onReplay={(id) => {
               // ignored while a load or a submit is in flight: then stay on Progress
               if (flow.openPuzzle(id)) navigate('puzzles')
@@ -285,6 +310,9 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
 
       {/* hidden, not unmounted, on the other pages: a half-entered answer survives the visit */}
       <main className={styles.main} aria-busy={pending || undefined} hidden={!onPuzzles}>
+        <h2 className={styles.srOnly} ref={puzzlesHeadingRef} tabIndex={-1}>
+          Puzzles
+        </h2>
         {view === null ? (
           <div className={styles.empty} role="status">
             {state.kind === 'error' ? 'No puzzle loaded' : 'Dealing…'}
@@ -360,7 +388,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
                       requestFailed={explained?.requestFailed}
                       llmStatus={settings?.llm_status}
                       llmDetail={settings?.llm_detail}
-                      onNavigate={navigate}
+                      onNavigate={goTo}
                     />
                   }
                   handTab={<HandReveal view={view} result={result} />}
@@ -376,7 +404,8 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
         flow={play}
         settings={settings}
         shortcutsOn={playKeysOn}
-        onNavigate={navigate}
+        onNavigate={goTo}
+        headingRef={playHeadingRef}
         hidden={!onPlay}
       />
 
