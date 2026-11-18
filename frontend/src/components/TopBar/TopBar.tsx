@@ -4,6 +4,7 @@ import { STREET_LABELS, STREET_ORDER } from '../../lib/history'
 import type { Page } from '../../lib/page'
 import { isPlainLeftClick, pathOf } from '../../lib/page'
 import { shortcut } from '../../lib/shortcuts'
+import { Toggle } from '../ui'
 import styles from './TopBar.module.css'
 
 const NAV: { page: Page; label: string }[] = [
@@ -167,30 +168,5 @@ export function TopBar(props: TopBarProps) {
         )}
       </div>
     </header>
-  )
-}
-
-function Toggle({
-  label,
-  on,
-  onChange,
-}: {
-  label: string
-  on: boolean
-  onChange: (on: boolean) => void
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      className={styles.toggle}
-      onClick={() => onChange(!on)}
-    >
-      <span className={styles.track} aria-hidden="true">
-        <span className={styles.thumb} />
-      </span>
-      {label}
-    </button>
   )
 }
