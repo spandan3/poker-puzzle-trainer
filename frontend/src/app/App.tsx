@@ -386,6 +386,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
             <HistoryPanel
               view={view}
               answer={result ? answerEntry(view, result) : undefined}
+              resetKey={view.id}
               className={layout.side}
             />
             {result && (

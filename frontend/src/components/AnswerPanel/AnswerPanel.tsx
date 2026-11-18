@@ -240,6 +240,19 @@ function Panel({
     if (buttons.find((b) => b.kind === kind)?.enabled) dispatch({ type: 'action', kind })
   }
 
+  // A shortcut that changes the action moves focus along if it sits on another action button,
+  // so the focused button and the selected one never differ (two "selected-looking" buttons).
+  const selectByKey = (kind: ActionKind) => {
+    select(kind)
+    const active = document.activeElement
+    if (active instanceof HTMLElement && active.closest('[role="group"][aria-label="Action"]')) {
+      const next = formRef.current?.querySelector<HTMLElement>(
+        `[role="group"][aria-label="Action"] [data-kind="${kind}"]:not([aria-disabled="true"])`,
+      )
+      if (next && next !== active) next.focus()
+    }
+  }
+
   // the custom size group, at the end of the size row
   const customSize =
     bounds && aggressiveKind ? (
@@ -280,10 +293,10 @@ function Panel({
       case 'fold':
       case 'check':
       case 'call':
-        select(cmd.id)
+        selectByKey(cmd.id)
         return true
       case 'aggressive':
-        if (aggressiveKind) select(aggressiveKind)
+        if (aggressiveKind) selectByKey(aggressiveKind)
         return true
       case 'size': {
         const size = sizes[(cmd.n ?? 0) - 1]
@@ -653,7 +666,7 @@ function CustomSize(props: {
         className={styles.customInput}
         value={text}
         disabled={disabled}
-        placeholder={disabled ? 'off' : compact ? shortRange : 'custom'}
+        placeholder={disabled ? 'off' : compact ? `${shortRange} bb` : 'custom'}
         title={disabledReason ?? (compact ? range : undefined)}
         aria-invalid={error !== null || undefined}
         aria-describedby={describedBy}

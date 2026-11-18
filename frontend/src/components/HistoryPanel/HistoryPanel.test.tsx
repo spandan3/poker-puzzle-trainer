@@ -55,6 +55,24 @@ describe('HistoryPanel', () => {
     }
   })
 
+  it('scrolls back to the end for a new puzzle with an identical history', () => {
+    const heights = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(900)
+    const client = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(400)
+    try {
+      const view = puzzleFixture('history_3bet_and_all_in')
+      const { rerender } = render(<HistoryPanel view={view} resetKey="a" />)
+      const panel = screen.getByRole('complementary')
+      panel.scrollTop = 0 // the user scrolled up
+      rerender(<HistoryPanel view={view} resetKey="a" />)
+      expect(panel.scrollTop).toBe(0)
+      rerender(<HistoryPanel view={view} resetKey="b" />)
+      expect(panel.scrollTop).toBe(900)
+    } finally {
+      heights.mockRestore()
+      client.mockRestore()
+    }
+  })
+
   it('shows positions', () => {
     const view = puzzleFixture('flop_unopened')
     render(<HistoryPanel view={view} />)

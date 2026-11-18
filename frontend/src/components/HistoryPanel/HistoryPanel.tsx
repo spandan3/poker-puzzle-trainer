@@ -11,11 +11,13 @@ export interface HistoryPanelProps {
   answer?: ActionLogEntry
   /** Who the last street waits for (default Hero); `null` once the hand is over. */
   toAct?: 'hero' | 'villain' | null
+  /** A new value (the puzzle's id) scrolls the panel back to the end, whatever else is equal. */
+  resetKey?: string | number
   className?: string
 }
 
 /** The hand so far, street by street, ending with "Hero to act". */
-export function HistoryPanel({ view, answer, toAct, className }: HistoryPanelProps) {
+export function HistoryPanel({ view, answer, toAct, resetKey, className }: HistoryPanelProps) {
   const base = useId()
   const sections = groupHistory(view, answer, toAct)
   const panelRef = useRef<HTMLElement>(null)
@@ -25,7 +27,7 @@ export function HistoryPanel({ view, answer, toAct, className }: HistoryPanelPro
   useEffect(() => {
     const panel = panelRef.current
     if (panel && panel.scrollHeight > panel.clientHeight) panel.scrollTop = panel.scrollHeight
-  }, [view.history.length, view.street, answered, toAct])
+  }, [resetKey, view.history.length, view.street, answered, toAct])
   return (
     <aside
       ref={panelRef}

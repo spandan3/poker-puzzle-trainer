@@ -250,6 +250,23 @@ describe('AnswerPanel', () => {
 })
 
 describe('AnswerPanel keyboard', () => {
+  it('moves focus to the newly selected action when a shortcut changes it from a focused action', async () => {
+    const { user } = setup()
+    await user.click(action(/^check/i))
+    expect(action(/^check/i)).toHaveFocus()
+    await user.keyboard('b')
+    expect(action(/^bet/i)).toHaveAttribute('aria-pressed', 'true')
+    expect(action(/^bet/i)).toHaveFocus()
+    expect(action(/^check/i)).not.toHaveFocus()
+  })
+
+  it('leaves focus alone when a shortcut selects an action and focus is elsewhere', async () => {
+    const { user } = setup()
+    await user.keyboard('b')
+    expect(action(/^bet/i)).toHaveAttribute('aria-pressed', 'true')
+    expect(document.body).toHaveFocus()
+  })
+
   it('runs a whole answer from the keyboard', async () => {
     const { user, onSubmit } = setup()
     await user.keyboard('e')
@@ -627,7 +644,7 @@ describe('AnswerPanel below 1100px (the 1024×768 height budget)', () => {
     narrow()
     const { user } = setup({ view: puzzleFixture('custom_allowed') })
     await user.click(action(/^bet/i))
-    expect(customBox()).toHaveAttribute('placeholder', '1–97.5')
+    expect(customBox()).toHaveAttribute('placeholder', '1–97.5 bb')
     expect(customBox()).toHaveAttribute('title', '1–97.5 bb')
     expect(customBox()).toHaveAccessibleDescription('1–97.5 bb')
     expect(customBox().closest('[data-shortcut-scope]')?.querySelector('kbd')).toBeNull()
