@@ -1,6 +1,7 @@
 /*
  * A seat is anchored on its name plate: the table centres the plate on the rail. The hole cards
- * tuck 0.8em behind the top of the plate (Hero's, 1.9em); the bet sits on the felt, on the side facing the centre.
+ * tuck 0.8em behind the top of the plate (Hero's, 1.9em); the bet sits on the felt, on the side
+ * facing the centre.
  * Sizes are in em so the seat scales with the table. Text never falls below `--text-min` (11px),
  * whatever the table's font; only the card faces are exempt.
  */
@@ -78,9 +79,10 @@
 .row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  /* one line whatever the font: a wrapped second row would grow the plate into the board */
+  flex-wrap: nowrap;
   justify-content: space-between;
-  gap: 0 0.4em;
+  gap: 0 0.3em;
   min-height: 1.45em;
 }
 
@@ -135,6 +137,7 @@
 .profile {
   position: relative;
   display: inline-flex;
+  min-width: 0;
 }
 
 .profileBadge {
@@ -148,6 +151,10 @@
   border: 1px solid var(--color-profile-border);
   border-radius: var(--radius-pill);
   margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: help;
 }
 
