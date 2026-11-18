@@ -400,7 +400,7 @@ def test_request_models():
 
 
 def test_the_pot_shown_is_the_award_over_seeded_hands():
-    seen = {"fold": 0, "showdown": 0, "split": 0, "all_in": 0}
+    seen = {"fold": 0, "showdown": 0, "split": 0, "all_in": 0, "unequal_all_in": 0}
     for seed in range(200):
         stacks = STACKS if seed % 2 == 0 else (200, 60 + seed % 70)
         stacks = stacks if seed % 4 < 2 else stacks[::-1]
@@ -419,7 +419,8 @@ def test_the_pot_shown_is_the_award_over_seeded_hands():
             assert settled[1 - w] == before[1 - w], seed
         seen[out["ended_by"]] += 1
         seen["all_in"] += 0 in before
-    assert seen["fold"] and seen["showdown"] and seen["all_in"], seen
+        seen["unequal_all_in"] += 0 in before and stacks[0] != stacks[1]
+    assert all(seen.values()), seen
 
 
 def test_an_abandoned_hands_pot_goes_to_the_bot():

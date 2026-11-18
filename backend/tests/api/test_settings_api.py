@@ -72,7 +72,7 @@ def test_settings_profile_null_resets(client):
     assert r.status_code == 200 and r.json()["profile"] is None
 
 
-def _client_with_probe(db_url, factory, llm_off, probe, clock):
+def _client_with_probe(db_url, factory, llm_off, probe, clock, provider="ollama"):
     from fastapi.testclient import TestClient
 
     from poker_trainer.api.app import create_app
@@ -80,7 +80,7 @@ def _client_with_probe(db_url, factory, llm_off, probe, clock):
     from poker_trainer.settings import AppSettings
 
     settings = AppSettings(
-        _env_file=None, database_url=db_url, **{**llm_off, "llm_provider": "ollama"}
+        _env_file=None, database_url=db_url, **{**llm_off, "llm_provider": provider}
     )
     explainer = Explainer(settings, probe=probe, clock=clock)
     return TestClient(create_app(settings, puzzle_factory=factory, explainer=explainer))
@@ -111,22 +111,28 @@ def test_llm_check_re_probes_past_the_cache(db_url, factory, llm_off):
 
 
 def test_llm_check_with_provider_none_does_not_probe(db_url, factory, llm_off):
-    def probe(*_a, **_k):
-        raise AssertionError("probed")
+    calls = []
 
-    with _client_with_probe(db_url, factory, {**llm_off}, probe, lambda: 0.0) as c:
-        c.app.state.explainer.settings = c.app.state.settings.model_copy(
-            update={"llm_provider": "none"}
-        )
+    def probe(*_a, **_k):
+        calls.append(1)
+        return "ready", None
+
+    with _client_with_probe(db_url, factory, llm_off, probe, lambda: 0.0, provider="none") as c:
         body = c.post("/api/settings/llm-check").json()
-        assert body["llm_status"] == "off"
+        assert body["llm_status"] == "off" and body["llm_detail"] is None
+    assert calls == []
 
 
 def test_patch_never_probes(db_url, factory, llm_off):
+    calls = []
+
     def probe(*_a, **_k):
-        raise AssertionError("probed")
+        calls.append(1)
+        return "ready", None
 
     with _client_with_probe(db_url, factory, llm_off, probe, lambda: 0.0) as c:
         r = c.patch("/api/settings", json={"daily_goal": 12})
         assert r.status_code == 200
-        assert r.json()["llm_status"] == "unavailable"  # "Not checked yet."
+        assert r.json()["llm_status"] == "unavailable"
+        assert r.json()["llm_detail"] == "Not checked yet."
+    assert calls == []

@@ -210,5 +210,9 @@ class Explainer:
             status, detail = "unavailable", f"Couldn't check Ollama at {self.settings.ollama_url}."
         result: LlmStatus = "ready" if status == "ready" else "unavailable"
         with self._lock:
-            self._probed = (now, result, detail)
+            # a slower, older probe never overwrites a newer answer
+            if self._probed is None or now >= self._probed[0]:
+                self._probed = (now, result, detail)
+            else:
+                result, detail = self._probed[1], self._probed[2]
         return result, detail
