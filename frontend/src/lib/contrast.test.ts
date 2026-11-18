@@ -43,7 +43,19 @@ describe('contrastRatio and composite', () => {
   })
   it('matches a hand-computed value for text on the page background', () => {
     // L(#e8edf3) = 0.842 and L(#0c0f14) = 0.0047, so (0.842 + 0.05) / (0.0047 + 0.05) = 16.31
-    expect(contrastRatio(t('--color-text'), t('--color-bg'))).toBeCloseTo(16.31, 1)
+    expect(contrastRatio(t('--color-text'), t('--color-bg'))).toBeCloseTo(16.305, 2)
+  })
+  it('matches a hand-computed value on a dark background (the linear branch)', () => {
+    // #080a0e has channels below 10/255, where the sRGB curve is linear
+    expect(contrastRatio(t('--color-text'), '#080a0e')).toBeCloseTo(16.83, 2)
+  })
+  it('refuses a translucent colour', () => {
+    expect(() => contrastRatio('rgb(255 255 255 / 8%)', '#000')).toThrow(/composite/)
+    expect(() => composite('#fff', 0.5, 'rgb(0 0 0 / 50%)')).toThrow(/opaque/)
+  })
+  it('uses the foreground colour’s own alpha when blending', () => {
+    expect(composite('rgb(255 255 255 / 50%)', 1, '#000000')).toBe('#808080')
+    expect(composite('rgb(255 255 255 / 50%)', 0.5, '#000000')).toBe('#404040')
   })
   it('blends over a background', () => {
     expect(composite('#ffffff', 0.5, '#000000')).toBe('#808080')

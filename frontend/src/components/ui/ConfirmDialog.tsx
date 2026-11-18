@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { keyToCommand } from '../../lib/shortcuts'
 import { Button } from './Button'
@@ -18,6 +18,9 @@ export interface ConfirmDialogProps {
  * opener on close. Keys are isolated here, as in `ShortcutsOverlay`: while open, a capture
  * listener on `window` stops every key before the page's listeners see it. Tab passes, so the
  * browser's own modal focus trap works. Escape cancels.
+ *
+ * Every key but Tab is stopped at the window, so a text box inside the body would get no React
+ * `onKeyDown` (its `onChange` still works); add a way through if a dialog ever needs one.
  */
 export function ConfirmDialog({
   title,
@@ -28,6 +31,10 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const titleId = useId()
+  const bodyId = useId()
+  // the opener, read once at the first render: StrictMode runs the effect twice, and by the
+  // second run focus has moved into the dialog
+  const [opener] = useState(() => document.activeElement)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const onCancelRef = useRef(onCancel)
@@ -37,7 +44,6 @@ export function ConfirmDialog({
 
   useEffect(() => {
     const dialog = dialogRef.current
-    const previous = document.activeElement
     if (dialog && !dialog.open) dialog.showModal()
     cancelRef.current?.focus()
     const onKeyDown = (event: KeyboardEvent) => {
@@ -53,15 +59,19 @@ export function ConfirmDialog({
     window.addEventListener('keydown', onKeyDown, true)
     return () => {
       window.removeEventListener('keydown', onKeyDown, true)
-      if (previous instanceof HTMLElement && previous.isConnected) previous.focus()
+      // close first: while the modal is open the opener is inert and refuses focus. (The effect
+      // reopens it on StrictMode's second run.)
+      if (dialog?.open) dialog.close()
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
     }
-  }, [])
+  }, [opener])
 
   return (
     <dialog
       ref={dialogRef}
       className={styles.dialog}
       aria-labelledby={titleId}
+      aria-describedby={bodyId}
       onCancel={(e) => {
         // the close goes through onCancel, so the owner decides
         e.preventDefault()
@@ -71,7 +81,9 @@ export function ConfirmDialog({
       <h2 id={titleId} className={styles.dialogTitle}>
         {title}
       </h2>
-      <div className={styles.dialogBody}>{body}</div>
+      <div id={bodyId} className={styles.dialogBody}>
+        {body}
+      </div>
       <div className={styles.dialogActions}>
         <Button ref={cancelRef} variant="secondary" onClick={onCancel}>
           {cancelLabel}

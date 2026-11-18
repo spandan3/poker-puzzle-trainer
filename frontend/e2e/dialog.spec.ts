@@ -8,6 +8,9 @@ test('the confirm dialog traps focus, and Escape returns it to the opener', asyn
   const dialog = page.getByRole('dialog', { name: 'Leave this puzzle?' })
   await expect(dialog).toBeVisible()
   await expect(page.getByRole('button', { name: 'Stay' })).toBeFocused()
+  // a real modal: the dialog is :modal and the page behind it is inert
+  expect(await dialog.evaluate((d) => d.matches(':modal'))).toBe(true)
+  expect(await opener.evaluate((el) => (el.focus(), el.matches(':focus')))).toBe(false)
 
   // Focus cycles through the dialog's two buttons. After the last one Chromium passes through
   // the browser's own UI (document.body is active) and then wraps; page content behind the modal

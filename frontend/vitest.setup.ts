@@ -30,3 +30,10 @@ if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.sho
     this.setAttribute('open', '')
   }
 }
+
+// ...and no close(), which removes the attribute (no `close` event: nothing here listens for it)
+if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.close) {
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    this.removeAttribute('open')
+  }
+}

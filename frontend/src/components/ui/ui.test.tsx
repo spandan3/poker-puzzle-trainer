@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
+import { StrictMode, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Badge, Button, ConfirmDialog, Panel, Select, Toggle } from '.'
 
@@ -113,6 +113,11 @@ describe('Toggle', () => {
     render(<Toggle label="A" on={false} onChange={() => {}} description="More about A" />)
     expect(screen.getByRole('switch')).toHaveAccessibleDescription('More about A')
   })
+
+  it('keeps the description out of its accessible name', () => {
+    render(<Toggle label="Show profile" on onChange={() => {}} description="Shows the profile." />)
+    expect(screen.getByRole('switch', { name: 'Show profile' })).toBeInTheDocument()
+  })
 })
 
 describe('ConfirmDialog', () => {
@@ -186,5 +191,24 @@ describe('ConfirmDialog', () => {
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('button', { name: 'Stay' })).not.toBeInTheDocument()
     expect(opener).toHaveFocus()
+  })
+
+  it('returns focus to the opener under StrictMode (the effect runs twice)', async () => {
+    render(
+      <StrictMode>
+        <Harness />
+      </StrictMode>,
+    )
+    const opener = screen.getByRole('button', { name: 'Open' })
+    await userEvent.click(opener)
+    expect(screen.getByRole('button', { name: 'Stay' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    expect(opener).toHaveFocus()
+  })
+
+  it('links its body as the description', async () => {
+    render(<Harness />)
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }))
+    expect(screen.getByRole('dialog', { hidden: true })).toHaveAccessibleDescription(/\S/)
   })
 })
