@@ -431,6 +431,20 @@ for (const [width, height] of [
     await expect(page.getByTestId('history').getByRole('row')).toHaveCount(26)
     const overflow = await page.locator('html').evaluate((el) => el.scrollWidth - el.clientWidth)
     expect(overflow).toBeLessThanOrEqual(0)
+
+    // the six stat tiles: 3 columns by 2 rows
+    const boxes = await page.locator('[data-testid^="tile-"]').evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect()
+        return { x: Math.round(r.left), y: Math.round(r.top) }
+      }),
+    )
+    expect(boxes).toHaveLength(6)
+    expect(new Set(boxes.map((b) => b.x)).size).toBe(3)
+    expect(new Set(boxes.map((b) => b.y)).size).toBe(2)
+    expect(boxes[0]!.y).toBe(boxes[2]!.y)
+    expect(boxes[3]!.y).toBe(boxes[5]!.y)
+    expect(boxes[3]!.y).toBeGreaterThan(boxes[0]!.y)
   })
 }
 

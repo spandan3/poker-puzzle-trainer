@@ -46,7 +46,7 @@ function tiles({ headline, streak, days }: StatsView): Tile[] {
       label: 'Range-read error',
       value:
         headline.range_read_error_last50 === null ? '—' : pts(headline.range_read_error_last50),
-      note: 'average, last 50',
+      note: headline.range_read_error_last50 === null ? 'no range reads yet' : 'average, last 50',
     },
     {
       id: 'streak',

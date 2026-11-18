@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/client'
 import { historyFixture, statsEmptyFixture, statsFixture } from '../../test/fixture'
+import { formatEvBb } from '../../lib/format'
 import type { ProgressApi } from './ProgressPage'
 import { ProgressPage } from './ProgressPage'
 
@@ -215,5 +216,39 @@ describe('ProgressPage', () => {
     expect(screen.queryByRole('spinbutton')).toBeNull()
     await user.click(screen.getByRole('link', { name: 'Change in Settings' }))
     expect(onNavigate).toHaveBeenCalledWith('settings')
+  })
+
+  it('with no range reads: the tile is a dash with a note, and the chart says why it is empty', async () => {
+    const stats = structuredClone(statsFixture())
+    stats.headline.range_read_error_last50 = null
+    stats.trend = stats.trend.map((p) => ({
+      ...p,
+      range_read_error: null,
+      range_read_error_avg: null,
+    }))
+    setup(fakeApi({ getStats: async () => stats }))
+    await screen.findByTestId('progress-totals')
+    expect(tile('range')).toHaveTextContent('—')
+    expect(tile('range')).toHaveTextContent('no range reads yet')
+    expect(
+      screen.getByText(
+        'No range reads yet. Answer a puzzle with a range read to start this chart.',
+      ),
+    ).toBeInTheDocument()
+    // the two other trend charts still draw
+    expect(screen.getAllByTestId('line-chart')).toHaveLength(2)
+  })
+
+  it('the trend charts shade the warm-up window and say rolling average on hover', async () => {
+    setup(fakeApi())
+    await screen.findByTestId('progress-totals')
+    expect(screen.getAllByTestId('warm-up')).toHaveLength(3)
+    const chart = screen.getAllByTestId('line-chart')[0]!
+    chart.getBoundingClientRect = () => ({ left: 0, width: 900, top: 0, height: 240 }) as DOMRect
+    fireEvent.mouseMove(chart, { clientX: 900 })
+    const last = statsFixture().trend.at(-1)!
+    expect(screen.getByTestId('chart-tooltip')).toHaveTextContent(
+      `Puzzle ${last.n} · rolling average: ${formatEvBb(last.ev_lost_bb_avg)}`,
+    )
   })
 })

@@ -14,6 +14,7 @@ import { ResultSummary } from '../components/ResultSummary/ResultSummary'
 import { ShortcutsOverlay } from '../components/ShortcutsOverlay/ShortcutsOverlay'
 import { Table } from '../components/Table/Table'
 import { TableCentre } from '../components/TableCentre/TableCentre'
+import { ConfirmDialog } from '../components/ui'
 import { TopBar } from '../components/TopBar/TopBar'
 import * as client from '../api/client'
 import { SettingsPage } from '../components/Settings/SettingsPage'
@@ -203,6 +204,21 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
     heading.current?.focus({ preventScroll: true })
   }, [page, state.kind])
 
+  // Replay or Result over a puzzle that is on screen and unanswered asks first (the puzzle would be
+  // replaced). Opening is ignored while a load or a submit is in flight: then stay on Progress.
+  const [pendingOpen, setPendingOpen] = useState<{ kind: 'puzzle' | 'attempt'; id: number } | null>(
+    null,
+  )
+  const openNow = (target: { kind: 'puzzle' | 'attempt'; id: number }) => {
+    const opened =
+      target.kind === 'puzzle' ? flow.openPuzzle(target.id) : flow.openAttempt(target.id)
+    if (opened) navigate('puzzles')
+  }
+  const requestOpen = (target: { kind: 'puzzle' | 'attempt'; id: number }) => {
+    if (state.kind === 'answering') setPendingOpen(target)
+    else openNow(target)
+  }
+
   const onNewPuzzle = () => {
     if (state.kind === 'answering') flow.requestSkip()
     else flow.newPuzzle()
@@ -282,13 +298,8 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
             profiles={settings?.profiles ?? null}
             titleRef={titleRef}
             onNavigate={goTo}
-            onReplay={(id) => {
-              // ignored while a load or a submit is in flight: then stay on Progress
-              if (flow.openPuzzle(id)) navigate('puzzles')
-            }}
-            onResult={(attemptId) => {
-              if (flow.openAttempt(attemptId)) navigate('puzzles')
-            }}
+            onReplay={(id) => requestOpen({ kind: 'puzzle', id })}
+            onResult={(attemptId) => requestOpen({ kind: 'attempt', id: attemptId })}
           />
         </main>
       )}
@@ -419,6 +430,20 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
           ? `${VERDICT_LABELS[state.result.grade.verdict]}. ${verdictLine(state.result)}`
           : ''}
       </div>
+
+      {pendingOpen !== null && (
+        <ConfirmDialog
+          title="Leave this puzzle?"
+          body="The puzzle on the Puzzles page hasn't been answered. Open this one instead?"
+          confirmLabel="Open"
+          cancelLabel="Cancel"
+          onCancel={() => setPendingOpen(null)}
+          onConfirm={() => {
+            setPendingOpen(null)
+            openNow(pendingOpen)
+          }}
+        />
+      )}
 
       <ShortcutsOverlay open={helpOpen} page={page} onClose={() => setHelpOpen(false)} />
     </div>

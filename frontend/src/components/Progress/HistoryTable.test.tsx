@@ -288,4 +288,24 @@ describe('HistoryTable', () => {
     expect(await screen.findByText('No attempts match these filters.')).toBeVisible()
     expect(screen.queryByRole('table')).toBeNull()
   })
+
+  it('uses the shared controls: ghost row buttons, labelled Selects, a natively disabled Previous', async () => {
+    setup()
+    await screen.findByRole('table')
+    const first = rows()[0]!
+    for (const b of within(first).getAllByRole('button')) {
+      expect(b).toHaveAttribute('data-variant', 'ghost')
+      expect(b).toHaveAttribute('data-size', 'sm')
+    }
+    for (const label of ['Street', 'Verdict', 'Action', 'Villain']) {
+      const select = screen.getByLabelText(label, { selector: 'select' })
+      expect(select).toBeInTheDocument()
+      expect(screen.getByText(label, { selector: 'label' })).toBeInTheDocument()
+    }
+    expect(screen.getByRole('button', { name: 'Previous' })).toHaveAttribute('disabled')
+    expect(screen.getByRole('button', { name: 'Previous' })).toHaveAttribute(
+      'data-variant',
+      'secondary',
+    )
+  })
 })

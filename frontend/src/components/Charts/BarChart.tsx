@@ -21,6 +21,8 @@ export interface BarChartProps {
 }
 
 const M = { top: 22, right: 8, bottom: 26, left: 30 }
+/** room at the left end of the plot for the goal label, so it never sits over a bar */
+const GOAL_GUTTER = 56
 
 /** Our own bar chart: one bar per label against a dashed goal line, with a data table for screen readers. */
 export function BarChart({
@@ -34,7 +36,8 @@ export function BarChart({
 }: BarChartProps) {
   const [open, setOpen] = useState(false) // the data table's rows exist only while it is open
   const scale = chartScale(Math.max(goal, ...bars.map((b) => b.value)))
-  const plotW = width - M.left - M.right
+  const barsLeft = M.left + GOAL_GUTTER
+  const plotW = width - barsLeft - M.right
   const plotH = height - M.top - M.bottom
   const slot = bars.length > 0 ? plotW / bars.length : plotW
   const barW = Math.min(slot * 0.62, 56)
@@ -69,7 +72,7 @@ export function BarChart({
           </g>
         ))}
         {bars.map((b, i) => {
-          const cx = M.left + slot * i + slot / 2
+          const cx = barsLeft + slot * i + slot / 2
           const top = sy(b.value)
           return (
             <g key={b.label}>
@@ -96,12 +99,12 @@ export function BarChart({
         <line
           className={styles.goalLine}
           data-testid="goal-line"
-          x1={M.left}
+          x1={barsLeft}
           x2={width - M.right}
           y1={sy(goal)}
           y2={sy(goal)}
         />
-        <text className={styles.goalLabel} x={width - M.right} y={sy(goal) - 5} textAnchor="end">
+        <text className={styles.goalLabel} x={M.left + 4} y={sy(goal) + 4}>
           Goal {goal}
         </text>
       </svg>
