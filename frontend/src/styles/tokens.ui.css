@@ -1,0 +1,27 @@
+/* Tokens for M11: layout metrics, control and type roles. Colours alias existing tokens, except
+   --control-border (a grey for 3:1 control boundaries) and --range-fill-max (an opacity cap). */
+:root {
+  /* layout */
+  --bar-h: 3.5rem;
+  --page-max-w: 100rem;
+  --page-narrow-w: 72rem;
+  --page-form-w: 44rem;
+  --page-gutter: var(--space-4);
+  --prose-max-w: 72ch;
+
+  /* controls */
+  --control-h-sm: 2rem;
+  --control-h-md: 2.5rem;
+  --control-border: #6b7380;
+
+  /* type roles */
+  --text-page-title: var(--text-xl);
+  --text-section-title: var(--text-lg);
+  --text-card-title: var(--text-md);
+  --text-label: var(--text-xs);
+  /* no text below this size, except the rank and suit drawn on a card */
+  --text-min: var(--text-2xs);
+
+  /* range grid: cap on the fill opacity (times the weight) */
+  --range-fill-max: 0.45;
+}

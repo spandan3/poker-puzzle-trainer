@@ -23,3 +23,10 @@ Object.defineProperty(window, 'matchMedia', {
 
 // jsdom doesn't implement scrolling; the app scrolls to the top on a page switch
 window.scrollTo = vi.fn() as unknown as typeof window.scrollTo
+
+// jsdom has no <dialog>.showModal; the stub only opens the dialog
+if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  }
+}
