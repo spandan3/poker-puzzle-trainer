@@ -100,7 +100,7 @@ def river_call(res):
                 "Villain's range narrowed with each action: Pre-flop: calls; Flop: bets 1.5 bb "
                 "(30% pot); Turn: bets 2.5 bb (31% pot); River: bets 10 bb (77% pot)."
             ),
-            GRADED_ON_RANGE,
+            GRADED_ON_RANGE.format(subject="puzzle"),
         ],
     }
 
@@ -137,7 +137,7 @@ def flop_bet_best(res):
         "villain": [
             LAG,
             "Villain's range narrowed with each action: Pre-flop: opens to 2.5 bb.",
-            GRADED_ON_RANGE,
+            GRADED_ON_RANGE.format(subject="puzzle"),
         ],
     }
 
@@ -170,7 +170,7 @@ def preflop_fold(res):
         "villain": [
             LAG,
             "Villain had not acted yet, so the range is every hand Villain can hold.",
-            GRADED_ON_RANGE,
+            GRADED_ON_RANGE.format(subject="puzzle"),
         ],
     }
 
@@ -219,7 +219,7 @@ def river_check_best_bet_chosen(res):
                 "Villain's range narrowed with each action: Pre-flop: opens to 2.5 bb; Flop: "
                 "calls; Turn: checks."
             ),
-            GRADED_ON_RANGE,
+            GRADED_ON_RANGE.format(subject="puzzle"),
         ],
     }
 
@@ -455,3 +455,49 @@ def test_realised_equal_strings_are_never_below():
     short = _with(f, realised_equity=f.pot_odds, equity_beats_pot_odds=False)
     text = _pot_odds_sentence(short)
     assert f"which makes {f.pot_odds}: just short of what it needs, so folding beats" in text
+
+
+def test_explain_subject_hand_says_hand():
+    p = puzzle(1, "river")
+    res = result(p, option=0)
+    res.pop("explanation")
+    log = views.action_log(p.spot)
+    hand = explain(res, p, log, subject="hand")
+    assert hand["sections"][-1]["paragraphs"][-1] == (
+        "The range in the Range tab is the range this hand was graded on."
+    )
+    assert "puzzle" not in text_of(hand)
+    default = explain(res, p, log)
+    assert default["sections"][-1]["paragraphs"][-1].endswith("range this puzzle was graded on.")
+
+
+def test_pot_odds_tie_strings_are_pinned():
+    p = puzzle(1, "river")
+    res = result(p, option=0)
+    res.pop("explanation")
+    base = facts(res, p)
+    from poker_trainer.explain.template import _pot_odds
+
+    tied = dataclasses.replace(
+        base,
+        equity="40.0%",
+        pot_odds="40.0%",
+        pot_odds_formula=None,
+        call_amount="2 bb",
+        pot="5 bb",
+        realisation=None,
+        realised_equity=None,
+    )
+    assert "is exactly what it needs" in _pot_odds(
+        dataclasses.replace(tied, equity_beats_pot_odds=True)
+    )
+    assert "falls just short of that" in _pot_odds(
+        dataclasses.replace(tied, equity_beats_pot_odds=False)
+    )
+    oop = dataclasses.replace(tied, realisation="80%", realised_equity="40.0%")
+    assert "exactly what it needs" in _pot_odds(
+        dataclasses.replace(oop, equity_beats_pot_odds=True)
+    )
+    assert "just short of what it needs" in _pot_odds(
+        dataclasses.replace(oop, equity_beats_pot_odds=False)
+    )

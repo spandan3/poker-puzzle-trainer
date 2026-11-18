@@ -392,3 +392,41 @@ def test_request_models():
     ):
         with pytest.raises(ValidationError):
             schemas.NextHandIn.model_validate(bad)
+
+
+# ---------------------------------------------------------------------------
+# the pot award (M11 S10): table.pot of a finished hand is what the winner was awarded
+# ---------------------------------------------------------------------------
+
+
+def test_the_pot_shown_is_the_award_over_seeded_hands():
+    seen = {"fold": 0, "showdown": 0, "split": 0, "all_in": 0}
+    for seed in range(200):
+        stacks = STACKS if seed % 2 == 0 else (200, 60 + seed % 70)
+        stacks = stacks if seed % 4 < 2 else stacks[::-1]
+        r, profile = _hand(seed, stacks=stacks)
+        v = _view(r, profile)
+        out = v["outcome"]
+        last = v["frames"][-1]
+        assert v["table"]["pot"] == sum(r.start_stacks) - sum(last["stacks"])
+        settled, before, pot = v["table"]["stacks"], last["stacks"], v["table"]["pot"]
+        if out["winner"] == "split":
+            assert settled[0] - before[0] == settled[1] - before[1] == pot // 2 and pot % 2 == 0
+            seen["split"] += 1
+        else:
+            w = 0 if out["winner"] == "hero" else 1
+            assert settled[w] - before[w] == pot, (seed, out["winner"])
+            assert settled[1 - w] == before[1 - w], seed
+        seen[out["ended_by"]] += 1
+        seen["all_in"] += 0 in before
+    assert seen["fold"] and seen["showdown"] and seen["all_in"], seen
+
+
+def test_an_abandoned_hands_pot_goes_to_the_bot():
+    r, profile, n = _flop_or_later_decision()
+    rec = replace(_at_decision(r, n), abandoned=True)
+    v = _view(rec, profile)
+    last, settled, pot = v["frames"][-1], v["table"]["stacks"], v["table"]["pot"]
+    assert v["outcome"]["winner"] == "villain" and pot > 0
+    assert settled[1] - last["stacks"][1] == pot
+    assert settled[0] == last["stacks"][0]

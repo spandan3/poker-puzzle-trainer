@@ -3977,6 +3977,25 @@
         "summary": "Patch User Settings"
       }
     },
+    "/api/settings/llm-check": {
+      "post": {
+        "description": "Re-probe the local model now, past the probe cache (a POST: the probe rewrites it).",
+        "operationId": "check_llm_api_settings_llm_check_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Check Llm"
+      }
+    },
     "/api/stats": {
       "get": {
         "operationId": "stats_api_stats_get",

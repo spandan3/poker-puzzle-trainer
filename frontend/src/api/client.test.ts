@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
+  checkLlm,
   currentPlaySession,
   currentPuzzle,
   endPlaySession,
@@ -79,6 +80,14 @@ describe('client', () => {
     expect(url).toBe('/api/settings')
     expect(init.method).toBe('PATCH')
     expect(init.body).toBe(JSON.stringify({ show_pot_odds: false }))
+  })
+
+  it('re-probes the local model with a POST and returns the settings view', async () => {
+    fetchMock.mockResolvedValue(reply(200, { llm_status: 'ready' }))
+    expect(await checkLlm()).toEqual({ llm_status: 'ready' })
+    const { url, init } = lastCall()
+    expect(url).toBe('/api/settings/llm-check')
+    expect(init.method).toBe('POST')
   })
 
   it('resolves null when there is no current puzzle', async () => {

@@ -221,6 +221,13 @@ def patch_user_settings(
     return service.settings_view(db, user_id, request.app.state.settings, llm)
 
 
+@router.post("/settings/llm-check", response_model=SettingsView)
+def check_llm(request: Request, db: Db, user_id: UserId) -> dict[str, Any]:
+    """Re-probe the local model now, past the probe cache (a POST: the probe rewrites it)."""
+    llm = request.app.state.explainer.status(fresh=True)
+    return service.settings_view(db, user_id, request.app.state.settings, llm)
+
+
 # ---------------------------------------------------------------------------
 # Play vs Bots
 # ---------------------------------------------------------------------------

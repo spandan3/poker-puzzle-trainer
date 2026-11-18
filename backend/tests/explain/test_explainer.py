@@ -413,3 +413,22 @@ def test_status_with_the_real_probe():
     finally:
         fake.server.shutdown()
         fake.server.server_close()
+
+
+def test_status_fresh_probes_past_the_cache_and_stores_the_answer():
+    now = [100.0]
+    probe = FakeProbe()
+    ex = Explainer(_settings(), probe=probe, clock=lambda: now[0])
+    assert ex.status() == ("ready", None)
+    probe.answer = ("unavailable", "gone")
+    assert ex.status() == ("ready", None)  # inside the TTL
+    assert ex.status(fresh=True) == ("unavailable", "gone")
+    assert len(probe.calls) == 2
+    assert ex.status() == ("unavailable", "gone")  # later calls reuse the fresh answer
+    assert ex.status(probe=False) == ("unavailable", "gone")
+    assert len(probe.calls) == 2
+
+
+def test_status_fresh_with_provider_none_never_probes():
+    ex = Explainer(_settings("none"), probe=_no_network)
+    assert ex.status(fresh=True) == ("off", None)

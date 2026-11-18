@@ -368,6 +368,7 @@ def test_template_explanations_pass_the_guardrail(play_client, play_db):
                     )
                 assert template == d["explanation"]
                 text = text_of(template)
+                assert "this hand was graded on" in text and "puzzle" not in text.lower(), text
                 assert unknown_numbers(text, facts.values_text()) == set(), text
                 assert check_claims(fields_of(template), facts) == {}, text
                 checked += 1
