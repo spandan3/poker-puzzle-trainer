@@ -315,3 +315,13 @@
 .handsToggle:hover {
   background: var(--color-badge-bg);
 }
+
+/* the page's h2: visually hidden, because the table needs the height */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

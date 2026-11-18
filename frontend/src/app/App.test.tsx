@@ -270,8 +270,10 @@ describe('App', () => {
     fakeServer()
     const { user } = setup()
     await screen.findByRole('textbox', { name: 'Equity' })
-    await user.click(screen.getByRole('switch', { name: 'Shortcuts' }))
+    await user.click(screen.getByRole('link', { name: 'Settings' }))
+    await user.click(await screen.findByRole('switch', { name: /Shortcuts/ }))
     expect(window.localStorage.getItem('ppt.shortcuts')).toBe('off')
+    await user.click(screen.getByRole('link', { name: 'Puzzles' }))
     await user.keyboard('n?')
     expect(screen.queryByText(/Skip this puzzle\?/)).toBeNull()
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -291,17 +293,16 @@ describe('App', () => {
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1)
   })
 
-  it('the top bar toggles patch the settings', async () => {
+  it('the top bar has no switches; Show profile on Settings hides the profile on Puzzles', async () => {
     const { calls } = fakeServer()
     const { user } = setup()
     await screen.findByRole('textbox', { name: 'Equity' })
-    await waitFor(() =>
-      expect(screen.getByRole('switch', { name: 'Show profile' })).toHaveAttribute(
-        'aria-checked',
-        'true',
-      ),
-    )
-    await user.click(screen.getByRole('switch', { name: 'Show profile' }))
+    expect(screen.queryByRole('switch')).toBeNull()
+    await user.click(screen.getByRole('link', { name: 'Settings' }))
+    const toggle = await screen.findByRole('switch', { name: /Show profile/ })
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'))
+    await user.click(toggle)
+    await user.click(screen.getByRole('link', { name: 'Puzzles' }))
     expect(screen.queryByRole('button', { name: /^Profile/ })).toBeNull()
     expect(calls.at(-1)).toMatchObject({
       method: 'PATCH',
@@ -708,6 +709,69 @@ describe('App', () => {
       await screen.findByRole('switch', { name: /Pot odds/ })
       await user.keyboard('n?')
       expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  })
+
+  describe('focus after a navigation (S11)', () => {
+    const heading = (name: string) => screen.getByRole('heading', { level: 2, name })
+
+    it('a nav link click focuses the page heading on Progress, Settings and Puzzles', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      expect(heading('Progress')).toHaveFocus()
+      await user.click(screen.getByRole('link', { name: 'Settings' }))
+      expect(heading('Settings')).toHaveFocus()
+      await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+      expect(heading('Puzzles')).toHaveFocus()
+    })
+
+    it('the Puzzles link with a result shown leaves focus on Next puzzle', async () => {
+      fakeServer()
+      const { user } = setup()
+      await answerCheck(user)
+      await screen.findByRole('button', { name: /Next puzzle/ })
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      expect(heading('Progress')).toHaveFocus()
+      await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+      expect(screen.getByRole('button', { name: /Next puzzle/ })).toHaveFocus()
+    })
+
+    it('the Play link with a hand over leaves focus on Next hand', async () => {
+      window.history.replaceState(null, '', '/play')
+      fakeServer({ playSession: playSessionFixture('hand_over_fold') })
+      const { user } = setup()
+      const next = await screen.findByRole('button', { name: /^Next hand/ })
+      await waitFor(() => expect(next).toHaveFocus())
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      expect(heading('Progress')).toHaveFocus()
+      await user.click(screen.getByRole('link', { name: 'Play' }))
+      expect(screen.getByRole('button', { name: /^Next hand/ })).toHaveFocus()
+    })
+
+    it('the Play link with no hand over focuses the Play heading', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.click(screen.getByRole('link', { name: 'Play' }))
+      await screen.findByRole('button', { name: 'Start session' })
+      expect(heading('Play')).toHaveFocus()
+    })
+
+    it('Back and Forward, and the first render, do not move focus to a heading', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      expect(heading('Puzzles')).not.toHaveFocus()
+      await user.click(screen.getByRole('link', { name: 'Progress' }))
+      await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+      ;(document.activeElement as HTMLElement).blur()
+      window.history.replaceState(null, '', '/progress')
+      act(() => {
+        window.dispatchEvent(new PopStateEvent('popstate'))
+      })
+      expect(await screen.findByRole('heading', { level: 2, name: 'Progress' })).not.toHaveFocus()
     })
   })
 

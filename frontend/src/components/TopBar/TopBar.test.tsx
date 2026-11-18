@@ -15,12 +15,7 @@ function setup(over: Partial<TopBarProps> = {}) {
       { name: 'lag', label: 'LAG' },
     ],
     onProfile: vi.fn(),
-    showPotOdds: true,
-    onShowPotOdds: vi.fn(),
-    showProfile: false,
-    onShowProfile: vi.fn(),
     shortcutsOn: true,
-    onShortcutsOn: vi.fn(),
     onHelp: vi.fn(),
     onNewPuzzle: vi.fn(),
     tally: null,
@@ -90,28 +85,25 @@ describe('TopBar', () => {
     expect(props.onProfile).toHaveBeenLastCalledWith(null)
   })
 
-  it.each([
-    ['Pot odds', true, 'onShowPotOdds'],
-    ['Show profile', false, 'onShowProfile'],
-    ['Shortcuts', true, 'onShortcutsOn'],
-  ] as const)('toggle %s flips its value', async (name, current, handler) => {
-    const over = {
-      'Pot odds': { showPotOdds: current },
-      'Show profile': { showProfile: current },
-      Shortcuts: { shortcutsOn: current },
-    }[name]
-    const { props, user } = setup(over)
-    const toggle = screen.getByRole('switch', { name })
-    expect(toggle).toHaveAttribute('aria-checked', String(current))
-    await user.click(toggle)
-    expect(props[handler]).toHaveBeenCalledWith(!current)
-  })
+  it.each(['puzzles', 'play', 'progress', 'settings'] as const)(
+    'on %s: the nav and the Settings link are there, the Settings link is the last control, and there is no switch',
+    (page) => {
+      setup({ page, tally: '0 bb · 0 hands' })
+      const nav = screen.getByRole('navigation', { name: 'Main' })
+      expect(within(nav).getAllByRole('link')).toHaveLength(3)
+      const header = screen.getByRole('banner')
+      const controls = Array.from(header.querySelectorAll('a[href], button, select, input'))
+      expect(controls.at(-1)).toBe(screen.getByRole('link', { name: 'Settings' }))
+      expect(screen.queryByRole('switch')).toBeNull()
+    },
+  )
 
-  it('toggles with the keyboard', async () => {
-    const { props, user } = setup({ showProfile: false })
-    screen.getByRole('switch', { name: 'Show profile' }).focus()
-    await user.keyboard(' ')
-    expect(props.onShowProfile).toHaveBeenCalledWith(true)
+  it('Puzzles shows Street and Villain (selects), help and New puzzle', () => {
+    setup({ page: 'puzzles' })
+    expect(screen.getByRole('combobox', { name: 'Street' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Villain' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Keyboard shortcuts help' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New puzzle' })).toBeInTheDocument()
   })
 
   it('has Help and New puzzle buttons', async () => {
@@ -159,7 +151,6 @@ describe('TopBar', () => {
       setup({ page: 'progress' })
       expect(screen.queryByRole('combobox', { name: 'Street' })).toBeNull()
       expect(screen.queryByRole('combobox', { name: 'Villain' })).toBeNull()
-      expect(screen.queryByRole('switch')).toBeNull()
       expect(screen.queryByRole('button', { name: 'New puzzle' })).toBeNull()
       // shortcuts are off on Progress: no help button either
       expect(screen.queryByRole('button', { name: 'Keyboard shortcuts help' })).toBeNull()
@@ -186,12 +177,12 @@ describe('TopBar', () => {
       expect(screen.queryByRole('button', { name: /New puzzle/ })).toBeNull()
     })
 
-    it('keeps the toggles and help', () => {
+    it('keeps help, and the tally uses tabular numbers in the sans font, not the monospace one', () => {
       setup({ page: 'play', tally: '0 bb · 0 hands' })
-      expect(screen.getByRole('switch', { name: 'Pot odds' })).toBeInTheDocument()
-      expect(screen.getByRole('switch', { name: 'Show profile' })).toBeInTheDocument()
-      expect(screen.getByRole('switch', { name: 'Shortcuts' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Keyboard shortcuts help' })).toBeInTheDocument()
+      const tally = screen.getByLabelText('Session tally')
+      expect(tally.className).toMatch(/tabularNums/)
+      expect(tally.className).not.toMatch(/mono/i)
     })
 
     it('has no tally or End session without a session', () => {
