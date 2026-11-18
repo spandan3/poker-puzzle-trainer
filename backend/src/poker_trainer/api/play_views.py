@@ -308,7 +308,7 @@ def decision_review(row: PlayDecisionRow, record: HandRecord, profile: Profile) 
         "categories": core["categories"],
         "range_steps": core["range_steps"],
         "chosen_label": core["grade"]["chosen_label"],
-        "explanation": explain(result, puzzle, views.action_log(puzzle.spot)),
+        "explanation": explain(result, puzzle, views.action_log(puzzle.spot), subject="hand"),
     }
 
 

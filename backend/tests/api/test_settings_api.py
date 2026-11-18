@@ -70,3 +70,63 @@ def test_settings_profile_null_resets(client):
     assert r.status_code == 200 and r.json()["profile"] is None
     r = client.patch("/api/settings", json={})
     assert r.status_code == 200 and r.json()["profile"] is None
+
+
+def _client_with_probe(db_url, factory, llm_off, probe, clock):
+    from fastapi.testclient import TestClient
+
+    from poker_trainer.api.app import create_app
+    from poker_trainer.explain.service import Explainer
+    from poker_trainer.settings import AppSettings
+
+    settings = AppSettings(
+        _env_file=None, database_url=db_url, **{**llm_off, "llm_provider": "ollama"}
+    )
+    explainer = Explainer(settings, probe=probe, clock=clock)
+    return TestClient(create_app(settings, puzzle_factory=factory, explainer=explainer))
+
+
+def test_llm_check_re_probes_past_the_cache(db_url, factory, llm_off):
+    calls = []
+    answer = [("unavailable", "Ollama isn't answering.")]
+
+    def probe(url, model, timeout=1.5):
+        calls.append(model)
+        return answer[0]
+
+    with _client_with_probe(db_url, factory, llm_off, probe, lambda: 0.0) as c:
+        first = c.get("/api/settings").json()
+        assert first["llm_status"] == "unavailable"
+        answer[0] = ("ready", None)
+        assert c.get("/api/settings").json()["llm_status"] == "unavailable"  # cached
+        assert len(calls) == 1
+        r = c.post("/api/settings/llm-check")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["llm_status"] == "ready" and body["llm_detail"] is None
+        assert set(body) == set(first)  # the full SettingsView
+        assert len(calls) == 2
+        assert c.get("/api/settings").json()["llm_status"] == "ready"
+        assert len(calls) == 2
+
+
+def test_llm_check_with_provider_none_does_not_probe(db_url, factory, llm_off):
+    def probe(*_a, **_k):
+        raise AssertionError("probed")
+
+    with _client_with_probe(db_url, factory, {**llm_off}, probe, lambda: 0.0) as c:
+        c.app.state.explainer.settings = c.app.state.settings.model_copy(
+            update={"llm_provider": "none"}
+        )
+        body = c.post("/api/settings/llm-check").json()
+        assert body["llm_status"] == "off"
+
+
+def test_patch_never_probes(db_url, factory, llm_off):
+    def probe(*_a, **_k):
+        raise AssertionError("probed")
+
+    with _client_with_probe(db_url, factory, llm_off, probe, lambda: 0.0) as c:
+        r = c.patch("/api/settings", json={"daily_goal": 12})
+        assert r.status_code == 200
+        assert r.json()["llm_status"] == "unavailable"  # "Not checked yet."

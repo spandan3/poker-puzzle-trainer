@@ -12,6 +12,7 @@ ROUTES = {
     ("/api/history", "get", "200"): "HistoryPage",
     ("/api/settings", "get", "200"): "SettingsView",
     ("/api/settings", "patch", "200"): "SettingsView",
+    ("/api/settings/llm-check", "post", "200"): "SettingsView",
     ("/api/health", "get", "200"): "Health",
     ("/api/play/sessions", "post", "201"): "PlaySessionView",
     ("/api/play/sessions/current", "get", "200"): "PlaySessionView",

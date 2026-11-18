@@ -629,7 +629,10 @@ def decision_explanation_inputs(
         raise NotFound("decision not analysed")
     result, puzzle = play_views.explanation_result(row, record, profile)
     log = action_log(puzzle.spot)
-    return explain(result, puzzle, log), build_facts(result, puzzle, log)
+    return (
+        explain(result, puzzle, log, subject="hand"),
+        build_facts(result, puzzle, log, subject="hand"),
+    )
 
 
 __all__ = [

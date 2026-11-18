@@ -103,6 +103,11 @@ export function patchSettings(body: SettingsPatch): Promise<SettingsView> {
   return request('PATCH', '/api/settings', body)
 }
 
+/** `POST /api/settings/llm-check`: re-probes the local model now (past the probe cache). */
+export function checkLlm(): Promise<SettingsView> {
+  return request('POST', '/api/settings/llm-check')
+}
+
 /** `GET /api/stats`: the day boundary follows `tz` (an IANA zone). A 422 means the server doesn't know the zone. */
 export function getStats(tz: string): Promise<StatsView> {
   return request('GET', `/api/stats?tz=${encodeURIComponent(tz)}`)

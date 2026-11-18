@@ -30,7 +30,7 @@
             "paragraphs": [
               "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
               "Villain had not acted yet, so the range is every hand Villain can hold.",
-              "The range in the Range tab is the range this puzzle was graded on."
+              "The range in the Range tab is the range this hand was graded on."
             ],
             "title": "Villain"
           }
@@ -6051,7 +6051,7 @@
             "paragraphs": [
               "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
               "Villain's range narrowed with each action: Pre-flop: calls; Flop: checks.",
-              "The range in the Range tab is the range this puzzle was graded on."
+              "The range in the Range tab is the range this hand was graded on."
             ],
             "title": "Villain"
           }
@@ -18805,7 +18805,7 @@
             "paragraphs": [
               "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
               "Villain's range narrowed with each action: Pre-flop: calls; Flop: checks; Turn: checks.",
-              "The range in the Range tab is the range this puzzle was graded on."
+              "The range in the Range tab is the range this hand was graded on."
             ],
             "title": "Villain"
           }
@@ -34407,7 +34407,7 @@
             "paragraphs": [
               "Villain is a LAG player. Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
               "Villain's range narrowed with each action: Pre-flop: calls; Flop: checks; Turn: checks; River: checks.",
-              "The range in the Range tab is the range this puzzle was graded on."
+              "The range in the Range tab is the range this hand was graded on."
             ],
             "title": "Villain"
           }

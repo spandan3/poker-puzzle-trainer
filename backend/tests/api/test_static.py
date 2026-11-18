@@ -33,7 +33,7 @@ def built(tmp_path):
 def test_static_serves_index_and_assets(built, make_client):
     tmp_path, dist = built
     with make_client(tmp_path, dist) as c:
-        for path in ("/", "/progress", "/puzzle/3"):
+        for path in ("/", "/progress", "/settings", "/puzzle/3"):
             r = c.get(path)
             assert r.status_code == 200 and "INDEX" in r.text, path
         assert c.get("/assets/app.js").text == "console.log('app')"

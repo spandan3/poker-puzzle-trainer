@@ -124,6 +124,8 @@ class Facts:
     # when the factor is 1 (in position, the river, all-in, or a result graded before M9)
     realisation: str | None = None
     realised_equity: str | None = None
+    # what the explanation calls the thing graded: a "puzzle" or a played "hand"
+    subject: Literal["puzzle", "hand"] = "puzzle"
 
     @property
     def chosen(self) -> OptionFact:
@@ -330,7 +332,13 @@ def _loss_case(loss_bb: float, verdict: str) -> LossCase:
     return "close" if verdict in ("best", "fine") else "lost"
 
 
-def build_facts(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]]) -> Facts:
+def build_facts(
+    result: dict[str, Any],
+    puzzle: Puzzle,
+    log: list[dict[str, Any]],
+    *,
+    subject: Literal["puzzle", "hand"] = "puzzle",
+) -> Facts:
     """Every number the explanation of ``result`` may use, formatted by code.
 
     ``log`` is ``views.action_log(puzzle.spot)`` (passed in: ``views`` imports this package).
@@ -412,4 +420,5 @@ def build_facts(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]
         range_steps=tuple(bb_label(st["label"]) for st in result["range_steps"][1:]),
         realisation=realisation,
         realised_equity=realised,
+        subject=subject,
     )

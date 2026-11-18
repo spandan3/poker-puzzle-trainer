@@ -7,13 +7,13 @@ run-out, Villain's cards or who won.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from poker_trainer.explain.facts import ActionFact, Facts, OptionFact, build_facts
 from poker_trainer.explain.format import gerund
 from poker_trainer.puzzle.model import Puzzle
 
-GRADED_ON_RANGE = "The range in the Range tab is the range this puzzle was graded on."
+GRADED_ON_RANGE = "The range in the Range tab is the range this {subject} was graded on."
 
 _PLACES = {"BTN": "on the button", "BB": "in the big blind"}
 
@@ -243,7 +243,7 @@ def villain_paragraphs(f: Facts) -> list[str]:
         out.append(f"Villain's range narrowed with each action: {_grouped_steps(f.range_steps)}.")
     else:
         out.append("Villain had not acted yet, so the range is every hand Villain can hold.")
-    out.append(GRADED_ON_RANGE)
+    out.append(GRADED_ON_RANGE.format(subject=f.subject))
     return out
 
 
@@ -262,11 +262,17 @@ def render(f: Facts) -> dict[str, Any]:
     }
 
 
-def explain(result: dict[str, Any], puzzle: Puzzle, log: list[dict[str, Any]]) -> dict[str, Any]:
+def explain(
+    result: dict[str, Any],
+    puzzle: Puzzle,
+    log: list[dict[str, Any]],
+    *,
+    subject: Literal["puzzle", "hand"] = "puzzle",
+) -> dict[str, Any]:
     """The template explanation of a result dict (``views.attempt_result``'s, without
     ``explanation``); ``log`` is ``views.action_log(puzzle.spot)``. Pure: no database, no
     network."""
-    return render(build_facts(result, puzzle, log))
+    return render(build_facts(result, puzzle, log, subject=subject))
 
 
 def text_of(explanation: dict[str, Any]) -> str:

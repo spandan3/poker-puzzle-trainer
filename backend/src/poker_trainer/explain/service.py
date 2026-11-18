@@ -189,18 +189,19 @@ class Explainer:
 
     # -- status ----------------------------------------------------------------------------
 
-    def status(self, *, probe: bool = True) -> tuple[LlmStatus, str | None]:
+    def status(self, *, probe: bool = True, fresh: bool = False) -> tuple[LlmStatus, str | None]:
         """``(llm_status, detail)`` for the settings view. Provider ``none``: ``("off", None)``.
         Else the probe's answer, reused for ``PROBE_TTL`` seconds; with ``probe=False`` only the
-        last answer (``unavailable``, "Not checked yet." before the first probe)."""
+        last answer (``unavailable``, "Not checked yet." before the first probe). ``fresh=True``
+        skips the cache: it probes now and stores the answer (provider ``none`` never probes)."""
         if not self.enabled:
             return "off", None
         now = self._clock()
         with self._lock:
             last = self._probed
-        if last is not None and (not probe or now - last[0] < PROBE_TTL):
+        if not fresh and last is not None and (not probe or now - last[0] < PROBE_TTL):
             return last[1], last[2]
-        if not probe:
+        if not probe and not fresh:
             return "unavailable", NOT_CHECKED
         try:
             status, detail = self._probe(self.settings.ollama_url, self.settings.ollama_model)
