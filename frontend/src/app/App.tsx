@@ -148,6 +148,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
   const pending = state.kind === 'loading' || state.kind === 'error'
   const view = shown?.view ?? null
   const result = shown?.result ?? null
+  const runOut = result !== null && !heroFolded(result)
 
   // Keep keyboard focus on the page when the panel under it is swapped: the Next button when a
   // result arrives, else the panel slot (never a text box: that would pause the shortcuts).
@@ -351,9 +352,11 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
                     potChips={view.pot}
                     potOdds={view.pot_odds}
                     showPotOdds={showPotOdds}
-                    dealFrom={result && !heroFolded(result) ? view.board.length : 0}
-                    dealBaseMs={result ? RUNOUT_BASE_MS : BOARD_DEAL_BASE_MS}
-                    dealStaggerMs={result ? RUNOUT_STAGGER_MS : BOARD_DEAL_STAGGER_MS}
+                    dealFrom={runOut ? view.board.length : 0}
+                    // after a fold the board keeps its own deal timing, or a changed delay could
+                    // replay the animation on cards already dealt
+                    dealBaseMs={runOut ? RUNOUT_BASE_MS : BOARD_DEAL_BASE_MS}
+                    dealStaggerMs={runOut ? RUNOUT_STAGGER_MS : BOARD_DEAL_STAGGER_MS}
                   />
                 }
               />
