@@ -50,6 +50,21 @@ export function SettingsPage({
   const [checking, setChecking] = useState(false)
   const [checkFailed, setCheckFailed] = useState(false)
   const mounted = useRef(true)
+  // Retry unmounts itself: focus goes to the loading status, and back to Retry if it fails again
+  const loadingRef = useRef<HTMLParagraphElement>(null)
+  const retryRef = useRef<HTMLButtonElement>(null)
+  const retried = useRef(false)
+  const pageRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!retried.current) return
+    if (loadingRef.current) loadingRef.current.focus({ preventScroll: true })
+    else {
+      retried.current = false
+      // loaded: the loading status is gone, so the heading takes focus; failed: Retry is back
+      if (retryRef.current) retryRef.current.focus({ preventScroll: true })
+      else pageRef.current?.querySelector('h2')?.focus({ preventScroll: true })
+    }
+  }, [settings, settingsError])
   useEffect(() => {
     mounted.current = true
     return () => {
@@ -68,7 +83,7 @@ export function SettingsPage({
   }
 
   return (
-    <div className={styles.page} data-testid="settings-page">
+    <div className={styles.page} data-testid="settings-page" ref={pageRef}>
       <h2 className={styles.pageTitle} ref={headingRef} tabIndex={-1}>
         Settings
       </h2>
@@ -77,12 +92,19 @@ export function SettingsPage({
         settingsError ? (
           <div className={styles.status} role="alert">
             <span>Settings couldn&apos;t be loaded.</span>
-            <Button size="sm" onClick={onRetry}>
+            <Button
+              ref={retryRef}
+              size="sm"
+              onClick={() => {
+                retried.current = true
+                onRetry()
+              }}
+            >
               Retry
             </Button>
           </div>
         ) : (
-          <p className={styles.status} role="status">
+          <p className={styles.status} role="status" ref={loadingRef} tabIndex={-1}>
             Loading settings…
           </p>
         )

@@ -1,4 +1,7 @@
+import type { ReactNode } from 'react'
 import type { Explanation } from '../../api/types'
+import type { Page } from '../../lib/page'
+import { isPlainLeftClick, pathOf } from '../../lib/page'
 import styles from './ExplanationPanel.module.css'
 
 export interface ExplanationPanelProps {
@@ -11,6 +14,8 @@ export interface ExplanationPanelProps {
   llmDetail?: string | null
   /** The request for the rewrite failed. */
   requestFailed?: boolean
+  /** a plain click on the "Settings" link in the footer goes here; without it the link is a normal navigation */
+  onNavigate?: (page: Page) => void
 }
 
 const CHECK = "Check it in Settings once it's ready."
@@ -51,6 +56,33 @@ function footerText(p: ExplanationPanelProps): string {
   return 'Written by the trainer from the graded numbers.'
 }
 
+/** The word "Settings" in the footer is a link to the Settings page. */
+function withSettingsLink(
+  text: string,
+  onNavigate: ExplanationPanelProps['onNavigate'],
+): ReactNode {
+  const at = text.lastIndexOf('Settings')
+  if (at < 0) return text
+  return (
+    <>
+      {text.slice(0, at)}
+      <a
+        href={pathOf('settings')}
+        className={styles.footerLink}
+        onClick={(e) => {
+          if (onNavigate && isPlainLeftClick(e)) {
+            e.preventDefault()
+            onNavigate('settings')
+          }
+        }}
+      >
+        Settings
+      </a>
+      {text.slice(at + 'Settings'.length)}
+    </>
+  )
+}
+
 /** Suits as text glyphs: drop an emoji selector (U+FE0F) and ask for text style (U+FE0E). */
 const textSuits = (s: string) => s.replace(/([♠♣♥♦])\uFE0F?/g, '$1\uFE0E')
 
@@ -75,7 +107,7 @@ export function ExplanationPanel(props: ExplanationPanelProps) {
           ))}
         </section>
       ))}
-      <p className={styles.footer}>{footerText(props)}</p>
+      <p className={styles.footer}>{withSettingsLink(footerText(props), props.onNavigate)}</p>
     </div>
   )
 }

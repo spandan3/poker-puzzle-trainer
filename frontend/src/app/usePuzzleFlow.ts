@@ -337,11 +337,15 @@ export function usePuzzleFlow(
   useEffect(() => {
     if (settingsStarted.current) return
     settingsStarted.current = true
-    api.getSettings().then(setSettings, () => {
-      // settings are optional for play: the controls keep their defaults, and the Settings page
-      // says it couldn't load them and offers a retry
-      setSettingsError(true)
-    })
+    api.getSettings().then(
+      // a PATCH that landed first has the newer user fields: the first load never replaces them
+      (view) => setSettings((now) => now ?? view),
+      () => {
+        // settings are optional for play: the controls keep their defaults, and the Settings page
+        // says it couldn't load them and offers a retry
+        setSettingsError(true)
+      },
+    )
   }, [api])
 
   const reloadSettings = useCallback(() => {
@@ -442,7 +446,7 @@ export function usePuzzleFlow(
   const setSetting = useCallback(
     (patch: SettingsPatch): Promise<boolean> => {
       const before = settingsRef.current
-      if (before) setSettings({ ...before, ...patch })
+      if (before) setSettings((now) => (now ? { ...now, ...patch } : now))
       setNotice(null)
       // a newer save of the same field wins: an older one's failure must not revert it
       const keys = Object.keys(patch)
@@ -476,7 +480,8 @@ export function usePuzzleFlow(
   return {
     state,
     settings,
-    settingsError,
+    // an error with settings in hand (a bar change filled them in) is no error
+    settingsError: settingsError && settings === null,
     reloadSettings,
     checkLlm,
     notice,
