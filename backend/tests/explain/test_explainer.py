@@ -429,6 +429,34 @@ def test_status_fresh_probes_past_the_cache_and_stores_the_answer():
     assert len(probe.calls) == 2
 
 
+def test_a_slow_older_probe_never_overwrites_a_newer_answer():
+    import threading
+
+    now = [100.0]
+    entered, release = threading.Event(), threading.Event()
+    calls: list[int] = []
+
+    def probe(url: str, model: str, timeout: float = 1.5) -> tuple[str, str | None]:
+        calls.append(1)
+        if len(calls) == 1:  # the slow, older probe
+            entered.set()
+            assert release.wait(10)
+            return "unavailable", "too late"
+        return "ready", None
+
+    ex = Explainer(_settings(), probe=probe, clock=lambda: now[0])
+    slow: list[Any] = []
+    t = threading.Thread(target=lambda: slow.append(ex.status()))
+    t.start()
+    assert entered.wait(10)
+    now[0] = 101.0
+    assert ex.status(fresh=True) == ("ready", None)
+    release.set()
+    t.join(10)
+    assert slow == [("ready", None)]
+    assert ex.status(probe=False) == ("ready", None)
+
+
 def test_status_fresh_with_provider_none_never_probes():
     ex = Explainer(_settings("none"), probe=_no_network)
     assert ex.status(fresh=True) == ("off", None)

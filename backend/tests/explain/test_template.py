@@ -495,7 +495,7 @@ def test_pot_odds_tie_strings_are_pinned():
         dataclasses.replace(tied, equity_beats_pot_odds=False)
     )
     oop = dataclasses.replace(tied, realisation="80%", realised_equity="40.0%")
-    assert "exactly what it needs" in _pot_odds(
+    assert "which makes 40.0%: exactly what it needs" in _pot_odds(
         dataclasses.replace(oop, equity_beats_pot_odds=True)
     )
     assert "just short of what it needs" in _pot_odds(
