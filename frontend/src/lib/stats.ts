@@ -19,12 +19,6 @@ export function bb1(x: number): string {
   return `${(Math.floor(10 * x + 0.5) / 10).toFixed(1)} bb`
 }
 
-/** EV lost in bb with two fixed decimals, so a column lines up: `0.7` -> "0.70 bb". */
-export function bb2(x: number): string {
-  const n = Number(x.toFixed(2))
-  return `${n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)} bb`
-}
-
 export interface Delta {
   text: string
   /** `neutral` when the rounded difference is zero */

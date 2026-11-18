@@ -83,3 +83,35 @@ export function bbCallAttempt(): AttemptResult {
     options: base.options.map((o) => ({ ...o, is_chosen: o === call })),
   }
 }
+
+// SYNTHETIC: a call whose equity and pot odds show the same number (21.4%), for the Maths tab's
+// tie wording. Derived by hand from attempt_call (puzzle_facing_postflop_raise): only fold and
+// call are kept, the equity is set just above or just below the pot odds, and the call's EV is
+// the solver's call formula at that equity, so every line on screen reproduces. Not API output.
+/** attempt_call cut to fold and call, with `equity` against the puzzle's 21.4% pot odds. */
+export function potOddsTieAttempt(equity: number): AttemptResult {
+  const base = attemptFixture('call')
+  const pot = puzzleFixture('facing_postflop_raise').pot
+  const kept = base.options.filter((o) => o.kind === 'fold' || o.kind === 'call')
+  const callEv = (o: (typeof kept)[number]) => equity * (pot + o.put) - o.put
+  const options = kept.map((o) =>
+    o.kind === 'call' ? { ...o, ev_chips: callEv(o), ev_bb: callEv(o) / 2 } : o,
+  )
+  const call = options.find((o) => o.kind === 'call')
+  if (!call) throw new Error('attempt_call has a call')
+  const best = call.ev_chips >= 0 ? call : options.find((o) => o.kind === 'fold')
+  if (!best) throw new Error('attempt_call has a fold')
+  const lossChips = best.ev_chips - call.ev_chips
+  return {
+    ...base,
+    grade: {
+      ...base.grade,
+      equity,
+      best_label: best.label,
+      ev_loss_chips: lossChips,
+      ev_loss_bb: lossChips / 2,
+      verdict: lossChips === 0 ? 'best' : 'fine',
+    },
+    options: options.map((o) => ({ ...o, is_best: o === best, is_chosen: o === call })),
+  }
+}

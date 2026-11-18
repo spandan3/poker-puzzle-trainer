@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { PlaySessionView, SettingsView } from '../../api/types'
 import type { PlayFlow, PlayState } from '../../app/usePlayFlow'
+import { formatBb } from '../../lib/format'
+import { signedBbFromBb } from '../../lib/play'
 import {
   playHandAnalysisFixture,
   playHandsFixture,
@@ -245,7 +247,10 @@ describe('PlayPage: the start panel', () => {
     const table = screen.getByRole('table', { name: 'Past sessions' })
     const rows = within(table).getAllByRole('row').slice(1)
     expect(rows).toHaveLength(2)
+    // net_bb straight from the API, signed: no chips conversion
+    expect(rows[1]).toHaveTextContent(signedBbFromBb(playSessionsFixture()[1]!.net_bb))
     expect(rows[1]).toHaveTextContent('−52.5 bb')
+    expect(rows[0]).toHaveTextContent('0 bb')
     expect(rows[1]).toHaveTextContent('13')
     await user.click(screen.getByRole('button', { name: 'Start session' }))
     expect(flow.start).toHaveBeenCalledTimes(1)
@@ -334,6 +339,73 @@ describe('PlayPage: the session hands and the result line', () => {
     const line = screen.getByText('Villain won 2.5 bb at showdown')
     expect(line.getAttribute('class') ?? '').not.toMatch(/warn|danger|mistake|blunder/i)
     expect(line).not.toHaveAttribute('data-winner')
+  })
+})
+
+describe('PlayPage: the pot label of a finished hand (S10)', () => {
+  const potLabel = () => screen.getByTestId('pot-label')
+
+  it('by fold, once the reveal is over: "You take" the awarded table.pot; seats show table.stacks', () => {
+    const session = playSessionFixture('hand_over_fold')
+    const { table, outcome } = session.hand!
+    expect(outcome?.winner).toBe('hero')
+    setup(session)
+    expect(potLabel()).toHaveTextContent(`You take ${formatBb(table.pot)}`)
+    expect(potLabel()).toHaveTextContent('You take 3.5 bb')
+    expect(hero()).toHaveTextContent(formatBb(table.stacks[table.hero_seat]!))
+    expect(villain()).toHaveTextContent(formatBb(table.stacks[1 - table.hero_seat]!))
+  })
+
+  it('a showdown Villain wins: "Villain takes"', () => {
+    const session = playSessionFixture('hand_over_showdown')
+    setup(session)
+    expect(potLabel()).toHaveTextContent(`Villain takes ${formatBb(session.hand!.table.pot)}`)
+    expect(potLabel()).toHaveTextContent('Villain takes 5 bb')
+  })
+
+  it('Villain takes a pot Hero folded; a split pot', () => {
+    const base = playSessionFixture('hand_over_fold')
+    const lost: PlaySessionView = {
+      ...base,
+      hand: {
+        ...base.hand!,
+        table: { ...base.hand!.table, pot: 3 },
+        outcome: { ...base.hand!.outcome!, winner: 'villain', hero_delta_chips: -1 },
+      },
+    }
+    setup(lost)
+    expect(potLabel()).toHaveTextContent('Villain takes 1.5 bb')
+    cleanup()
+    const split: PlaySessionView = {
+      ...base,
+      hand: {
+        ...base.hand!,
+        table: { ...base.hand!.table, pot: 24 },
+        outcome: { ...base.hand!.outcome!, winner: 'split', hero_delta_chips: 0 },
+      },
+    }
+    setup(split)
+    expect(potLabel()).toHaveTextContent('Split pot 12 bb')
+  })
+
+  it('while the reveal runs the label is the frame\'s "Pot x bb", never the result', () => {
+    const session = playSessionFixture('hand_over_showdown')
+    const frames = session.hand!.frames
+    // part-way through: the frame's pot
+    setup(session, { shownCount: 2 })
+    expect(potLabel()).toHaveTextContent(`Pot ${formatBb(frames[2]!.pot)}`)
+    expect(potLabel()).not.toHaveTextContent(/takes|take|Split/)
+    cleanup()
+    // every entry shown but the last action's beat not over yet (revealing): still no award
+    setup(session, { revealing: true })
+    expect(potLabel()).toHaveTextContent(`Pot ${formatBb(session.hand!.table.pot)}`)
+    expect(potLabel()).not.toHaveTextContent(/takes|take|Split/)
+  })
+
+  it('a running hand shows "Pot x bb"', () => {
+    const session = playSessionFixture('hero_to_act')
+    setup(session)
+    expect(potLabel()).toHaveTextContent(`Pot ${formatBb(session.hand!.table.pot)}`)
   })
 })
 

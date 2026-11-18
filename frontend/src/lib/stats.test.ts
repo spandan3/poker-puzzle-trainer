@@ -1,15 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  bb1,
-  bb2,
-  chartScale,
-  deltaText,
-  localTimeZone,
-  pct,
-  plural,
-  pts,
-  shortDate,
-} from './stats'
+import { bb1, chartScale, deltaText, localTimeZone, pct, plural, pts, shortDate } from './stats'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -114,13 +104,7 @@ describe('chartScale', () => {
   })
 })
 
-describe('bb2 and plural', () => {
-  it('bb2 keeps two decimals', () => {
-    expect(bb2(0)).toBe('0.00 bb')
-    expect(bb2(0.7)).toBe('0.70 bb')
-    expect(bb2(1.256)).toBe('1.26 bb')
-  })
-
+describe('plural', () => {
   it('plural agrees the noun with the count', () => {
     expect(plural(1, 'puzzle')).toBe('1 puzzle')
     expect(plural(0, 'puzzle')).toBe('0 puzzles')

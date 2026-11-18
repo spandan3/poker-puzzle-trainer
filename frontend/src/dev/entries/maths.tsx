@@ -3,7 +3,7 @@ import type { AttemptResult } from '../../api/types'
 import { MathsPanel } from '../../components/Decision/MathsPanel'
 import { decisionFromAttempt } from '../../lib/decision'
 import { attemptFixture, puzzleFixture } from '../../test/fixture'
-import { bbCallAttempt, neverContinuesAttempt } from '../../test/synthetic'
+import { bbCallAttempt, neverContinuesAttempt, potOddsTieAttempt } from '../../test/synthetic'
 import type { GalleryEntry } from '../Gallery'
 
 const caption: CSSProperties = {
@@ -56,6 +56,18 @@ const cases: { title: string; puzzle: string; attempt: AttemptResult }[] = [
     title: 'Flop, custom size (EV above the marked best)',
     puzzle: 'custom_allowed',
     attempt: attemptFixture('custom'),
+  },
+  {
+    title:
+      'Pot odds tie, calling just beats (equity 21.430% vs pot odds 21.429%; synthetic, from the call fixture)',
+    puzzle: 'facing_postflop_raise',
+    attempt: potOddsTieAttempt(0.2143),
+  },
+  {
+    title:
+      'Pot odds tie, folding just beats (equity 21.426% vs pot odds 21.429%; synthetic, from the call fixture)',
+    puzzle: 'facing_postflop_raise',
+    attempt: potOddsTieAttempt(0.21426),
   },
   {
     title: 'Flop, Villain never continues (synthetic, derived from the bet fixture)',

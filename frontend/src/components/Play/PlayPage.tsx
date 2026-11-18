@@ -182,6 +182,12 @@ export function PlayPage({
 
   const shown = tableAt(hand, shownCount)
   const toAct = toActAt(hand, shownCount)
+  // who takes the pot shows only once the reveal is over (the whole history is on screen), so
+  // the label never gives the result away; until then it is the frame's "Pot x bb"
+  const award =
+    handOver && shownCount >= hand.table.history.length && hand.outcome
+      ? { winner: hand.outcome.winner, potChips: hand.table.pot }
+      : undefined
   // the bot's cards turn over once the reveal is done, at a showdown only
   const villainCards = handOver ? (hand.outcome?.villain_cards ?? undefined) : undefined
 
@@ -210,6 +216,7 @@ export function PlayPage({
                   dealFrom={0}
                   dealBaseMs={BOARD_DEAL_BASE_MS}
                   dealStaggerMs={BOARD_DEAL_STAGGER_MS}
+                  award={award}
                 />
               }
             />

@@ -1,5 +1,7 @@
 import { cardName } from '../../lib/cards'
 import { formatBb, formatPct } from '../../lib/format'
+import type { Award } from '../../lib/play'
+import { awardText } from '../../lib/play'
 import { Card } from '../Card/Card'
 import styles from './TableCentre.module.css'
 
@@ -17,6 +19,11 @@ export interface TableCentreProps {
   dealFrom?: number
   dealBaseMs?: number
   dealStaggerMs?: number
+  /**
+   * A finished hand, once its reveal is over: the pot label names who takes the pot
+   * ("Villain takes 1.5 bb") from the API's awarded pot. Omitted while a hand runs or is revealed.
+   */
+  award?: Award
 }
 
 const SLOTS = 5
@@ -30,6 +37,7 @@ export function TableCentre({
   dealFrom,
   dealBaseMs = 0,
   dealStaggerMs = 60,
+  award,
 }: TableCentreProps) {
   const slots: (string | null)[] = [
     ...board,
@@ -55,8 +63,13 @@ export function TableCentre({
           />
         ))}
       </div>
-      <p key={potChips} className={styles.pot} data-fade="">
-        Pot {formatBb(potChips)}
+      <p
+        key={award ? `award-${award.potChips}` : potChips}
+        className={styles.pot}
+        data-fade=""
+        data-testid="pot-label"
+      >
+        {award ? awardText(award) : `Pot ${formatBb(potChips)}`}
       </p>
       {pct !== null && <p className={styles.odds}>Pot odds: call needs {pct} equity</p>}
     </div>

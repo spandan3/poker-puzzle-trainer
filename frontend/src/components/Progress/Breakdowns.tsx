@@ -1,7 +1,8 @@
 import type { KeyboardEvent } from 'react'
 import { useId, useRef, useState } from 'react'
 import type { BreakdownRow, StatsView } from '../../api/types'
-import { bb2, pct, pts } from '../../lib/stats'
+import { bb2 } from '../../lib/format'
+import { pct, pts } from '../../lib/stats'
 import styles from './Progress.module.css'
 
 type TabId = 'street' | 'action' | 'profile'

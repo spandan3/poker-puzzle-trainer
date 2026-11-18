@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/client'
 import type { HistoryPage } from '../../api/types'
+import { bb2 } from '../../lib/format'
 import { historyFixture } from '../../test/fixture'
 import type { HistoryApi } from './HistoryTable'
 import { HistoryTable } from './HistoryTable'
@@ -112,6 +113,32 @@ describe('HistoryTable', () => {
     expect(row).toHaveTextContent('1.26 bb')
     expect(row).toHaveTextContent('4.2 pts')
     expect(within(row).queryByText('Practice')).toBeNull()
+  })
+
+  it('the EV-lost column has two fixed decimals, as Breakdowns does (bb2)', async () => {
+    const page = structuredClone(historyFixture())
+    const base = page.items[0]!
+    page.items = [0, 0.7, 27.65].map((ev, i) => ({
+      ...base,
+      attempt_id: base.attempt_id + i,
+      ev_loss_bb: ev,
+    }))
+    setup(vi.fn(async () => ({ ...page, total: 3 })))
+    const rows = (await screen.findAllByRole('row')).slice(1)
+    const evColumn = within(rows[0]!.closest('table')!)
+      .getAllByRole('columnheader')
+      .findIndex((h) => h.textContent === 'EV lost')
+    expect(evColumn).toBeGreaterThanOrEqual(0)
+    expect(rows.map((r) => r.children[evColumn]!.textContent)).toEqual([
+      bb2(0),
+      bb2(0.7),
+      bb2(27.65),
+    ])
+    expect(rows.map((r) => r.children[evColumn]!.textContent)).toEqual([
+      '0.00 bb',
+      '0.70 bb',
+      '27.65 bb',
+    ])
   })
 
   it('marks retries with a Practice badge', async () => {

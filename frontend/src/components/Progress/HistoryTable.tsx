@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type * as client from '../../api/client'
 import { ApiError } from '../../api/client'
 import type { AttemptSummary, HistoryPage, StreetName } from '../../api/types'
-import { bbLabel, formatEvBb } from '../../lib/format'
+import { bb2, bbLabel } from '../../lib/format'
 import { STREET_LABELS, STREET_ORDER } from '../../lib/history'
 import { optionLabel, VERDICT_LABELS } from '../../lib/result'
 import { pts, shortDate } from '../../lib/stats'
@@ -300,7 +300,7 @@ export function HistoryTable({ api, profiles, onReplay, onResult }: HistoryTable
                             {VERDICT_LABELS[row.verdict]}
                           </span>
                         </td>
-                        <td className={styles.num}>{formatEvBb(row.ev_loss_bb)}</td>
+                        <td className={styles.num}>{bb2(row.ev_loss_bb)}</td>
                         <td className={styles.num}>{pts(row.equity_error)}</td>
                         <td>
                           <div className={styles.rowActions}>

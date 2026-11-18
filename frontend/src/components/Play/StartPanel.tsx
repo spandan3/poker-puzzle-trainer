@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react'
 import type { PlaySessionSummary } from '../../api/types'
-import { signedBb } from '../../lib/play'
+import { signedBbFromBb } from '../../lib/play'
 import { Badge, Button, Panel } from '../ui'
 import type { SessionHandsApi } from './SessionHands'
 import { SessionHands } from './SessionHands'
@@ -74,7 +74,7 @@ export function StartPanel({ onStart, busy, past, onOpenHand, api, refreshKey }:
                         <Badge tone="profile">{s.profile_label}</Badge>
                       </td>
                       <td className={styles.num}>{s.hands_played}</td>
-                      <td className={styles.num}>{signedBb(Math.round(s.net_bb * 2))}</td>
+                      <td className={styles.num}>{signedBbFromBb(s.net_bb)}</td>
                       <td className={styles.num}>
                         {s.hands_played > 0 && (
                           <Button
