@@ -34,6 +34,7 @@ def _stats(client, **params):
 def test_empty(client):
     body = _stats(client)
     assert body["tz"] == "UTC"
+    assert body["rolling_window"] == 50  # the Progress page's trend window comes from here
     assert body["totals"] == {"first_attempts": 0, "retries": 0}
     assert all(v is None for v in body["headline"].values())
     assert body["trend"] == [] and body["leaks"] == []

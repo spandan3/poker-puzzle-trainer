@@ -469,6 +469,7 @@ class Leak(_Out):
 
 class StatsView(_Out):
     tz: str
+    rolling_window: int  # first attempts each trend point and "last N" headline averages over
     totals: StatsTotals
     headline: StatsHeadline
     trend: list[TrendPoint]

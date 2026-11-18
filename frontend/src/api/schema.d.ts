@@ -1216,6 +1216,8 @@ export interface components {
             headline: components["schemas"]["StatsHeadline"];
             /** Leaks */
             leaks: components["schemas"]["Leak"][];
+            /** Rolling Window */
+            rolling_window: number;
             streak: components["schemas"]["StatsStreak"];
             totals: components["schemas"]["StatsTotals"];
             /** Trend */

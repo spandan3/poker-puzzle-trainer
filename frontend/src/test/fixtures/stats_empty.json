@@ -76,6 +76,7 @@
     "range_read_error_last50": null
   },
   "leaks": [],
+  "rolling_window": 50,
   "streak": {
     "best": 0,
     "current": 0

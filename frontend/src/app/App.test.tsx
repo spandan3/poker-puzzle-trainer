@@ -977,7 +977,8 @@ describe('App', () => {
         const { calls } = fakeServer()
         const { user } = setup()
         await goToProgress(user)
-        await user.click(await replayFirst())
+        const replay = await replayFirst()
+        await user.click(replay)
         const dialog = screen.getByRole('dialog', { name: 'Leave this puzzle?' })
         expect(dialog).toHaveTextContent(
           "The puzzle on the Puzzles page hasn't been answered. Open this one instead?",
@@ -985,6 +986,8 @@ describe('App', () => {
         await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
         expect(window.location.pathname).toBe('/progress')
+        // focus goes back to the Replay button that opened the dialog
+        expect(replay).toHaveFocus()
         expect(calls.some((c) => c.method === 'GET' && /^\/api\/puzzles\/\d+$/.test(c.url))).toBe(
           false,
         )
@@ -998,11 +1001,13 @@ describe('App', () => {
         fakeServer()
         const { user } = setup()
         await goToProgress(user)
-        await user.click(await replayFirst())
+        const replay = await replayFirst()
+        await user.click(replay)
         await screen.findByRole('dialog')
         await user.keyboard('{Escape}')
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
         expect(window.location.pathname).toBe('/progress')
+        expect(replay).toHaveFocus()
       })
 
       it('Open switches to Puzzles with the new puzzle', async () => {

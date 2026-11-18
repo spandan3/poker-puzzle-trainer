@@ -251,4 +251,23 @@ describe('ProgressPage', () => {
       `Puzzle ${last.n} · rolling average: ${formatEvBb(last.ev_lost_bb_avg)}`,
     )
   })
+
+  it('takes the rolling window from the API: band, its label, chart titles and hint', async () => {
+    const stats = { ...statsFixture(), rolling_window: 30 }
+    setup(fakeApi({ getStats: vi.fn<ProgressApi['getStats']>(async () => stats) }))
+    await screen.findByTestId('progress-totals')
+    expect(
+      screen.getByText('Each point averages your last 30 first attempts up to that puzzle.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: 'EV lost per decision, rolling 30 puzzles' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: 'Equity error, rolling 30 puzzles' }),
+    ).toBeInTheDocument()
+    for (const band of screen.getAllByTestId('warm-up')) {
+      expect(band).toHaveTextContent('Fewer than 30 puzzles')
+    }
+    expect(screen.queryByText(/rolling 50|last 50 first/)).not.toBeInTheDocument()
+  })
 })

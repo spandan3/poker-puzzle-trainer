@@ -2703,6 +2703,10 @@
             "title": "Leaks",
             "type": "array"
           },
+          "rolling_window": {
+            "title": "Rolling Window",
+            "type": "integer"
+          },
           "streak": {
             "$ref": "#/components/schemas/StatsStreak"
           },
@@ -2723,6 +2727,7 @@
         },
         "required": [
           "tz",
+          "rolling_window",
           "totals",
           "headline",
           "trend",

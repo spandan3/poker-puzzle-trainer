@@ -282,6 +282,7 @@
       "title": "Overestimating your equity"
     }
   ],
+  "rolling_window": 50,
   "streak": {
     "best": 15,
     "current": 9

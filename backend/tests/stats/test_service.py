@@ -12,6 +12,7 @@ import pytest
 
 from poker_trainer.api.schemas import StatsView
 from poker_trainer.stats.service import (
+    ROLLING_WINDOW,
     TREND_MAX_POINTS,
     StatRow,
     compute,
@@ -69,6 +70,8 @@ def mean(xs):
 def test_empty():
     out = run([])
     assert out["tz"] == "UTC"
+    # the frontend's trend titles, hint and warm-up band are built from this value
+    assert out["rolling_window"] == ROLLING_WINDOW == 50
     assert out["totals"] == {"first_attempts": 0, "retries": 0}
     assert all(v is None for v in out["headline"].values())
     assert out["trend"] == []
