@@ -20,22 +20,10 @@ const entry: GalleryEntry = {
   render: () => (
     <div>
       <p style={caption}>With 105 puzzles answered (stats.json)</p>
-      <ProgressPage
-        api={withStats(statsFixture)}
-        goal={null}
-        onGoal={async () => true}
-        onReplay={() => {}}
-        onResult={() => {}}
-      />
+      <ProgressPage api={withStats(statsFixture)} onReplay={() => {}} onResult={() => {}} />
 
       <p style={caption}>Nothing answered yet (stats_empty.json)</p>
-      <ProgressPage
-        api={withStats(statsEmptyFixture)}
-        goal={null}
-        onGoal={async () => true}
-        onReplay={() => {}}
-        onResult={() => {}}
-      />
+      <ProgressPage api={withStats(statsEmptyFixture)} onReplay={() => {}} onResult={() => {}} />
     </div>
   ),
 }

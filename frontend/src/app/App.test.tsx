@@ -616,11 +616,44 @@ describe('App', () => {
       spy.mockRestore()
     })
 
-    it('saves the daily goal through the settings and fetches the stats again', async () => {
+    it('shows the daily goal from the stats with a link to Settings, and no goal box', async () => {
       window.history.replaceState(null, '', '/progress')
-      const { calls } = fakeServer()
+      fakeServer()
       const { user } = setup()
       await screen.findByTestId('progress-totals')
+      expect(screen.getByText(/Goal: 10 a day/)).toBeVisible()
+      expect(screen.queryByRole('spinbutton', { name: 'Puzzles per day' })).toBeNull()
+      await user.click(screen.getByRole('link', { name: 'Change in Settings' }))
+      expect(window.location.pathname).toBe('/settings')
+      expect(await screen.findByRole('spinbutton', { name: 'Puzzles per day' })).toBeVisible()
+    })
+  })
+
+  describe('the Settings page', () => {
+    it('renders at /settings with its tab title and no puzzle is generated', async () => {
+      window.history.replaceState(null, '', '/settings')
+      const { calls } = fakeServer()
+      setup()
+      expect(await screen.findByRole('heading', { level: 2, name: 'Settings' })).toBeVisible()
+      await screen.findByRole('switch', { name: /Pot odds/ })
+      expect(document.title).toBe('Settings · Poker Puzzle Trainer')
+      expect(calls.some((c) => c.url.startsWith('/api/puzzles'))).toBe(false)
+    })
+
+    it('the gear link in the bar opens Settings, and the heading takes focus', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.click(screen.getByRole('link', { name: 'Settings' }))
+      expect(window.location.pathname).toBe('/settings')
+      const heading = await screen.findByRole('heading', { level: 2, name: 'Settings' })
+      await waitFor(() => expect(heading).toHaveFocus())
+    })
+
+    it('saves the daily goal through the settings', async () => {
+      window.history.replaceState(null, '', '/settings')
+      const { calls } = fakeServer()
+      const { user } = setup()
       const input = await screen.findByRole('spinbutton', { name: 'Puzzles per day' })
       await user.clear(input)
       await user.type(input, '25{Enter}')
@@ -629,9 +662,41 @@ describe('App', () => {
           { method: 'PATCH', url: '/api/settings', body: { daily_goal: 25 } },
         ]),
       )
+    })
+
+    it('changing the Villain on Settings changes the Puzzles bar select', async () => {
+      const { calls } = fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.click(screen.getByRole('link', { name: 'Settings' }))
+      await user.selectOptions(await screen.findByLabelText('Villain for new puzzles'), 'lag')
       await waitFor(() =>
-        expect(calls.filter((c) => c.url.startsWith('/api/stats'))).toHaveLength(2),
+        expect(calls.filter((c) => c.method === 'PATCH').map((c) => c.body)).toEqual([
+          { profile: 'lag' },
+        ]),
       )
+      await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+      const bar = screen.getByLabelText('Villain', { selector: 'select' })
+      expect(bar).toHaveValue('lag')
+    })
+
+    it('Show all shortcuts opens the overlay with the Puzzles and Play groups', async () => {
+      window.history.replaceState(null, '', '/settings')
+      fakeServer()
+      const { user } = setup()
+      await user.click(await screen.findByRole('button', { name: 'Show all shortcuts' }))
+      const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
+      expect(dialog.querySelector('[data-shortcut-row="focusEquity"]')).not.toBeNull()
+      expect(dialog.querySelector('[data-shortcut-row="fold"]')).not.toBeNull()
+    })
+
+    it('shortcuts do nothing on Settings', async () => {
+      window.history.replaceState(null, '', '/settings')
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('switch', { name: /Pot odds/ })
+      await user.keyboard('n?')
+      expect(screen.queryByRole('dialog')).toBeNull()
     })
   })
 

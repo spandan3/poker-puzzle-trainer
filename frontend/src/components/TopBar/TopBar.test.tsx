@@ -32,6 +32,25 @@ function setup(over: Partial<TopBarProps> = {}) {
 }
 
 describe('TopBar', () => {
+  it('has a Settings link (the gear) outside the nav, current on /settings, with no page controls there', async () => {
+    const { props, user } = setup()
+    const gear = screen.getByRole('link', { name: 'Settings' })
+    expect(gear).toHaveAttribute('href', '/settings')
+    expect(gear).not.toHaveAttribute('aria-current')
+    expect(
+      within(screen.getByRole('navigation', { name: 'Main' })).queryByText('Settings'),
+    ).toBeNull()
+    await user.click(gear)
+    expect(props.onNavigate).toHaveBeenCalledWith('settings')
+  })
+
+  it('on Settings the gear is current and the puzzle controls are gone', () => {
+    setup({ page: 'settings' })
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByRole('combobox', { name: 'Street' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'New puzzle' })).toBeNull()
+  })
+
   it('shows the app title', () => {
     setup()
     expect(

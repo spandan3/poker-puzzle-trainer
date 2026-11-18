@@ -16,6 +16,7 @@ import { Table } from '../components/Table/Table'
 import { TableCentre } from '../components/TableCentre/TableCentre'
 import { TopBar } from '../components/TopBar/TopBar'
 import * as client from '../api/client'
+import { SettingsPage } from '../components/Settings/SettingsPage'
 import { ProgressPage } from '../components/Progress/ProgressPage'
 import type { ProgressApi } from '../components/Progress/ProgressPage'
 import { decisionFromAttempt } from '../lib/decision'
@@ -43,6 +44,7 @@ const TITLES: Record<Page, string> = {
   puzzles: 'Poker Puzzle Trainer',
   play: 'Play · Poker Puzzle Trainer',
   progress: 'Progress · Poker Puzzle Trainer',
+  settings: 'Settings · Poker Puzzle Trainer',
 }
 
 function readShortcutsOn(): boolean {
@@ -158,7 +160,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
     }
   }, [state.kind, view?.id])
 
-  // A page switch: back to the top, the tab's title follows, and Progress's heading takes focus
+  // A page switch: back to the top, the tab's title follows, and the heading of Progress or Settings takes focus
   // (the link that was clicked has just left the page's flow). Not on the first render.
   const titleRef = useRef<HTMLHeadingElement>(null)
   const switchedFrom = useRef(page) // also makes StrictMode's second effect run a no-op
@@ -167,7 +169,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
     if (switchedFrom.current === page) return
     switchedFrom.current = page
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-    if (page === 'progress') titleRef.current?.focus({ preventScroll: true })
+    if (page === 'progress' || page === 'settings') titleRef.current?.focus({ preventScroll: true })
   }, [page])
 
   const onNewPuzzle = () => {
@@ -253,8 +255,6 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
             api={progressApi}
             profiles={settings?.profiles ?? null}
             titleRef={titleRef}
-            goal={settings?.daily_goal ?? null}
-            onGoal={(goal) => flow.setSetting({ daily_goal: goal })}
             onNavigate={navigate}
             onReplay={(id) => {
               // ignored while a load or a submit is in flight: then stay on Progress
@@ -263,6 +263,22 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
             onResult={(attemptId) => {
               if (flow.openAttempt(attemptId)) navigate('puzzles')
             }}
+          />
+        </main>
+      )}
+
+      {page === 'settings' && (
+        <main className={styles.progress}>
+          <SettingsPage
+            settings={settings}
+            settingsError={flow.settingsError}
+            onRetry={flow.reloadSettings}
+            onSetting={flow.setSetting}
+            onCheckLlm={flow.checkLlm}
+            shortcutsOn={shortcutsOn}
+            onShortcutsOn={setShortcutsOn}
+            onShowShortcuts={() => setHelpOpen(true)}
+            headingRef={titleRef}
           />
         </main>
       )}

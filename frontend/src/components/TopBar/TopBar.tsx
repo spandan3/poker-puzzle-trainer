@@ -50,7 +50,9 @@ export function TopBar(props: TopBarProps) {
   const profileId = useId()
   const onPuzzles = props.page === 'puzzles'
   const onPlay = props.page === 'play'
-  const onProgress = props.page === 'progress'
+  // Progress and Settings have no puzzle controls and no shortcuts of their own
+  const onProgress = props.page === 'progress' || props.page === 'settings'
+  const onSettings = props.page === 'settings'
   return (
     <header className={styles.bar}>
       <h1 className={styles.title}>
@@ -167,6 +169,30 @@ export function TopBar(props: TopBarProps) {
           </button>
         )}
       </div>
+
+      <a
+        href={pathOf('settings')}
+        className={styles.settingsLink}
+        aria-label="Settings"
+        title="Settings"
+        aria-current={onSettings ? 'page' : undefined}
+        onClick={(e) => {
+          if (!isPlainLeftClick(e)) return
+          e.preventDefault()
+          props.onNavigate('settings')
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-2.5.1-.5-.1-.5 1.9-1.5-1.9-3.3-2.3.8a7.6 7.6 0 0 0-.9-.5L15.8 4h-3.7l-.4 2.5c-.3.1-.6.3-.9.5l-2.3-.8-1.9 3.3 1.9 1.5-.1.5.1.5-1.9 1.5 1.9 3.3 2.3-.8c.3.2.6.4.9.5l.4 2.5h3.7l.4-2.5c.3-.1.6-.3.9-.5l2.3.8 1.9-3.3-1.9-1.5Z"
+          />
+        </svg>
+      </a>
     </header>
   )
 }

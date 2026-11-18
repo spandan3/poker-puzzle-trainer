@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/client'
@@ -15,14 +15,14 @@ function fakeApi(over: Partial<ProgressApi> = {}) {
   }
 }
 
-function setup(api: ProgressApi, onGoal: (goal: number) => Promise<boolean> = async () => true) {
+function setup(api: ProgressApi) {
   const user = userEvent.setup()
   render(
     <StrictMode>
-      <ProgressPage api={api} goal={null} onGoal={onGoal} onReplay={vi.fn()} onResult={vi.fn()} />
+      <ProgressPage api={api} onReplay={vi.fn()} onResult={vi.fn()} />
     </StrictMode>,
   )
-  return { user, onGoal }
+  return { user }
 }
 
 afterEach(() => {
@@ -109,14 +109,7 @@ describe('ProgressPage', () => {
       { name: 'maniac', label: 'Maniac (no attempts yet)' },
     ]
     render(
-      <ProgressPage
-        api={fakeApi()}
-        goal={null}
-        profiles={profiles}
-        onGoal={async () => true}
-        onReplay={vi.fn()}
-        onResult={vi.fn()}
-      />,
+      <ProgressPage api={fakeApi()} profiles={profiles} onReplay={vi.fn()} onResult={vi.fn()} />,
     )
     const select = await screen.findByLabelText('Villain', { selector: 'select' })
     expect(
@@ -206,58 +199,21 @@ describe('ProgressPage', () => {
     expect(getStats).toHaveBeenCalledTimes(2)
   })
 
-  it('refetches the stats after a goal is saved, and not after a failed save', async () => {
-    const api = fakeApi()
-    const onGoal = vi.fn(async () => true)
-    const { user } = setup(api, onGoal)
-    await screen.findByTestId('progress-totals')
-    const input = screen.getByRole('spinbutton', { name: 'Puzzles per day' })
-    await user.clear(input)
-    await user.type(input, '20{Enter}')
-    expect(onGoal).toHaveBeenCalledWith(20)
-    await waitFor(() => expect(api.getStats).toHaveBeenCalledTimes(2))
-    // the page stays up while it refetches (no loading flash)
-    expect(screen.getByTestId('progress-totals')).toBeInTheDocument()
-
-    onGoal.mockResolvedValueOnce(false as never)
-    await user.clear(input)
-    await user.type(input, '30{Enter}')
-    await waitFor(() => expect(onGoal).toHaveBeenCalledWith(30))
-    expect(api.getStats).toHaveBeenCalledTimes(2)
-  })
-
-  it('shows the goal setting rather than the stats goal when it is known', async () => {
-    const api = fakeApi()
+  it('shows the stats goal and a link to Settings, and no goal input', async () => {
+    const onNavigate = vi.fn()
+    const user = userEvent.setup()
     render(
       <ProgressPage
-        api={api}
-        goal={7}
-        onGoal={async () => true}
-        onReplay={vi.fn()}
-        onResult={vi.fn()}
-      />,
-    )
-    expect(await screen.findByRole('spinbutton', { name: 'Puzzles per day' })).toHaveValue(7)
-    // everything computed from the goal shows the stats' own goal, never the box's
-    expect(screen.queryByText(/\/ 7\b/)).toBeNull()
-  })
-
-  it('fetches once more when the goal setting differs from the stats goal, and does not loop', async () => {
-    const api = fakeApi()
-    render(
-      <ProgressPage
-        api={api}
-        goal={10}
-        onGoal={async () => true}
+        api={fakeApi()}
+        onNavigate={onNavigate}
         onReplay={vi.fn()}
         onResult={vi.fn()}
       />,
     )
     await screen.findByTestId('progress-totals')
-    await waitFor(() => expect(api.getStats).toHaveBeenCalledTimes(2))
-    await new Promise((r) => setTimeout(r, 50))
-    expect(api.getStats).toHaveBeenCalledTimes(2)
-    expect(tile('today')).toHaveTextContent('/ 3')
-    expect(screen.queryByText(/\/ 10\b/)).toBeNull()
+    expect(screen.getByText(/Goal: 3 a day/)).toBeVisible()
+    expect(screen.queryByRole('spinbutton')).toBeNull()
+    await user.click(screen.getByRole('link', { name: 'Change in Settings' }))
+    expect(onNavigate).toHaveBeenCalledWith('settings')
   })
 })

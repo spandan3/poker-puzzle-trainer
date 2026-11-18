@@ -20,11 +20,7 @@ export type ProgressApi = Pick<typeof client, 'getStats'> & HistoryApi
 
 export interface ProgressPageProps {
   api: ProgressApi
-  /** the daily goal setting (`null` until the settings arrive: the stats' own goal shows) */
-  goal: number | null
-  /** saves the goal; resolves true when saved (the stats are then fetched again) */
-  onGoal: (goal: number) => Promise<boolean>
-  /** a plain click on "Start a puzzle" goes here; without it the link is a normal navigation */
+  /** a plain click on "Start a puzzle" or "Change in Settings" goes here; without it the link is a normal navigation */
   onNavigate?: (page: Page) => void
   /** Villain profiles from the settings (`null` until they arrive: the stats' own list shows) */
   profiles?: { name: string; label: string }[] | null
@@ -63,8 +59,6 @@ function errorMessage(error: unknown): string {
 
 export function ProgressPage({
   api,
-  goal,
-  onGoal,
   onNavigate,
   profiles = null,
   titleRef,
@@ -74,26 +68,18 @@ export function ProgressPage({
   const [load, setLoad] = useState<Load>({ kind: 'loading' })
   const seq = useRef(0)
 
-  // `silent`: keep showing the page while the stats are fetched again (after a goal save)
-  const fetchNow = useCallback(
-    (silent: boolean) => {
-      const mine = ++seq.current
-      if (!silent) setLoad({ kind: 'loading' })
-      fetchStats(api).then(
-        ({ stats, utcNote }) => {
-          if (mine === seq.current) setLoad({ kind: 'ready', stats, utcNote })
-        },
-        (error: unknown) => {
-          if (mine !== seq.current) return
-          // a failed silent refresh keeps the page we have
-          setLoad((now) =>
-            silent && now.kind === 'ready' ? now : { kind: 'error', message: errorMessage(error) },
-          )
-        },
-      )
-    },
-    [api],
-  )
+  const fetchNow = useCallback(() => {
+    const mine = ++seq.current
+    setLoad({ kind: 'loading' })
+    fetchStats(api).then(
+      ({ stats, utcNote }) => {
+        if (mine === seq.current) setLoad({ kind: 'ready', stats, utcNote })
+      },
+      (error: unknown) => {
+        if (mine === seq.current) setLoad({ kind: 'error', message: errorMessage(error) })
+      },
+    )
+  }, [api])
 
   // Once: the flag is never reset and the request never aborted, so StrictMode's double effect
   // sends one request.
@@ -101,28 +87,8 @@ export function ProgressPage({
   useEffect(() => {
     if (started.current) return
     started.current = true
-    fetchNow(false)
+    fetchNow()
   }, [fetchNow])
-
-  // The stats count days against their own goal; when the setting differs (it was changed
-  // elsewhere, or the stats are older), fetch again once per goal value so the page shows one goal.
-  const refetchedFor = useRef<number | null>(null)
-  const statsGoal = load.kind === 'ready' ? load.stats.days.goal : null
-  useEffect(() => {
-    if (statsGoal === null || goal === null || goal === statsGoal) return
-    if (refetchedFor.current === goal) return
-    refetchedFor.current = goal
-    fetchNow(true)
-  }, [goal, statsGoal, fetchNow])
-
-  const saveGoal = async (next: number): Promise<boolean> => {
-    // the setting changes at once (optimistic): the stats are fetched when the save succeeds,
-    // not for the unsaved value
-    refetchedFor.current = next
-    const saved = await onGoal(next)
-    if (saved) fetchNow(true)
-    return saved
-  }
 
   return (
     <div className={styles.page} data-testid="progress-page">
@@ -137,7 +103,7 @@ export function ProgressPage({
       {load.kind === 'error' && (
         <div className={styles.status} role="alert">
           <span>{load.message}</span>{' '}
-          <button type="button" className={styles.button} onClick={() => fetchNow(false)}>
+          <button type="button" className={styles.button} onClick={fetchNow}>
             Retry
           </button>
         </div>
@@ -166,12 +132,7 @@ export function ProgressPage({
           <>
             <StatTiles stats={load.stats} />
             <TrendCharts trend={load.stats.trend} />
-            <DailyGoal
-              days={load.stats.days}
-              goal={goal ?? load.stats.days.goal}
-              onGoal={saveGoal}
-              utcNote={load.utcNote}
-            />
+            <DailyGoal days={load.stats.days} onNavigate={onNavigate} utcNote={load.utcNote} />
             <LeakList leaks={load.stats.leaks} />
             <Breakdowns breakdowns={load.stats.breakdowns} />
             <HistoryTable

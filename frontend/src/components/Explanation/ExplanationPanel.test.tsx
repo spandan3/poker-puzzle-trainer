@@ -126,23 +126,45 @@ describe('status line and footer', () => {
   it('off: points to the setup', () => {
     const { container } = render(<ExplanationPanel explanation={explanation} llmStatus="off" />)
     expect(footer(container)).toBe(
-      'Explanations come from templates. A local model (Ollama) can reword them: see backend/.env.example.',
+      'Explanations come from templates. A local model (Ollama) can reword them: see Settings.',
     )
+  })
+
+  it('no footer names a file or a path', () => {
+    const cases: [Explanation, 'off' | 'unavailable' | 'ready'][] = [
+      [explanation, 'off'],
+      [explanation, 'unavailable'],
+      [fallback('off'), 'ready'],
+      [fallback('unavailable'), 'ready'],
+    ]
+    for (const [e, status] of cases) {
+      const { container, unmount } = render(<ExplanationPanel explanation={e} llmStatus={status} />)
+      expect(footer(container)).not.toMatch(/\.env|\.example|backend\/|\//)
+      unmount()
+    }
+  })
+
+  it('the off and unavailable footers point to Settings', () => {
+    const off = render(<ExplanationPanel explanation={explanation} llmStatus="off" />)
+    expect(footer(off.container)).toContain('Settings')
+    off.unmount()
+    const un = render(<ExplanationPanel explanation={explanation} llmStatus="unavailable" />)
+    expect(footer(un.container)).toContain('Settings')
   })
 
   // the backend's probe details (explain/ollama.py), each a sentence ending with a full stop
   it.each([
     [
       'Ollama is running but the model llama3.2:3b isn\'t pulled: run "ollama pull llama3.2:3b".',
-      "The local model isn't available: Ollama is running but the model llama3.2:3b isn't pulled: run \"ollama pull llama3.2:3b\". Reload the page once it's ready.",
+      "The local model isn't available: Ollama is running but the model llama3.2:3b isn't pulled: run \"ollama pull llama3.2:3b\". Check it in Settings once it's ready.",
     ],
     [
       "Ollama isn't answering at http://127.0.0.1:11434.",
-      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Reload the page once it's ready.",
+      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Check it in Settings once it's ready.",
     ],
     [
       'Not checked yet.',
-      "The local model isn't available: Not checked yet. Reload the page once it's ready.",
+      "The local model isn't available: Not checked yet. Check it in Settings once it's ready.",
     ],
   ])('unavailable: shows the settings detail once stopped (%s)', (detail, text) => {
     const { container } = render(
@@ -156,7 +178,7 @@ describe('status line and footer', () => {
       <ExplanationPanel explanation={explanation} llmStatus="unavailable" />,
     )
     expect(footer(container)).toBe(
-      "The local model isn't available. Reload the page once it's ready.",
+      "The local model isn't available. Check it in Settings once it's ready.",
     )
   })
 
@@ -181,7 +203,7 @@ describe('status line and footer', () => {
       />,
     )
     expect(footer(container)).toBe(
-      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Reload the page once it's ready.",
+      "The local model isn't available: Ollama isn't answering at http://127.0.0.1:11434. Check it in Settings once it's ready.",
     )
   })
 

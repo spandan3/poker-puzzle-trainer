@@ -1,17 +1,19 @@
-// The pages, switched by the URL (`/`, `/play` and `/progress`) with the History API: no router library.
+// The pages, switched by the URL (`/`, `/play`, `/progress` and `/settings`) with the History API: no router library.
 import type { MouseEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 
-export type Page = 'puzzles' | 'play' | 'progress'
+export type Page = 'puzzles' | 'play' | 'progress' | 'settings'
 
 export function pageFromPath(path: string): Page {
   const clean = path.replace(/\/+$/, '')
   if (clean === '/progress') return 'progress'
+  if (clean === '/settings') return 'settings'
   return clean === '/play' ? 'play' : 'puzzles'
 }
 
 export function pathOf(page: Page): string {
   if (page === 'progress') return '/progress'
+  if (page === 'settings') return '/settings'
   return page === 'play' ? '/play' : '/'
 }
 
