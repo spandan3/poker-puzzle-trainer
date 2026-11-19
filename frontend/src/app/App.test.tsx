@@ -34,6 +34,8 @@ function fakeServer(
     stats?: (tz: string) => { status: number; body: unknown }
     /** the open play session (default: none) */
     playSession?: PlaySessionView | null
+    /** the session a new-session request answers with (default: a hand to act on) */
+    startSession?: PlaySessionView
     /** the end-session request waits for this before it answers */
     holdEnd?: Promise<void>
   } = {},
@@ -70,6 +72,9 @@ function fakeServer(
         : json(404, { detail: 'no open session' })
     }
     if (url === '/api/play/sessions' && method === 'GET') return json(200, playSessionsFixture())
+    if (url === '/api/play/sessions' && method === 'POST') {
+      return json(201, opts.startSession ?? playSessionFixture('hero_to_act'))
+    }
     if (/^\/api\/play\/sessions\/\d+\/end$/.test(url)) {
       await opts.holdEnd
       return json(200, { ...opts.playSession, open: false })
@@ -533,6 +538,20 @@ describe('App', () => {
           expect(playPosts(calls).map((c) => c.url)).toEqual([endUrl])
         })
 
+        it('during the reveal the hand is already over: it ends at once and never says Villain takes the pot', async () => {
+          window.history.replaceState(null, '', '/play')
+          // a finished hand dealt from the start: the bot's actions are still being shown
+          const { calls } = fakeServer({ startSession: playSessionFixture('hand_over_fold') })
+          const { user } = setup()
+          await user.click(await screen.findByRole('button', { name: 'Start session' }))
+          const end = await screen.findByRole('button', { name: 'End session' })
+          await user.click(end)
+          expect(screen.queryByRole('dialog', { name: 'End this session?' })).toBeNull()
+          expect(screen.queryByText(/Villain takes the pot/)).toBeNull()
+          expect(await screen.findByRole('button', { name: 'Start session' })).toBeVisible()
+          expect(playPosts(calls).map((c) => c.url)).toEqual(['/api/play/sessions', endUrl])
+        })
+
         it('while a play request is in flight the button is aria-disabled, with the reason', async () => {
           window.history.replaceState(null, '', '/play')
           let release: () => void = () => undefined
@@ -555,7 +574,7 @@ describe('App', () => {
           expect(await screen.findByRole('button', { name: 'Start session' })).toBeVisible()
         })
 
-        it('N and Escape do not reach the app behind the dialog; Escape closes only it', async () => {
+        it('other keys and Escape do not reach the app behind the dialog; Escape closes only it', async () => {
           window.history.replaceState(null, '', '/play')
           const { calls } = fakeServer({ playSession: playSessionFixture('hero_to_act') })
           const { user } = setup()

@@ -320,6 +320,16 @@ describe('PlayPage: past sessions', () => {
     await user.click(screen.getByRole('button', { name: 'Close analysis' }))
     expect(screen.getByRole('button', { name: 'Start session' })).toBeInTheDocument()
   })
+
+  it('closing the analysis puts focus back on the button that opened it', async () => {
+    const { user } = setup(null)
+    await user.click(screen.getAllByRole('button', { name: /^Hands of session/ })[0]!)
+    const opener = await screen.findByRole('button', { name: 'Analyse hand 2' })
+    await user.click(opener)
+    await screen.findByRole('region', { name: 'Summary' })
+    await user.click(screen.getByRole('button', { name: 'Close analysis' }))
+    expect(screen.getByRole('button', { name: 'Analyse hand 2' })).toHaveFocus()
+  })
 })
 
 describe('PlayPage: the session hands and the result line', () => {
@@ -332,6 +342,25 @@ describe('PlayPage: the session hands and the result line', () => {
     await user.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(await screen.findByRole('table', { name: 'Hands' })).toBeInTheDocument()
+  })
+
+  it('the count and the open list give nothing away before the reveal ends', async () => {
+    const session = playSessionFixture('hand_over_showdown')
+    const { api, user } = setup(session, { revealing: true })
+    // the tally's own count: the finished hand is not counted until the reveal is over
+    const toggle = screen.getByRole('button', { name: /^Session hands/ })
+    expect(toggle).toHaveTextContent(`Session hands · ${session.hands_played - 1}`)
+    await user.click(toggle)
+    await screen.findByRole('table', { name: 'Hands' })
+    expect(api.listPlayHands).toHaveBeenCalledTimes(1)
+  })
+
+  it('the count includes the hand once the reveal is over', () => {
+    const session = playSessionFixture('hand_over_showdown')
+    setup(session)
+    expect(screen.getByRole('button', { name: /^Session hands/ })).toHaveTextContent(
+      `Session hands · ${session.hands_played}`,
+    )
   })
 
   it('the result line is neutral: no verdict or warning attribute for a loss', () => {
