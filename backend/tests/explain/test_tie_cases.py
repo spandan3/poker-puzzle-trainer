@@ -41,6 +41,9 @@ def test_the_file_covers_every_kind_of_case():
         group = [c for c in CASES if (c["realisation"] != 1) == realised]
         kinds = {(c["expected_tie"], c["expected_beats"]) for c in group}
         assert kinds == {(True, True), (True, False), (False, True), (False, False)}
+    # pot odds off a shown value: an "|r x e - pot odds| < 0.0005" tie rule fails these
+    assert any(c["pot_odds"] == 1 / 3 and c["expected_tie"] for c in CASES)
+    assert any(c["pot_odds"] == 1 / 3 and not c["expected_tie"] for c in CASES)
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
@@ -50,10 +53,15 @@ def test_tie_and_direction_match_the_shared_cases(case):
     # the compared texts: realised equity out of position, else the equity
     shown = f.realised_equity if f.realisation is not None else f.equity
     assert (f.realisation is not None) == (case["realisation"] != 1)
+    # the same texts the Maths tab shows (formatPct in frontend/src/lib/format.ts)
+    assert shown == case["expected_shown_equity"]
+    assert f.pot_odds == case["expected_shown_pot_odds"]
     assert (shown == f.pot_odds) == case["expected_tie"]
     assert f.equity_beats_pot_odds is case["expected_beats"]
 
     text = _pot_odds(f)
+    assert case["expected_shown_equity"] in text
+    assert case["expected_shown_pot_odds"] in text
     outcome = "calling beats folding" if case["expected_beats"] else "folding beats calling"
     assert f"so {outcome}." in text
     if case["expected_tie"]:

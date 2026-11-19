@@ -169,8 +169,8 @@ describe('signedBb and signedBbFromBb', () => {
 
 describe('awardText', () => {
   it('names who takes the pot', () => {
-    expect(awardText({ winner: 'villain', potChips: 3 })).toBe('Villain takes 1.5 bb')
-    expect(awardText({ winner: 'hero', potChips: 12 })).toBe('You take 6 bb')
+    expect(awardText({ winner: 'villain', potChips: 3 })).toBe('Villain takes the 1.5 bb pot')
+    expect(awardText({ winner: 'hero', potChips: 12 })).toBe('You take the 6 bb pot')
     expect(awardText({ winner: 'split', potChips: 24 })).toBe('Split pot 12 bb')
   })
 })

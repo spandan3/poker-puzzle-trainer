@@ -21,7 +21,7 @@ export interface TableCentreProps {
   dealStaggerMs?: number
   /**
    * A finished hand, once its reveal is over: the pot label names who takes the pot
-   * ("Villain takes 1.5 bb") from the API's awarded pot. Omitted while a hand runs or is revealed.
+   * ("Villain takes the 1.5 bb pot") from the API's awarded pot. Omitted while a hand runs or is revealed.
    */
   award?: Award
 }

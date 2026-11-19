@@ -40,11 +40,14 @@ export interface Award {
   potChips: number
 }
 
-/** The pot label of a finished hand: "You take 6 bb", "Villain takes 1.5 bb", "Split pot 12 bb". */
+/**
+ * The pot label of a finished hand: "You take the 6 bb pot", "Villain takes the 1.5 bb pot",
+ * "Split pot 12 bb". It names the whole pot, so it never reads as the net result beside it.
+ */
 export function awardText(award: Award): string {
   const pot = formatBb(award.potChips)
   if (award.winner === 'split') return `Split pot ${pot}`
-  return award.winner === 'hero' ? `You take ${pot}` : `Villain takes ${pot}`
+  return award.winner === 'hero' ? `You take the ${pot} pot` : `Villain takes the ${pot} pot`
 }
 
 /**

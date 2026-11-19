@@ -269,5 +269,23 @@ describe('ProgressPage', () => {
       expect(band).toHaveTextContent('Fewer than 30 puzzles')
     }
     expect(screen.queryByText(/rolling 50|last 50 first/)).not.toBeInTheDocument()
+    // the headline tiles average over the same window
+    expect(screen.getByTestId('tile-ev')).toHaveTextContent(/than the 30 before$/)
+    expect(screen.getByTestId('tile-accuracy')).toHaveTextContent('Best or Fine, last 30')
+    expect(screen.getByTestId('tile-equity')).toHaveTextContent('average, last 30')
+    for (const tile of screen.getAllByTestId(/^tile-/)) {
+      expect(tile).not.toHaveTextContent(/last 50|50 before/)
+    }
+  })
+
+  it('with no rolling window in the payload: no band and never "undefined"', async () => {
+    const stats = { ...statsFixture(), rolling_window: undefined as unknown as number }
+    setup(fakeApi({ getStats: vi.fn<ProgressApi['getStats']>(async () => stats) }))
+    await screen.findByTestId('progress-totals')
+    expect(screen.queryByTestId('warm-up')).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'EV lost per decision' })).toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent(/undefined|NaN/)
+    expect(screen.getByTestId('tile-ev')).toHaveTextContent(/than the ones before$/)
+    expect(screen.getByTestId('tile-accuracy')).toHaveTextContent('Best or Fine, recent')
   })
 })

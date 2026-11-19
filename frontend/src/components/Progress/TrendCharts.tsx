@@ -1,6 +1,7 @@
 import type { TrendPoint } from '../../api/types'
 import { LineChart } from '../Charts/LineChart'
 import { formatEvBb } from '../../lib/format'
+import { rollingWindowOf } from '../../lib/stats'
 import styles from './Progress.module.css'
 
 export interface TrendChartsProps {
@@ -14,23 +15,29 @@ const formatPoints = (points: number) => `${points.toFixed(1)} pts`
 
 /** The EV-lost trend (full width), then equity error and range-read error side by side; all are rolling means over the API's window. */
 export function TrendCharts({ trend, rollingWindow }: TrendChartsProps) {
+  // a payload without the window gets no band and no number, never "rolling undefined"
+  const n = rollingWindowOf(rollingWindow)
+  const rolling = n === null ? '' : `, rolling ${n} puzzles`
+  const warmUp = n ?? undefined
   return (
     <section aria-labelledby="trend-title" className={styles.section}>
       <h3 id="trend-title" className={styles.sectionTitle}>
         Trends
       </h3>
       <p className={styles.hint}>
-        Each point averages your last {rollingWindow} first attempts up to that puzzle.
+        {n === null
+          ? 'Each point is a rolling average of your first attempts up to that puzzle.'
+          : `Each point averages your last ${n} first attempts up to that puzzle.`}
       </p>
       <div className={styles.card}>
         <h4 className={styles.cardTitle}>EV lost per decision</h4>
         <LineChart
-          title={`EV lost per decision, rolling ${rollingWindow} puzzles`}
+          title={`EV lost per decision${rolling}`}
           yLabel="bb"
           format={formatEvBb}
           width={900}
           height={240}
-          warmUp={rollingWindow}
+          warmUp={warmUp}
           series={[
             {
               label: 'EV lost (bb)',
@@ -43,12 +50,12 @@ export function TrendCharts({ trend, rollingWindow }: TrendChartsProps) {
         <div className={styles.card}>
           <h4 className={styles.cardTitle}>Equity error</h4>
           <LineChart
-            title={`Equity error, rolling ${rollingWindow} puzzles`}
+            title={`Equity error${rolling}`}
             yLabel="pts"
             format={formatPoints}
             width={420}
             height={220}
-            warmUp={rollingWindow}
+            warmUp={warmUp}
             series={[
               {
                 label: 'Equity error (pts)',
@@ -60,12 +67,12 @@ export function TrendCharts({ trend, rollingWindow }: TrendChartsProps) {
         <div className={styles.card}>
           <h4 className={styles.cardTitle}>Range-read error</h4>
           <LineChart
-            title={`Range-read error, rolling ${rollingWindow} puzzles`}
+            title={`Range-read error${rolling}`}
             yLabel="pts"
             format={formatPoints}
             width={420}
             height={220}
-            warmUp={rollingWindow}
+            warmUp={warmUp}
             empty="No range reads yet. Answer a puzzle with a range read to start this chart."
             series={[
               {

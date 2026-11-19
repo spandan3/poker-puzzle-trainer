@@ -33,31 +33,36 @@ describe('formatting', () => {
 
 describe('deltaText', () => {
   it('says better when EV lost fell', () => {
-    expect(deltaText(1.2, 1.5)).toEqual({
+    expect(deltaText(1.2, 1.5, 50)).toEqual({
       text: '0.3 bb better than the 50 before',
       tone: 'good',
     })
   })
 
   it('says worse when EV lost rose', () => {
-    expect(deltaText(2.0, 1.5)).toEqual({
+    expect(deltaText(2.0, 1.5, 50)).toEqual({
       text: '0.5 bb worse than the 50 before',
       tone: 'bad',
     })
   })
 
   it('says same when the difference rounds to zero (2 decimals, as EV is shown)', () => {
-    expect(deltaText(1.5, 1.5)).toEqual({ text: 'same as the 50 before', tone: 'neutral' })
-    expect(deltaText(1.501, 1.5)).toEqual({ text: 'same as the 50 before', tone: 'neutral' })
-    expect(deltaText(1.52, 1.5)).toEqual({
+    expect(deltaText(1.5, 1.5, 50)).toEqual({ text: 'same as the 50 before', tone: 'neutral' })
+    expect(deltaText(1.501, 1.5, 50)).toEqual({ text: 'same as the 50 before', tone: 'neutral' })
+    expect(deltaText(1.52, 1.5, 50)).toEqual({
       text: '0.02 bb worse than the 50 before',
       tone: 'bad',
     })
   })
 
+  it('names the window it is given', () => {
+    expect(deltaText(1.2, 1.5, 30)?.text).toBe('0.3 bb better than the 30 before')
+    expect(deltaText(1.5, 1.5, 30)?.text).toBe('same as the 30 before')
+  })
+
   it('is null when either side is missing', () => {
-    expect(deltaText(null, 1.5)).toBeNull()
-    expect(deltaText(1.5, null)).toBeNull()
+    expect(deltaText(null, 1.5, 50)).toBeNull()
+    expect(deltaText(1.5, null, 50)).toBeNull()
   })
 })
 
