@@ -96,7 +96,7 @@ describe('TableCentre', () => {
         award={{ winner: 'villain', potChips: 3 }}
       />,
     )
-    expect(screen.getByTestId('pot-label')).toHaveTextContent('Villain takes 1.5 bb')
+    expect(screen.getByTestId('pot-label')).toHaveTextContent('Villain takes the 1.5 bb pot')
     rerender(
       <TableCentre
         board={[]}
@@ -106,7 +106,7 @@ describe('TableCentre', () => {
         award={{ winner: 'hero', potChips: 12 }}
       />,
     )
-    expect(screen.getByTestId('pot-label')).toHaveTextContent('You take 6 bb')
+    expect(screen.getByTestId('pot-label')).toHaveTextContent('You take the 6 bb pot')
     rerender(
       <TableCentre
         board={[]}

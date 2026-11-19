@@ -19,6 +19,15 @@ export function bb1(x: number): string {
   return `${(Math.floor(10 * x + 0.5) / 10).toFixed(1)} bb`
 }
 
+/**
+ * The API's `rolling_window` when it is usable, else null. The field is required in the schema;
+ * this only keeps an old payload without it from printing "rolling undefined". There is no
+ * default: a literal here would be a second source for the window.
+ */
+export function rollingWindowOf(n: number | null | undefined): number | null {
+  return typeof n === 'number' && Number.isInteger(n) && n > 0 ? n : null
+}
+
 export interface Delta {
   text: string
   /** `neutral` when the rounded difference is zero */
@@ -26,17 +35,23 @@ export interface Delta {
 }
 
 /**
- * How the last 50 compare with the 50 before. EV lost is a cost, so lower is better. The text
- * and the tone come from the same rounded difference, so "same" is never coloured. `null` when
- * either side is missing.
+ * How the last `window` puzzles (the API's `rolling_window`) compare with the `window` before.
+ * EV lost is a cost, so lower is better. The text and the tone come from the same rounded
+ * difference, so "same" is never coloured. `null` when either side is missing; with no window
+ * (see `rollingWindowOf`) the text says "the ones before".
  */
-export function deltaText(last: number | null, prev: number | null): Delta | null {
+export function deltaText(
+  last: number | null,
+  prev: number | null,
+  window: number | null,
+): Delta | null {
   if (last === null || prev === null) return null
+  const before = window === null ? 'the ones before' : `the ${window} before`
   const diff = Number(Math.abs(prev - last).toFixed(2))
-  if (diff === 0) return { text: 'same as the 50 before', tone: 'neutral' }
+  if (diff === 0) return { text: `same as ${before}`, tone: 'neutral' }
   const better = last < prev
   return {
-    text: `${formatEvBb(diff)} ${better ? 'better' : 'worse'} than the 50 before`,
+    text: `${formatEvBb(diff)} ${better ? 'better' : 'worse'} than ${before}`,
     tone: better ? 'good' : 'bad',
   }
 }

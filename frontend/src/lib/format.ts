@@ -15,7 +15,13 @@ export function bbToChips(bb: number): number {
   return Math.round(bb * 2)
 }
 
-/** `5` -> "2.5 bb", `200` -> "100 bb". Chips are integers, so bb is a multiple of 0.5. */
+/**
+ * `5` -> "2.5 bb", `200` -> "100 bb". Chips are integers, so bb is a multiple of 0.5.
+ *
+ * For amounts, which are never negative: pot, stacks, bets, calls, sizes and bounds. A negative
+ * would print an ASCII "-" (as `bb` in backend explain/format.py does), not `MINUS`, so a signed result goes
+ * through `signedBb` (lib/play.ts) or `formatEvBb`, which take the sign themselves.
+ */
 export function formatBb(chips: number): string {
   const whole = Math.trunc(chips / 2)
   const half = Math.abs(chips % 2) === 1

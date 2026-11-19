@@ -17,6 +17,9 @@ interface TieCase {
   realisation: number
   expected_tie: boolean
   expected_beats: boolean
+  /** r × e (or e when r is 1) and the pot odds as both sides show them */
+  expected_shown_equity: string
+  expected_shown_pot_odds: string
 }
 
 const { cases } = JSON.parse(
@@ -39,11 +42,16 @@ function decisionFor(c: TieCase): DecisionData {
 describe('shared tie cases (backend/tests/data/tie_cases.json)', () => {
   it('has the cases', () => {
     expect(cases.length).toBeGreaterThanOrEqual(8)
+    // pot odds off a shown value: a tie rule on the gap (|r × e − po| < 0.0005) fails these
+    expect(cases.some((c) => c.pot_odds === 1 / 3 && c.expected_tie)).toBe(true)
+    expect(cases.some((c) => c.pot_odds === 1 / 3 && !c.expected_tie)).toBe(true)
   })
 
   for (const c of cases) {
     it(c.name, () => {
       const cmp = comparePotOdds(c.equity, c.pot_odds, c.realisation)
+      expect(cmp.shownEquity).toBe(c.expected_shown_equity)
+      expect(cmp.shownPotOdds).toBe(c.expected_shown_pot_odds)
       expect(cmp.tie).toBe(c.expected_tie)
       expect(cmp.beats).toBe(c.expected_beats)
 
@@ -52,6 +60,8 @@ describe('shared tie cases (backend/tests/data/tie_cases.json)', () => {
       const fold = d.options.find((o) => o.kind === 'fold')
       if (!fold) throw new Error('no fold')
       const text = optionMaths(fold, d).potOdds.at(-1)?.text ?? ''
+      expect(text).toContain(c.expected_shown_equity)
+      expect(text).toContain(c.expected_shown_pot_odds)
       expect(text).toContain(
         c.expected_beats ? 'so calling beats folding' : 'so folding beats calling',
       )
