@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import '../styles/global.css'
+import styles from './Gallery.module.css'
 
 export interface GalleryEntry {
   title: string
@@ -19,23 +20,20 @@ const entries: { id: string; entry: GalleryEntry }[] = Object.entries(modules)
 
 export default function Gallery() {
   return (
-    <main style={{ padding: 'var(--space-6)', maxWidth: 1200, margin: '0 auto' }}>
-      <h1>Fixture gallery</h1>
-      <nav aria-label="Gallery sections" style={{ display: 'flex', gap: 'var(--space-4)' }}>
+    <main className={styles.page}>
+      <h1 className={styles.title}>Fixture gallery</h1>
+      <nav aria-label="Gallery sections" className={styles.nav}>
         {entries.map(({ id, entry }) => (
-          <a key={id} href={`#${id}`} style={{ color: 'var(--color-accent)' }}>
+          <a key={id} href={`#${id}`} className={styles.link}>
             {entry.title}
           </a>
         ))}
       </nav>
       {entries.map(({ id, entry }) => (
-        <section
-          key={id}
-          id={id}
-          aria-labelledby={`${id}-title`}
-          style={{ marginTop: 'var(--space-6)' }}
-        >
-          <h2 id={`${id}-title`}>{entry.title}</h2>
+        <section key={id} id={id} aria-labelledby={`${id}-title`} className={styles.section}>
+          <h2 id={`${id}-title`} className={styles.sectionTitle}>
+            {entry.title}
+          </h2>
           {entry.render()}
         </section>
       ))}

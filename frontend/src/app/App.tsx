@@ -14,7 +14,7 @@ import { ResultSummary } from '../components/ResultSummary/ResultSummary'
 import { ShortcutsOverlay } from '../components/ShortcutsOverlay/ShortcutsOverlay'
 import { Table } from '../components/Table/Table'
 import { TableCentre } from '../components/TableCentre/TableCentre'
-import { ConfirmDialog } from '../components/ui'
+import { Button, ConfirmDialog } from '../components/ui'
 import { TopBar } from '../components/TopBar/TopBar'
 import * as client from '../api/client'
 import { SettingsPage } from '../components/Settings/SettingsPage'
@@ -268,25 +268,25 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
         {onPuzzles && state.kind === 'error' && (
           <div className={styles.banner} role="alert" data-tone="danger">
             <span>{state.message}</span>
-            <button type="button" className={styles.bannerButton} onClick={state.retry}>
+            <Button size="sm" onClick={state.retry}>
               Retry
-            </button>
+            </Button>
           </div>
         )}
         {onPlay && play.state.kind === 'error' && (
           <div className={styles.banner} role="alert" data-tone="danger">
             <span>{play.state.message}</span>
-            <button type="button" className={styles.bannerButton} onClick={play.state.retry}>
+            <Button size="sm" onClick={play.state.retry}>
               Retry
-            </button>
+            </Button>
           </div>
         )}
         {flow.notice !== null && (
           <div className={styles.banner} role="alert" data-tone="warning">
             <span>{flow.notice}</span>
-            <button type="button" className={styles.bannerButton} onClick={flow.dismissNotice}>
+            <Button size="sm" onClick={flow.dismissNotice}>
               Dismiss
-            </button>
+            </Button>
           </div>
         )}
         {onPuzzles && skipPending && (
@@ -294,12 +294,12 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
             <span>
               Skip this puzzle? Press <kbd className={styles.kbd}>N</kbd> again
             </span>
-            <button type="button" className={styles.bannerButton} onClick={flow.requestSkip}>
+            <Button size="sm" onClick={flow.requestSkip}>
               Skip
-            </button>
-            <button type="button" className={styles.bannerButton} onClick={flow.cancelSkip}>
+            </Button>
+            <Button size="sm" onClick={flow.cancelSkip}>
               Cancel
-            </button>
+            </Button>
           </div>
         )}
       </div>

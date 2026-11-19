@@ -3,6 +3,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Page } from '../../lib/page'
 import type { ShortcutGroup } from '../../lib/shortcuts'
 import { SHORTCUTS, describeShortcut, groupOn, isOnPage, keyToCommand } from '../../lib/shortcuts'
+import { Button } from '../ui'
 import styles from './ShortcutsOverlay.module.css'
 
 export interface ShortcutsOverlayProps {
@@ -80,12 +81,9 @@ export function ShortcutsOverlay({ open, page = 'puzzles', onClose }: ShortcutsO
           <h2 id={titleId} className={styles.title}>
             Keyboard shortcuts
           </h2>
-          <button ref={closeRef} type="button" className={styles.close} onClick={onClose}>
+          <Button ref={closeRef} size="sm" kbd="Esc" onClick={onClose}>
             Close
-            <kbd className={styles.kbd} aria-hidden="true">
-              Esc
-            </kbd>
-          </button>
+          </Button>
         </header>
         <div className={styles.groups}>
           {GROUPS.map((group) => {
