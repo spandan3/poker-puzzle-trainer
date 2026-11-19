@@ -2,9 +2,10 @@
  * The hand analysis: a header Panel (title, Close, summary, steps) and the step's details under
  * it. The details are not inside the Panel: panels are never nested.
  */
+/* the header Panel and the step's details are two sections */
 .root {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--section-gap);
   min-width: 0;
   font-variant-numeric: tabular-nums;
 }

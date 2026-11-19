@@ -50,3 +50,33 @@ describe('font sizes', () => {
     expect(bad).toEqual([])
   })
 })
+
+// The spacing rule: --section-gap between a page's sections, --panel-pad inside a Panel. Each page
+// root and the Panel primitive must say so by token (a raw --space-… would let them drift apart).
+describe('spacing', () => {
+  const rule = (file: string, selector: string): string => {
+    const text = readFileSync(join(SRC, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const m = text.match(new RegExp(`(?:^|\\n)${selector.replace('.', '\\.')} \\{([^}]*)\\}`))
+    if (!m) throw new Error(`no ${selector} in ${file}`)
+    return m[1]!
+  }
+  const gap = (body: string) => body.match(/(?<![-\w])gap:\s*([^;]+);/)?.[1]?.trim()
+
+  it.each([
+    ['components/Settings/Settings.module.css', '.page'],
+    ['components/Progress/Progress.module.css', '.page'],
+    ['components/Play/HandAnalysis.module.css', '.root'],
+  ])('%s %s: sections are --section-gap apart', (file, selector) => {
+    expect(gap(rule(file, selector))).toBe('var(--section-gap)')
+  })
+
+  it('the table screens: the top row and the results details are --section-gap apart', () => {
+    expect(gap(rule('styles/tableLayout.module.css', '.main'))).toMatch(/^var\(--section-gap\) /)
+  })
+
+  it('a Panel pads its header and body with --panel-pad', () => {
+    const css = 'components/ui/ui.module.css'
+    expect(rule(css, '.panelBody')).toMatch(/padding: var\(--panel-pad\);/)
+    expect(rule(css, '.panelHeader')).toMatch(/padding: var\(--panel-pad\) var\(--panel-pad\) 0;/)
+  })
+})

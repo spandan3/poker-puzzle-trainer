@@ -3,6 +3,7 @@ import { useId, useRef, useState } from 'react'
 import type { BreakdownRow, StatsView } from '../../api/types'
 import { bb2 } from '../../lib/format'
 import { pct, pts } from '../../lib/stats'
+import { Panel } from '../ui'
 import styles from './Progress.module.css'
 
 type TabId = 'street' | 'action' | 'profile'
@@ -99,7 +100,7 @@ export function Breakdowns({ breakdowns }: BreakdownsProps) {
       <h3 id={`${baseId}-title`} className={styles.sectionTitle}>
         Breakdown
       </h3>
-      <div className={styles.card}>
+      <Panel>
         <div role="tablist" aria-label="Breakdown by" className={styles.tabs} onKeyDown={onKeyDown}>
           {TABS.map((tab) => (
             <button
@@ -132,7 +133,7 @@ export function Breakdowns({ breakdowns }: BreakdownsProps) {
             {tab.id === selected && <BreakdownTable rows={breakdowns[tab.id]} first={tab.label} />}
           </div>
         ))}
-      </div>
+      </Panel>
     </section>
   )
 }

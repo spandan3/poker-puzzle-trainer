@@ -1,7 +1,7 @@
 /* The Settings page: one column at the form width, with a Panel for each group. */
 .page {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--section-gap);
   align-content: start;
   width: 100%;
   max-width: var(--page-form-w);
