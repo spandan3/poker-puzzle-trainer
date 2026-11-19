@@ -6,7 +6,7 @@ A personal NLHE trainer: a FastAPI backend (`backend/`, uv, Python 3.13) and a V
 
 - Spec: `docs/superpowers/specs/2026-11-10-poker-puzzle-trainer-design.md`. Play vs Bots: `docs/superpowers/specs/2026-11-12-play-vs-bots-design.md`.
 - Roadmap: `docs/superpowers/plans/2026-11-10-roadmap.md`. Order: M6 results → M7 progress → M8 explanations (local LLM) → M9 Phase 1 sign-off → M10 Play vs Bots heads-up → M11 UI polish → M12 5-max play → M13 5-max analysis.
-- Status (2026-11-17): M1–M10 are merged (M10 via PR #7 on 2026-11-16). **M11 (UI polish) is next.** Its starting point is the end of `docs/superpowers/plans/2026-11-14-m10-play-vs-bots.md` (rulings, then open items for M11 and later). The Phase 1 sign-off report, `docs/superpowers/reports/2026-11-13-m9-competence-signoff.md`, is waiting for the user's approval.
+- Status (2026-11-19): M1–M11 are built (M10 merged via PR #7 on 2026-11-16; M11 on `m11-polish`, merged by rebase). **M12 (5-max play) is next.** Its starting point is the end of `docs/superpowers/plans/2026-11-17-m11-ui-polish.md` (follow-up, then open items for M12 and later) and the M12 list at the end of the M10 plan. The Phase 1 sign-off report, `docs/superpowers/reports/2026-11-13-m9-competence-signoff.md`, is waiting for the user's approval.
 - Each milestone has a plan in `docs/superpowers/plans/`. The end of the latest plan lists the open items for the next milestones. Read it before planning the next one.
 - Villain model: `docs/villain.md` (the `action_distribution` contract and invariants, version-bump rules, competence checks, backlog). Read it before changing anything under `villain/` or the profiles. It replaced `handoff.md` on 2026-11-17.
 
