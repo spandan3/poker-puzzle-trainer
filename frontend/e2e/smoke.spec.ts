@@ -152,6 +152,26 @@ test('a selected action keeps its keyboard focus ring', async ({ page }) => {
   expect(shadow.split('rgb(').length - 1).toBeGreaterThanOrEqual(3)
 })
 
+test('a selected size and a selected intent keep their keyboard focus ring', async ({ page }) => {
+  await routePuzzle(page, 'puzzle_flop_unopened')
+  await page.goto('/')
+  await page.getByRole('textbox', { name: 'Equity' }).fill('40')
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('b')
+  const size = page.getByRole('group', { name: 'Size' }).getByRole('button').first()
+  const intent = page.getByRole('group', { name: 'Intent' }).getByRole('button').first()
+  for (const control of [size, intent]) {
+    await control.focus()
+    await page.keyboard.press('Space')
+    await expect(control).toHaveAttribute('aria-pressed', 'true')
+    await expect(control).toBeFocused()
+    const shadow = await control.evaluate((el) => getComputedStyle(el).boxShadow)
+    // --color-focus #8ab4ff, drawn beside the selected state's own border
+    expect(shadow).toContain('rgb(138, 180, 255)')
+    expect(shadow.split('rgb(').length - 1).toBeGreaterThanOrEqual(2)
+  }
+})
+
 for (const [width, height] of FIT_SIZES) {
   test(`layout: the tallest answer panel fits ${width}×${height} in every state, even with an error showing`, async ({
     page,

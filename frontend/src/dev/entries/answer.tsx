@@ -3,6 +3,7 @@ import type { ActionView, AttemptIn, PlayActionChoice } from '../../api/types'
 import { AnswerPanel } from '../../components/AnswerPanel/AnswerPanel'
 import { ShortcutsOverlay } from '../../components/ShortcutsOverlay/ShortcutsOverlay'
 import type { AnswerState } from '../../lib/answer'
+import { Button } from '../../components/ui'
 import { formatBb, formatPct } from '../../lib/format'
 import { playSessionFixture, puzzleFixture } from '../../test/fixture'
 import type { GalleryEntry } from '../Gallery'
@@ -131,9 +132,9 @@ function AnswerGallery() {
     <div style={{ display: 'grid', gap: 'var(--space-6)' }}>
       <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>
         Click a panel to give it the keyboard.{' '}
-        <button type="button" onClick={() => setOverlay(true)}>
+        <Button size="sm" onClick={() => setOverlay(true)}>
           Show shortcuts overlay
-        </button>
+        </Button>
       </p>
       {CASES.map((c) => {
         const view = puzzleFixture(c.fixture)

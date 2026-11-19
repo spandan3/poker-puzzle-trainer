@@ -88,20 +88,6 @@
   --tone: var(--color-info);
 }
 
-.bannerButton {
-  height: 2rem;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--tone, var(--color-panel-border));
-  border-radius: var(--radius-sm);
-  background: transparent;
-  font-weight: var(--weight-semibold);
-  cursor: pointer;
-}
-
-.bannerButton:hover {
-  background: var(--color-badge-bg);
-}
-
 .kbd {
   padding: 0 0.3em;
   border: 1px solid var(--answer-kbd-border);
@@ -109,7 +95,7 @@
   border-radius: var(--radius-sm);
   background: var(--answer-kbd-bg);
   font-family: var(--font-mono);
-  font-size: 0.75em;
+  font-size: var(--text-2xs);
 }
 
 @keyframes banner-in {
