@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { PlaySessionView, SettingsView } from '../../api/types'
@@ -330,6 +330,39 @@ describe('PlayPage: past sessions', () => {
     await user.click(screen.getByRole('button', { name: 'Close analysis' }))
     expect(screen.getByRole('button', { name: 'Analyse hand 2' })).toHaveFocus()
   })
+
+  it('an opener that never took focus (a mouse click in Safari): closing focuses the heading', async () => {
+    setup(null)
+    // fireEvent clicks without focusing, so the "opener" is the body
+    fireEvent.click(screen.getAllByRole('button', { name: /^Hands of session/ })[0]!)
+    const opener = await screen.findByRole('button', { name: 'Analyse hand 2' })
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    expect(document.activeElement).toBe(document.body)
+    fireEvent.click(opener)
+    await screen.findByRole('region', { name: 'Summary' })
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    fireEvent.click(screen.getByRole('button', { name: 'Close analysis' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Play' })).toHaveFocus())
+  })
+
+  it('after End session (the hand and its panel go away) the heading takes focus', () => {
+    const session = playSessionFixture('hero_to_act')
+    const props = {
+      settings: settingsFixture(),
+      shortcutsOn: false,
+      api: {
+        getPlayAnalysis: vi.fn<PlayPageApi['getPlayAnalysis']>(),
+        postPlayDecision: vi.fn<PlayPageApi['postPlayDecision']>(),
+        getPlayExplanation: vi.fn<PlayPageApi['getPlayExplanation']>(),
+        listPlayHands: vi.fn<PlayPageApi['listPlayHands']>(async () => []),
+      },
+    }
+    const { rerender } = render(<PlayPage flow={flowFor(session)} {...props} />)
+    // the panel slot has focus while the hand runs
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Action')
+    rerender(<PlayPage flow={flowFor(null)} {...props} />)
+    expect(screen.getByRole('heading', { name: 'Play' })).toHaveFocus()
+  })
 })
 
 describe('PlayPage: the session hands and the result line', () => {
@@ -351,8 +384,13 @@ describe('PlayPage: the session hands and the result line', () => {
     const toggle = screen.getByRole('button', { name: /^Session hands/ })
     expect(toggle).toHaveTextContent(`Session hands · ${session.hands_played - 1}`)
     await user.click(toggle)
-    await screen.findByRole('table', { name: 'Hands' })
+    const table = await screen.findByRole('table', { name: 'Hands' })
     expect(api.listPlayHands).toHaveBeenCalledTimes(1)
+    // the API already lists the finished hand with its result: the row still reads In progress
+    const row = within(table).getByRole('row', { name: new RegExp(`^Hand ${session.hand!.id}\\b`) })
+    expect(row).toHaveTextContent('In progress')
+    expect(within(row).queryByRole('button')).toBeNull()
+    expect(row).not.toHaveTextContent(/bb/)
   })
 
   it('the count includes the hand once the reveal is over', () => {
@@ -379,8 +417,8 @@ describe('PlayPage: the pot label of a finished hand (S10)', () => {
     const { table, outcome } = session.hand!
     expect(outcome?.winner).toBe('hero')
     setup(session)
-    expect(potLabel()).toHaveTextContent(`You take ${formatBb(table.pot)}`)
-    expect(potLabel()).toHaveTextContent('You take 3.5 bb')
+    expect(potLabel()).toHaveTextContent(`You take the ${formatBb(table.pot)} pot`)
+    expect(potLabel()).toHaveTextContent('You take the 3.5 bb pot')
     expect(hero()).toHaveTextContent(formatBb(table.stacks[table.hero_seat]!))
     expect(villain()).toHaveTextContent(formatBb(table.stacks[1 - table.hero_seat]!))
   })
@@ -388,8 +426,10 @@ describe('PlayPage: the pot label of a finished hand (S10)', () => {
   it('a showdown Villain wins: "Villain takes"', () => {
     const session = playSessionFixture('hand_over_showdown')
     setup(session)
-    expect(potLabel()).toHaveTextContent(`Villain takes ${formatBb(session.hand!.table.pot)}`)
-    expect(potLabel()).toHaveTextContent('Villain takes 5 bb')
+    expect(potLabel()).toHaveTextContent(
+      `Villain takes the ${formatBb(session.hand!.table.pot)} pot`,
+    )
+    expect(potLabel()).toHaveTextContent('Villain takes the 5 bb pot')
   })
 
   it('Villain takes a pot Hero folded; a split pot', () => {
@@ -403,7 +443,7 @@ describe('PlayPage: the pot label of a finished hand (S10)', () => {
       },
     }
     setup(lost)
-    expect(potLabel()).toHaveTextContent('Villain takes 1.5 bb')
+    expect(potLabel()).toHaveTextContent('Villain takes the 1.5 bb pot')
     cleanup()
     const split: PlaySessionView = {
       ...base,

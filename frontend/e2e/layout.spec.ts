@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { expectBarFits, wideFont } from './helpers'
 
-// Every page, at both sizes: no sideways page scroll, a one-row top bar (with the wide fallback
-// font CI uses) and no text under 11 px except the faces of cards. Play runs on routed fixtures,
-// so it needs no session on the shared database.
+// Every page, at both sizes: no sideways page scroll, a one-row top bar (with a wide font, see
+// `wideFont`) and no text under 11 px except the faces of cards. Play and Progress run on routed
+// fixtures, so they need nothing on the shared database and Progress has charts and rows to check.
 
 const SIZES = [
   [1024, 768],
@@ -20,13 +21,6 @@ const json = (body: string, status = 200) => ({
   contentType: 'application/json',
   body,
 })
-
-/** CI's Linux runner falls back to DejaVu Sans, a wide font; this stands in for it elsewhere. */
-async function wideFont(page: Page) {
-  await page.addStyleTag({
-    content: 'body, button, select, input { font-family: "DejaVu Sans", sans-serif !important; }',
-  })
-}
 
 async function routePuzzles(page: Page) {
   await page.route('**/api/puzzles/current', (r) =>
@@ -59,28 +53,7 @@ async function expectPageFits(page: Page, width: number, state: string) {
     return html.scrollWidth - window.innerWidth
   })
   expect(over, `${state}: the page scrolls sideways`).toBeLessThanOrEqual(0)
-
-  const header = page.getByRole('banner')
-  const bar = (await header.boundingBox())!
-  const overflow = await header.evaluate((el) => el.scrollWidth - el.clientWidth)
-  expect(overflow, `${state}: the bar overflows`).toBeLessThanOrEqual(0)
-  const outside: string[] = []
-  for (const control of await header.locator('a[href], button, select, input').all()) {
-    const box = await control.boundingBox()
-    if (box === null) continue
-    const inBar =
-      box.x >= bar.x - 0.5 &&
-      box.x + box.width <= bar.x + bar.width + 0.5 &&
-      box.y >= bar.y - 0.5 &&
-      box.y + box.height <= bar.y + bar.height + 0.5
-    const inViewport = box.x >= -0.5 && box.x + box.width <= width + 0.5
-    if (!inBar || !inViewport) {
-      outside.push(
-        (await control.textContent()) || (await control.getAttribute('aria-label')) || '?',
-      )
-    }
-  }
-  expect(outside, `${state}: controls outside the bar`).toEqual([])
+  await expectBarFits(page, width, state)
 }
 
 /** Every visible text is at least 11 px, except what is drawn on a card face. */
@@ -198,9 +171,14 @@ for (const [width, height] of SIZES) {
     })
 
     test('Progress and Settings', async ({ page }) => {
+      await page.route('**/api/stats*', (r) => r.fulfill(json(fixtureJson('stats'))))
+      await page.route('**/api/history*', (r) => r.fulfill(json(fixtureJson('history_page'))))
       await page.goto('/progress')
       await wideFont(page)
       await expect(page.getByRole('heading', { name: 'Progress' }).first()).toBeVisible()
+      // the charts and the History table are drawn, so their text is measured too
+      await expect(page.getByTestId('line-chart').first()).toBeVisible()
+      await expect(page.getByTestId('history').getByRole('row')).toHaveCount(26)
       await check(page, width, `Progress ${at}`)
       await page.goto('/settings')
       await wideFont(page)

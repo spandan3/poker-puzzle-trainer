@@ -145,9 +145,11 @@ export function PlayPage({
       // no hand on the table (the Start screen, or the session just ended): back to the control
       // that opened the analysis, else the page heading
       const opener = openerRef.current
+      // (a mouse click in Safari or Firefox on macOS focuses no button, so the opener is the body)
       if (
         analysing === null &&
         opener instanceof HTMLElement &&
+        opener !== document.body &&
         opener.isConnected &&
         !opener.closest('[hidden]')
       ) {
@@ -286,6 +288,8 @@ export function PlayPage({
                     api={api}
                     onOpen={openAnalysis}
                     refreshKey={`${hand.id}:${handOver ? 'over' : 'running'}:${closedCount}`}
+                    // during the reveal the finished hand reads "In progress", as on the table
+                    inProgressId={revealing ? hand.id : undefined}
                   />
                 </div>
               )}

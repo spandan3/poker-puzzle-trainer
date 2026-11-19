@@ -15,6 +15,11 @@ export interface SessionHandsProps {
   onOpen: (handId: number) => void
   /** changes when the list may have changed (a hand ended, an analysis was finished) */
   refreshKey?: string | number
+  /**
+   * A hand the screen still shows as running (the bot's reveal of its end is not over): its row
+   * reads "In progress", with no result, whatever the API says, so the list never spoils it.
+   */
+  inProgressId?: number
 }
 
 type Loaded =
@@ -22,7 +27,13 @@ type Loaded =
   | { sessionId: number; refreshKey: string | number | undefined; failed: true }
 
 /** A session's hands: number, position, result and EV lost when analysed, with Analyse / Review. */
-export function SessionHands({ sessionId, api = client, onOpen, refreshKey }: SessionHandsProps) {
+export function SessionHands({
+  sessionId,
+  api = client,
+  onOpen,
+  refreshKey,
+  inProgressId,
+}: SessionHandsProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [attempt, setAttempt] = useState(0)
 
@@ -77,7 +88,7 @@ export function SessionHands({ sessionId, api = client, onOpen, refreshKey }: Se
         </thead>
         <tbody>
           {loaded.hands.map((h) => {
-            const running = h.ended_by === null || h.result_bb === null
+            const running = h.ended_by === null || h.result_bb === null || h.id === inProgressId
             const verb = h.analysed ? 'Review' : 'Analyse'
             return (
               <tr key={h.id}>
@@ -87,7 +98,7 @@ export function SessionHands({ sessionId, api = client, onOpen, refreshKey }: Se
                   {running ? 'In progress' : signedBbFromBb(h.result_bb!)}
                 </td>
                 <td className={styles.num}>
-                  {h.analysed && h.ev_loss_bb !== null ? formatEvBb(h.ev_loss_bb) : ''}
+                  {!running && h.analysed && h.ev_loss_bb !== null ? formatEvBb(h.ev_loss_bb) : ''}
                 </td>
                 <td className={styles.action}>
                   {h.decision_count > 0 && !running && (

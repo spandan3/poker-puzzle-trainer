@@ -188,12 +188,15 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
       nextRef.current.focus({ preventScroll: true })
       return
     }
-    // PlayPage's own effect (a child, so it ran first) has focused Next hand when the hand is over
+    // A page's own primary target (`data-primary-focus`, on any page) that its effect focused
+    // first (a child's effect runs before App's): e.g. PlayPage's Next hand when a hand is over.
+    // Only on the page now shown: the page just left is hidden, not unmounted.
     const active = document.activeElement
     if (
-      page === 'play' &&
       active instanceof HTMLElement &&
-      active.dataset.primaryFocus !== undefined
+      active.dataset.primaryFocus !== undefined &&
+      active.isConnected &&
+      !active.closest('[hidden]')
     )
       return
     const heading = {

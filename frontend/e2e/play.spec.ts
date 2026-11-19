@@ -1,16 +1,10 @@
 import { expect, test } from '@playwright/test'
-import type { APIRequestContext, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { endOpenSession } from './helpers'
 
 const FACE_UP = { name: / of (spades|hearts|diamonds|clubs)$/ }
 
 // One database serves the whole run, so every test leaves no session open.
-async function endOpenSession(request: APIRequestContext) {
-  const current = await request.get('/api/play/sessions/current')
-  if (current.ok()) {
-    const { id } = (await current.json()) as { id: number }
-    await request.post(`/api/play/sessions/${id}/end`)
-  }
-}
 
 test.beforeEach(async ({ request }) => endOpenSession(request))
 test.afterEach(async ({ request }) => endOpenSession(request))

@@ -44,6 +44,8 @@ describe('TopBar', () => {
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page')
     expect(screen.queryByRole('combobox', { name: 'Street' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'New puzzle' })).toBeNull()
+    expect(screen.queryByRole('combobox', { name: 'Villain' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Keyboard shortcuts help' })).toBeNull()
   })
 
   it('shows the app title', () => {
