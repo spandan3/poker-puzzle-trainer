@@ -11,7 +11,7 @@ import {
 } from '../../lib/dealTiming'
 import type { Page } from '../../lib/page'
 import { seatsFromView } from '../../lib/seats'
-import { tableAt, toActAt } from '../../lib/play'
+import { shownTally, tableAt, toActAt } from '../../lib/play'
 import type { Command } from '../../lib/shortcuts'
 import { useShortcuts } from '../../lib/shortcuts'
 import { AnswerPanel } from '../AnswerPanel/AnswerPanel'
@@ -84,7 +84,10 @@ export function PlayPage({
   const [closedCount, setClosedCount] = useState(0)
   // the table at the step picked in the analysis: the Action panel shows it (never the current hand)
   const [analysisView, setAnalysisView] = useState<TableView | null>(null)
+  // the control that opened the analysis: with no session (nothing else to focus) it gets focus back
+  const openerRef = useRef<Element | null>(null)
   const openAnalysis = (handId: number) => {
+    openerRef.current = document.activeElement
     setAnalysisView(null)
     setAnalysing(handId)
   }
@@ -123,6 +126,7 @@ export function PlayPage({
   // (never a text box, which would pause the shortcuts). On a switch to this page it moves here
   // too, as the link that was clicked has just left the page's flow.
   const handIsOver = handOver
+  const noSession = session === null
   const wasHidden = useRef(hidden)
   useEffect(() => {
     const justShown = wasHidden.current && !hidden
@@ -134,9 +138,25 @@ export function PlayPage({
     }
     const active = document.activeElement
     if (justShown || active === null || active === document.body || !active.isConnected) {
-      slotRef.current?.focus({ preventScroll: true })
+      if (slotRef.current) {
+        slotRef.current.focus({ preventScroll: true })
+        return
+      }
+      // no hand on the table (the Start screen, or the session just ended): back to the control
+      // that opened the analysis, else the page heading
+      const opener = openerRef.current
+      if (
+        analysing === null &&
+        opener instanceof HTMLElement &&
+        opener.isConnected &&
+        !opener.closest('[hidden]')
+      ) {
+        opener.focus({ preventScroll: true })
+      } else if (analysing === null) {
+        document.querySelector<HTMLElement>('[data-play-heading]')?.focus({ preventScroll: true })
+      }
     }
-  }, [hidden, handIsOver, hand?.id, analysing])
+  }, [hidden, handIsOver, hand?.id, analysing, noSession])
 
   const onCommand = (cmd: Command): boolean => {
     if (cmd.id !== 'next' || !handOver || analysing !== null || busy) return false
@@ -147,7 +167,7 @@ export function PlayPage({
 
   // visually hidden: the table needs the height, but every page has an h2
   const heading = (
-    <h2 className={styles.srOnly} ref={headingRef} tabIndex={-1}>
+    <h2 className={styles.srOnly} ref={headingRef} data-play-heading tabIndex={-1}>
       Play
     </h2>
   )
@@ -255,7 +275,7 @@ export function PlayPage({
                   aria-expanded={handsOpen}
                   onClick={() => setHandsOpen((open) => !open)}
                 >
-                  Session hands · {session.hands_played}
+                  Session hands · {shownTally(session, revealing).hands_played}
                 </Button>
               }
             >
@@ -265,7 +285,7 @@ export function PlayPage({
                     sessionId={session.id}
                     api={api}
                     onOpen={openAnalysis}
-                    refreshKey={`${hand.id}:${hand.status}:${closedCount}`}
+                    refreshKey={`${hand.id}:${handOver ? 'over' : 'running'}:${closedCount}`}
                   />
                 </div>
               )}

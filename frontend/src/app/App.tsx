@@ -220,10 +220,11 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
     else openNow(target)
   }
 
-  // End session: a running hand is given up, so that asks first; between hands it ends at once
+  // End session: a running hand is given up, so that asks first; between hands it ends at once.
+  // During the reveal the hand is already complete on the server (nothing is lost), so that ends
+  // at once too, rather than claiming Villain takes the pot.
   const [confirmEnd, setConfirmEnd] = useState(false)
-  const handRunning =
-    play.session?.hand != null && (play.session.hand.status !== 'complete' || play.revealing)
+  const handRunning = play.session?.hand != null && play.session.hand.status !== 'complete'
   const requestEnd = () => {
     if (play.busy) return
     if (handRunning) setConfirmEnd(true)

@@ -259,7 +259,7 @@ function StepDetails({
   return (
     <div className={styles.details}>
       <div className={styles.stepHead}>
-        <h3 className={styles.stepName}>{stepHeading(review)}</h3>
+        <p className={styles.stepName}>{stepHeading(review)}</p>
         <p className={styles.gradeLine}>{gradeLine(decision.chosenLabel, grade)}</p>
       </div>
       <DecisionDetails

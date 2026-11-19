@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import * as client from '../../api/client'
 import type { PlayHandSummary } from '../../api/types'
 import { formatEvBb } from '../../lib/format'
-import { signedBb } from '../../lib/play'
+import { signedBbFromBb } from '../../lib/play'
 import { Button } from '../ui'
 import styles from './SessionHands.module.css'
 
@@ -84,7 +84,7 @@ export function SessionHands({ sessionId, api = client, onOpen, refreshKey }: Se
                 <th scope="row">Hand {h.hand_no}</th>
                 <td>{h.hero_position}</td>
                 <td className={styles.num}>
-                  {running ? 'In progress' : signedBb(Math.round(h.result_bb! * 2))}
+                  {running ? 'In progress' : signedBbFromBb(h.result_bb!)}
                 </td>
                 <td className={styles.num}>
                   {h.analysed && h.ev_loss_bb !== null ? formatEvBb(h.ev_loss_bb) : ''}

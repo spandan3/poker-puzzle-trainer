@@ -86,7 +86,8 @@ describe('HandAnalysis', () => {
     const { user } = setup(FULL)
     await screen.findByRole('region', { name: 'Summary' })
     await user.click(within(steps()).getAllByRole('button')[1]!)
-    const heading = screen.getByRole('heading', { name: 'Decision 2 · Flop' })
+    const heading = screen.getByText('Decision 2 · Flop')
+    expect(screen.queryByRole('heading', { name: 'Decision 2 · Flop' })).toBeNull()
     const gradeLine = heading.nextElementSibling as HTMLElement
     expect(gradeLine).toHaveTextContent(/^You: Check · Top EV: /)
     expect(gradeLine.querySelector('[data-tone], [data-verdict]')).toBeNull()
