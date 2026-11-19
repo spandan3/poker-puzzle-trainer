@@ -187,5 +187,14 @@ describe('SettingsPage', () => {
       rerender(<SettingsPage {...props} settings={null} settingsError={true} />)
       expect(screen.getByRole('button', { name: 'Retry' })).toHaveFocus()
     })
+
+    it('a Retry that loads moves focus from the loading status to the page heading', async () => {
+      const { user, props, rerender } = setup({ settings: null, settingsError: true })
+      await user.click(screen.getByRole('button', { name: 'Retry' }))
+      rerender(<SettingsPage {...props} settings={null} settingsError={false} />)
+      expect(screen.getByRole('status')).toHaveFocus()
+      rerender(<SettingsPage {...props} settings={settingsFixture()} settingsError={false} />)
+      expect(screen.getByRole('heading', { level: 2, name: 'Settings' })).toHaveFocus()
+    })
   })
 })

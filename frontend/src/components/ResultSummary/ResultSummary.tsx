@@ -74,6 +74,8 @@ export const ResultSummary = forwardRef<HTMLButtonElement, ResultSummaryProps>(
             variant="primary"
             kbd={shortcutsOn ? 'N' : undefined}
             busy={loading}
+            // the page's primary target (App focuses it after a navigation to Puzzles)
+            data-primary-focus=""
             onClick={() => onNext()}
             aria-keyshortcuts={shortcutsOn ? 'N' : undefined}
             data-shortcut={shortcutsOn ? 'next' : undefined}

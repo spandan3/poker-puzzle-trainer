@@ -39,14 +39,14 @@ function isStreet(x: string): x is StreetName {
 }
 
 export function TopBar(props: TopBarProps) {
-  const hintAttrs = (id: 'help' | 'next') =>
-    props.shortcutsOn && props.page !== 'progress'
-      ? { 'data-shortcut': id, 'aria-keyshortcuts': shortcut(id).aria }
-      : {}
   const onPuzzles = props.page === 'puzzles'
   const onPlay = props.page === 'play'
-  // Progress and Settings have no puzzle controls and no shortcuts of their own
-  const onProgress = props.page === 'progress' || props.page === 'settings'
+  // Progress and Settings have no page controls and no shortcuts of their own
+  const hasShortcuts = onPuzzles || onPlay
+  const hintAttrs = (id: 'help' | 'next') =>
+    props.shortcutsOn && hasShortcuts
+      ? { 'data-shortcut': id, 'aria-keyshortcuts': shortcut(id).aria }
+      : {}
   const onSettings = props.page === 'settings'
   return (
     <header className={styles.bar}>
@@ -122,8 +122,8 @@ export function TopBar(props: TopBarProps) {
           </>
         )}
 
-        {/* shortcuts are off on Progress, so there is nothing to show help for */}
-        {!onProgress && (
+        {/* shortcuts are off on Progress and Settings, so there is nothing to show help for */}
+        {hasShortcuts && (
           <button
             type="button"
             className={styles.help}

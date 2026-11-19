@@ -902,6 +902,30 @@ describe('App', () => {
       })
       expect(await screen.findByRole('heading', { level: 2, name: 'Progress' })).not.toHaveFocus()
     })
+
+    it('a click on the current page’s own link arms nothing: a later Back moves no focus', async () => {
+      fakeServer()
+      const { user } = setup()
+      await screen.findByRole('textbox', { name: 'Equity' })
+      await user.click(screen.getByRole('link', { name: 'Puzzles' }))
+      expect(heading('Puzzles')).not.toHaveFocus()
+      ;(document.activeElement as HTMLElement).blur()
+      window.history.replaceState(null, '', '/progress')
+      act(() => {
+        window.dispatchEvent(new PopStateEvent('popstate'))
+      })
+      expect(await screen.findByRole('heading', { level: 2, name: 'Progress' })).not.toHaveFocus()
+    })
+
+    it('an in-page link to another page (Progress’s "Change in Settings") focuses its heading', async () => {
+      window.history.replaceState(null, '', '/progress')
+      fakeServer()
+      const { user } = setup()
+      await screen.findByTestId('progress-totals')
+      await user.click(screen.getByRole('link', { name: 'Change in Settings' }))
+      expect(window.location.pathname).toBe('/settings')
+      await waitFor(() => expect(heading('Settings')).toHaveFocus())
+    })
   })
 
   describe('history: replay and stored results', () => {

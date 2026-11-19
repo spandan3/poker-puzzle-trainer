@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { endOpenSession, expectBarFits, wideFont } from './helpers'
 
 const FACE_UP = { name: / of (spades|hearts|diamonds|clubs)$/ }
 
@@ -60,6 +61,29 @@ test('a puzzle end to end: answer, submit, verdict, reveal, next', async ({ page
   await expect(page.getByRole('textbox', { name: 'Equity' })).toHaveValue('')
   await expect(villain.getByRole('img', { name: 'face-down card' })).toHaveCount(2)
   await expect(page.getByText('Hero to act')).toBeVisible()
+})
+
+test('on a result, N goes to the next puzzle without Next being focused first', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('textbox', { name: 'Equity' }).fill('50')
+  await page.keyboard.press('Escape')
+  const action = page.locator('[aria-label="Action"] button:not([aria-disabled])').first()
+  await action.click()
+  const kind = await action.getAttribute('data-kind')
+  if (kind === 'bet' || kind === 'raise') {
+    await page.getByRole('group', { name: 'Size' }).getByRole('button').first().click()
+  }
+  await page.getByRole('button', { name: /^Submit/ }).click()
+  await expect(page.getByRole('region', { name: 'Result' })).toBeVisible()
+  // focus leaves Next: a details tab takes it, then nothing does
+  await page.getByRole('tab', { name: 'Options' }).click()
+  await expect(page.getByRole('button', { name: /Next puzzle/ })).not.toBeFocused()
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await page.keyboard.press('n')
+  await expect(page.getByRole('region', { name: 'Result' })).toHaveCount(0)
+  await expect(page.getByRole('textbox', { name: 'Equity' })).toHaveValue('')
 })
 
 test('reduced motion: cards do not animate', async ({ page }) => {
@@ -510,8 +534,7 @@ for (const [width, height] of [
 }
 
 // One row means nothing overflows the bar and every control's box lies inside the bar and the
-// viewport. CI's Linux runner falls back to a wider font than most desktops; DejaVu Sans stands in
-// for it (where it isn't installed the browser uses its default and the check still holds).
+// viewport, with a wide font (see `wideFont` in helpers.ts).
 for (const [width, height] of [
   [1024, 768],
   [1280, 800],
@@ -526,15 +549,16 @@ for (const [width, height] of [
       page,
       request,
     }) => {
-      // Play with a session open carries the bar's longest content: the tally and End session
-      if (name === 'Play') expect((await request.post('/api/play/sessions')).ok()).toBe(true)
+      // Play with a session open carries the bar's longest content: the tally and End session.
+      // A session left open by an earlier test would make the start a 409, so end it first.
+      if (name === 'Play') {
+        await endOpenSession(request)
+        expect((await request.post('/api/play/sessions')).ok()).toBe(true)
+      }
       try {
         await page.setViewportSize({ width, height })
         await page.goto(path)
-        await page.addStyleTag({
-          content:
-            'body, button, select, input { font-family: "DejaVu Sans", sans-serif !important; }',
-        })
+        await wideFont(page)
         const header = page.getByRole('banner')
         await expect(header.getByRole('link', { name: 'Settings' })).toBeVisible()
         if (name === 'Puzzles') {
@@ -543,35 +567,9 @@ for (const [width, height] of [
         if (name === 'Play') {
           await expect(header.getByRole('button', { name: 'End session' })).toBeVisible()
         }
-        const bar = (await header.boundingBox())!
-        const overflow = await header.evaluate((el) => el.scrollWidth - el.clientWidth)
-        const outside: string[] = []
-        for (const control of await header.locator('a[href], button, select, input').all()) {
-          const box = await control.boundingBox()
-          if (box === null) continue
-          const inBar =
-            box.x >= bar.x - 0.5 &&
-            box.x + box.width <= bar.x + bar.width + 0.5 &&
-            box.y >= bar.y - 0.5 &&
-            box.y + box.height <= bar.y + bar.height + 0.5
-          const inViewport = box.x >= -0.5 && box.x + box.width <= width + 0.5
-          if (!inBar || !inViewport) {
-            outside.push(
-              (await control.textContent()) || (await control.getAttribute('aria-label')) || '?',
-            )
-          }
-        }
-        const fit = { overflow, outside }
-        expect(fit.overflow).toBeLessThanOrEqual(0)
-        expect(fit.outside).toEqual([])
+        await expectBarFits(page, width, `${name} ${width}×${height}`)
       } finally {
-        if (name === 'Play') {
-          const current = await request.get('/api/play/sessions/current')
-          if (current.ok()) {
-            const { id } = (await current.json()) as { id: number }
-            await request.post(`/api/play/sessions/${id}/end`)
-          }
-        }
+        if (name === 'Play') await endOpenSession(request)
       }
     })
   }
@@ -595,7 +593,12 @@ test('a Settings round trip: Pot odds off survives navigation and a reload, and 
     await page.goto('/')
     await expect(page.getByText(/Pot odds: call needs/)).toBeVisible()
     await page.getByRole('link', { name: 'Settings' }).click()
+    // the reload below must not race the save: wait for the PATCH's answer
+    const saved = page.waitForResponse(
+      (r) => r.url().endsWith('/api/settings') && r.request().method() === 'PATCH',
+    )
     await page.getByRole('switch', { name: /Pot odds/ }).click()
+    expect((await saved).ok()).toBe(true)
     await expect(page.getByRole('switch', { name: /Pot odds/ })).toHaveAttribute(
       'aria-checked',
       'false',

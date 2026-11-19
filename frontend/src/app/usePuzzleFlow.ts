@@ -330,6 +330,28 @@ export function usePuzzleFlow(
     [api, open],
   )
 
+  // The `llm_*` fields have a sequence of their own (S16): a PATCH answer carries the cached
+  // probe, which can be older than a check that finished first, so it never replaces them.
+  const llmSeq = useRef(0)
+
+  /**
+   * A GET's answer. A PATCH that landed first has the newer user fields, so they stay; its
+   * `llm_*` are the cached probe ("not checked yet" before any), so the GET's own probe replaces
+   * them, unless a check started since the GET was sent.
+   */
+  const loadedSettings = useCallback((view: SettingsView, llmAtSend: number) => {
+    setSettings((now) => {
+      if (now === null) return view
+      if (llmSeq.current !== llmAtSend) return now
+      return {
+        ...now,
+        llm_status: view.llm_status,
+        llm_detail: view.llm_detail,
+        llm_model: view.llm_model,
+      }
+    })
+  }, [])
+
   // Initial load, once: the flags are never reset in cleanup and the request is never aborted, so
   // StrictMode's double effect sends one GET (and at most one POST). Settings load at once; the
   // puzzle waits for `enabled`.
@@ -337,28 +359,26 @@ export function usePuzzleFlow(
   useEffect(() => {
     if (settingsStarted.current) return
     settingsStarted.current = true
+    const llmAtSend = llmSeq.current
     api.getSettings().then(
-      // a PATCH that landed first has the newer user fields: the first load never replaces them
-      (view) => setSettings((now) => now ?? view),
+      (view) => loadedSettings(view, llmAtSend),
       () => {
         // settings are optional for play: the controls keep their defaults, and the Settings page
         // says it couldn't load them and offers a retry
         setSettingsError(true)
       },
     )
-  }, [api])
+  }, [api, loadedSettings])
 
   const reloadSettings = useCallback(() => {
     setSettingsError(false)
+    const llmAtSend = llmSeq.current
     api.getSettings().then(
-      (view) => setSettings((now) => now ?? view),
+      (view) => loadedSettings(view, llmAtSend),
       () => setSettingsError(true),
     )
-  }, [api])
+  }, [api, loadedSettings])
 
-  // The `llm_*` fields have a sequence of their own (S16): a PATCH answer carries the cached
-  // probe, which can be older than a check that finished first, so it never replaces them.
-  const llmSeq = useRef(0)
   const checkLlm = useCallback((): Promise<boolean> => {
     const mine = ++llmSeq.current
     return api.checkLlm().then(

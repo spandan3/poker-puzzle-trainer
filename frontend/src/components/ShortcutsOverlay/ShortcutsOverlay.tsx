@@ -119,7 +119,7 @@ export function ShortcutsOverlay({ open, page = 'puzzles', onClose }: ShortcutsO
         </div>
         <p className={styles.footnote}>
           Shortcuts pause while you type in a box; press Esc to leave it. Turn them off with the
-          Shortcuts toggle.
+          Shortcuts switch in Settings.
         </p>
       </div>
     </div>

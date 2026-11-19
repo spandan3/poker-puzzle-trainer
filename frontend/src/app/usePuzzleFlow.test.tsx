@@ -541,6 +541,49 @@ describe('settings races and errors', () => {
     expect(result.current.settings?.show_pot_odds).toBe(false)
   })
 
+  it('a PATCH that lands before the first GET keeps its fields, and the GET still brings the probe', async () => {
+    const load = deferred<SettingsView>()
+    const patchSettings = vi.fn<FlowApi['patchSettings']>(async (patch) => ({
+      ...settingsFixture(),
+      llm_status: 'unavailable' as const,
+      llm_detail: 'Not checked yet.',
+      llm_model: null,
+      ...patch,
+    }))
+    const { result } = setup(fakeApi({ getSettings: vi.fn(() => load.promise), patchSettings }))
+    await act(async () => {
+      await result.current.setSetting({ show_pot_odds: false })
+    })
+    expect(result.current.settings?.llm_detail).toBe('Not checked yet.')
+    await act(async () => {
+      load.resolve({ ...ready, show_pot_odds: true })
+      await load.promise
+    })
+    expect(result.current.settings?.show_pot_odds).toBe(false)
+    expect(result.current.settings?.llm_status).toBe('ready')
+    expect(result.current.settings?.llm_detail).toBe(ready.llm_detail)
+  })
+
+  it('a check that started after the first GET was sent wins over its probe', async () => {
+    const load = deferred<SettingsView>()
+    const api = fakeApi({
+      getSettings: vi.fn(() => load.promise),
+      patchSettings: vi.fn(async (patch) => ({ ...settingsFixture(), ...patch })),
+      checkLlm: vi.fn(async () => ready),
+    })
+    const { result } = setup(api)
+    await act(async () => {
+      await result.current.setSetting({ show_pot_odds: false })
+      await result.current.checkLlm()
+    })
+    expect(result.current.settings?.llm_status).toBe('ready')
+    await act(async () => {
+      load.resolve({ ...settingsFixture(), llm_status: 'off' })
+      await load.promise
+    })
+    expect(result.current.settings?.llm_status).toBe('ready')
+  })
+
   it('a queued update is not overwritten by an optimistic one (functional update)', async () => {
     const save = deferred<SettingsView>()
     const api = fakeApi({
