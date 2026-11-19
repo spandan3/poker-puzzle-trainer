@@ -1,5 +1,6 @@
 import type { Leak } from '../../api/types'
 import { bb1 } from '../../lib/stats'
+import { Badge, Panel } from '../ui'
 import styles from './Progress.module.css'
 
 export interface LeakListProps {
@@ -14,7 +15,9 @@ export function LeakList({ leaks }: LeakListProps) {
         Leaks
       </h3>
       {leaks.length === 0 ? (
-        <p className={styles.card}>No leaks spotted in your last 200 puzzles.</p>
+        <Panel>
+          <p className={styles.panelText}>No leaks spotted in your last 200 puzzles.</p>
+        </Panel>
       ) : (
         <ul className={styles.leaks}>
           {leaks.map((leak) => (
@@ -22,7 +25,7 @@ export function LeakList({ leaks }: LeakListProps) {
               <div className={styles.leakHead}>
                 <h4 className={styles.leakTitle}>{leak.title}</h4>
                 {leak.ev_lost_bb !== null && (
-                  <span className={styles.cost}>{bb1(leak.ev_lost_bb)} lost</span>
+                  <Badge tone="profile">{bb1(leak.ev_lost_bb)} lost</Badge>
                 )}
               </div>
               <p className={styles.leakDetail}>{leak.detail}</p>

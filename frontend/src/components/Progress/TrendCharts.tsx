@@ -1,5 +1,6 @@
 import type { TrendPoint } from '../../api/types'
 import { LineChart } from '../Charts/LineChart'
+import { Panel } from '../ui'
 import { formatEvBb } from '../../lib/format'
 import { rollingWindowOf } from '../../lib/stats'
 import styles from './Progress.module.css'
@@ -29,8 +30,7 @@ export function TrendCharts({ trend, rollingWindow }: TrendChartsProps) {
           ? 'Each point is a rolling average of your first attempts up to that puzzle.'
           : `Each point averages your last ${n} first attempts up to that puzzle.`}
       </p>
-      <div className={styles.card}>
-        <h4 className={styles.cardTitle}>EV lost per decision</h4>
+      <Panel title="EV lost per decision" headingLevel={4}>
         <LineChart
           title={`EV lost per decision${rolling}`}
           yLabel="bb"
@@ -45,10 +45,9 @@ export function TrendCharts({ trend, rollingWindow }: TrendChartsProps) {
             },
           ]}
         />
-      </div>
+      </Panel>
       <div className={styles.pair}>
-        <div className={styles.card}>
-          <h4 className={styles.cardTitle}>Equity error</h4>
+        <Panel title="Equity error" headingLevel={4}>
           <LineChart
             title={`Equity error${rolling}`}
             yLabel="pts"
@@ -63,9 +62,8 @@ export function TrendCharts({ trend, rollingWindow }: TrendChartsProps) {
               },
             ]}
           />
-        </div>
-        <div className={styles.card}>
-          <h4 className={styles.cardTitle}>Range-read error</h4>
+        </Panel>
+        <Panel title="Range-read error" headingLevel={4}>
           <LineChart
             title={`Range-read error${rolling}`}
             yLabel="pts"
@@ -84,7 +82,7 @@ export function TrendCharts({ trend, rollingWindow }: TrendChartsProps) {
               },
             ]}
           />
-        </div>
+        </Panel>
       </div>
     </section>
   )

@@ -67,10 +67,14 @@ describe('text contrast (4.5:1)', () => {
     }
   })
 
-  it('verdict badges: the verdict colour on the panel and on the seat plate', () => {
+  it('verdict colours: as text on the panel and the raised surface, and on a Badge fill over them', () => {
+    // verdict Badges (Options "Best", the analysis steps) sit inside panels, never on a seat plate
     for (const v of ['best', 'fine', 'mistake', 'blunder']) {
       for (const surface of ['--color-panel', '--color-bg-raised']) {
-        expect(contrastRatio(t(`--color-verdict-${v}`), t(surface))).toBeGreaterThanOrEqual(4.5)
+        const fg = t(`--color-verdict-${v}`)
+        expect(contrastRatio(fg, t(surface))).toBeGreaterThanOrEqual(4.5)
+        // the Badge's translucent fill composited over the surface (worst: blunder, 4.91:1)
+        expect(contrastRatio(fg, over('--color-badge-bg', surface))).toBeGreaterThanOrEqual(4.5)
       }
     }
   })
@@ -104,12 +108,16 @@ describe('text contrast (4.5:1)', () => {
 })
 
 describe('control boundaries (3:1)', () => {
-  it.each([...SURFACES, '--answer-control-bg', '--answer-input-bg', '--color-seat-bg'])(
-    '--control-border on %s',
-    (bg) => {
-      expect(contrastRatio(t('--control-border'), t(bg))).toBeGreaterThanOrEqual(3)
-    },
-  )
+  // --answer-control-bg-hover: a hovered secondary Button or Select, and a hovered step button
+  it.each([
+    ...SURFACES,
+    '--answer-control-bg',
+    '--answer-control-bg-hover',
+    '--answer-input-bg',
+    '--color-seat-bg',
+  ])('--control-border on %s', (bg) => {
+    expect(contrastRatio(t('--control-border'), t(bg))).toBeGreaterThanOrEqual(3)
+  })
 
   it('the selected-state borders on the tint', () => {
     expect(

@@ -7,12 +7,15 @@
   --page-narrow-w: 72rem;
   --page-form-w: 44rem;
   --page-gutter: var(--space-4);
+  /* spacing: between a page's sections (and its title), and inside a panel */
+  --section-gap: var(--space-5);
+  --panel-pad: var(--space-4);
   --prose-max-w: 72ch;
 
   /* controls */
   --control-h-sm: 2rem;
   --control-h-md: 2.5rem;
-  --control-border: #6b7380;
+  --control-border: #768090;
 
   /* type roles */
   --text-page-title: var(--text-xl);

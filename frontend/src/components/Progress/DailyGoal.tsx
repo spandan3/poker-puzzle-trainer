@@ -4,6 +4,7 @@ import type { Page } from '../../lib/page'
 import { isPlainLeftClick, pathOf } from '../../lib/page'
 import { shortDate } from '../../lib/stats'
 import { BarChart } from '../Charts/BarChart'
+import { Panel } from '../ui'
 import styles from './Progress.module.css'
 
 export interface DailyGoalProps {
@@ -22,7 +23,7 @@ export function DailyGoal({ days, onNavigate, utcNote = false }: DailyGoalProps)
       <h3 id={titleId} className={styles.sectionTitle}>
         Daily goal
       </h3>
-      <div className={styles.card}>
+      <Panel>
         <div className={styles.goalRow}>
           <p className={styles.goalSummary}>
             Goal: {days.goal} a day ·{' '}
@@ -56,7 +57,7 @@ export function DailyGoal({ days, onNavigate, utcNote = false }: DailyGoalProps)
           height={240}
           bars={days.recent.map((d) => ({ label: shortDate(d.date), value: d.count }))}
         />
-      </div>
+      </Panel>
     </section>
   )
 }

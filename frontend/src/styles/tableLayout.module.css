@@ -21,11 +21,12 @@
   grid-template-columns: minmax(0, 1fr) var(--side-w);
   /* rows take the height of their content: the top row ends where the answer panel ends */
   align-content: start;
-  gap: var(--gap);
+  /* the table column to the Action panel; the top row to the results details is a section gap */
+  gap: var(--section-gap) var(--gap);
   width: 100%;
-  max-width: 100rem;
+  max-width: var(--page-max-w);
   margin-inline: auto;
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: var(--space-3) var(--page-gutter) var(--space-4);
 }
 
 .main[hidden] {

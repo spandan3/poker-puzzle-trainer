@@ -134,10 +134,6 @@
   background: var(--color-bg-sunken);
 }
 
-.analysisWrap {
-  width: min(100%, 64rem);
-}
-
 /* ---------------------------------------------------------------- session hands */
 
 .sessionHands {
