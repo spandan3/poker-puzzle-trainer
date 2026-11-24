@@ -1,8 +1,17 @@
-"""Heads-up no-limit hold'em hand state: blinds, betting rounds, legal actions.
+"""No-limit hold'em hand state for 2 to 6 seats: blinds, betting rounds, legal actions.
 
-Seats are 0 and 1. The button is the small blind; it acts first pre-flop and the
-other seat acts first on every later street. Bets are capped at the effective stack
-(the smaller of the two total stacks), so no chips are ever left uncalled and
+Seats are ``0 .. n-1`` with ``n = len(stacks)``; clockwise is increasing seat index mod n.
+
+- Heads-up (two seats) the button is the small blind; it acts first pre-flop and the other seat
+  acts first on every later street.
+- With three or more seats the small blind is ``button+1``, the big blind ``button+2``, and
+  ``button+3`` acts first pre-flop. Post-flop the first live seat clockwise from the button acts
+  first.
+
+A seat may bet at most what the deepest other live seat that can still act could match, so
+heads-up no chips are ever left uncalled. Multiway a seat can be all-in for less than others,
+which is what makes side pots (``game/settle.py``). Folded seats are read from ``history``;
+``folded`` is None until the hand ends by folds, then the seat whose fold ended it.
 ``sum(stacks) + pot + sum(street_bets) == total_chips`` holds in every state.
 """
 
@@ -16,6 +25,7 @@ from poker_trainer.engine.cards import ensure_distinct
 SB = 1
 BB = 2
 START_STACK = 200
+MAX_SEATS = 6
 
 
 class Street(IntEnum):
@@ -54,8 +64,8 @@ class Legal:
 @dataclass(frozen=True)
 class HandState:
     button: int
-    stacks: tuple[int, int]
-    street_bets: tuple[int, int]
+    stacks: tuple[int, ...]
+    street_bets: tuple[int, ...]
     pot: int
     street: Street
     board: tuple[int, ...]
@@ -68,40 +78,88 @@ class HandState:
 
 _AGGRESSIVE = (ActionKind.BET, ActionKind.RAISE)
 
+# Position names clockwise from the button, by table size (3, 4 and 6 seats: tests only).
+_POSITIONS: dict[int, tuple[str, ...]] = {
+    3: ("BTN", "SB", "BB"),
+    4: ("BTN", "SB", "BB", "CO"),
+    5: ("BTN", "SB", "BB", "UTG", "CO"),
+    6: ("BTN", "SB", "BB", "UTG", "HJ", "CO"),
+}
+
 
 def _illegal(a: Action, why: str) -> ValueError:
     return ValueError(f"illegal action: {a} ({why})")
 
 
-def _set(pair: tuple[int, int], seat: int, value: int) -> tuple[int, int]:
-    return (value, pair[1]) if seat == 0 else (pair[0], value)
+def _set(values: tuple[int, ...], seat: int, value: int) -> tuple[int, ...]:
+    return (*values[:seat], value, *values[seat + 1 :])
 
 
-def _next_actor(s: HandState, last_actor: int | None) -> int | None:
-    """Seat to act next in the current betting round, or None if the round is over."""
+def num_seats(s: HandState) -> int:
+    return len(s.stacks)
+
+
+def folded_seats(s: HandState) -> frozenset[int]:
+    """Seats that have folded this hand (read from the history)."""
+    return frozenset(a.seat for a in s.history if a.kind == ActionKind.FOLD)
+
+
+def live_seats(s: HandState) -> tuple[int, ...]:
+    """Seats that have not folded, in seat order."""
+    out = folded_seats(s)
+    return tuple(i for i in range(len(s.stacks)) if i not in out)
+
+
+def active_seats(s: HandState) -> tuple[int, ...]:
+    """Live seats that are not all-in (they can still act), in seat order."""
+    return tuple(i for i in live_seats(s) if s.stacks[i] > 0)
+
+
+def _next_actor(s: HandState, start: int) -> int | None:
+    """First seat clockwise from ``start`` (inclusive) that must act, or None if the round is over.
+
+    A seat must act if it is live, not all-in, and either hasn't acted on this street (blinds
+    are not actions) or is below the highest bet. With at most one such seat left, the round is
+    over once it has matched: nobody could call a bet of its.
+    """
     if s.folded is not None:
         return None
-    b = s.street_bets
-    if 0 in s.stacks:
-        if b[0] == b[1]:
-            return None
-        lower = 0 if b[0] < b[1] else 1
-        return lower if s.stacks[lower] > 0 else None
-    if b[0] == b[1] and len({a.seat for a in s.history if a.street == s.street}) == 2:
+    n = len(s.stacks)
+    active = active_seats(s)
+    current = max(s.street_bets)
+    if len(active) <= 1 and all(s.street_bets[i] >= current for i in active):
         return None
-    return s.button if last_actor is None else 1 - last_actor
+    acted = {a.seat for a in s.history if a.street == s.street}
+    for k in range(n):
+        seat = (start + k) % n
+        if seat in active and (seat not in acted or s.street_bets[seat] < current):
+            return seat
+    return None
 
 
-def new_hand(button: int, stacks: tuple[int, int] = (START_STACK, START_STACK)) -> HandState:
-    bb_seat = 1 - button
-    # Blinds are capped by the poster's stack and by what the opponent can ever match.
-    posts = [0, 0]
-    posts[button] = min(SB, stacks[button], stacks[bb_seat])
-    posts[bb_seat] = min(BB, stacks[bb_seat], stacks[button])
+def new_hand(button: int, stacks: tuple[int, ...] = (START_STACK, START_STACK)) -> HandState:
+    n = len(stacks)
+    if not 2 <= n <= MAX_SEATS:
+        raise ValueError(f"a hand needs 2 to {MAX_SEATS} seats, got {n}")
+    if not 0 <= button < n:
+        raise ValueError(f"button {button} is not a seat")
+    posts = [0] * n
+    if n == 2:
+        bb_seat = 1 - button
+        # Blinds are capped by the poster's stack and by what the opponent can ever match.
+        posts[button] = min(SB, stacks[button], stacks[bb_seat])
+        posts[bb_seat] = min(BB, stacks[bb_seat], stacks[button])
+        first = button
+    else:
+        # Session rules keep every stack above the big blind, so no blind is posted all-in.
+        assert all(x > BB for x in stacks), f"every stack must exceed the big blind: {stacks}"
+        posts[(button + 1) % n] = SB
+        posts[(button + 2) % n] = BB
+        first = (button + 3) % n
     s = HandState(
         button=button,
-        stacks=(stacks[0] - posts[0], stacks[1] - posts[1]),
-        street_bets=(posts[0], posts[1]),
+        stacks=tuple(x - p for x, p in zip(stacks, posts, strict=True)),
+        street_bets=tuple(posts),
         pot=0,
         street=Street.PREFLOP,
         board=(),
@@ -109,15 +167,17 @@ def new_hand(button: int, stacks: tuple[int, int] = (START_STACK, START_STACK)) 
         history=(),
         last_raise=BB,
         folded=None,
-        total_chips=stacks[0] + stacks[1],
+        total_chips=sum(stacks),
     )
-    return replace(s, to_act=_next_actor(s, None))
+    return replace(s, to_act=_next_actor(s, first))
 
 
 def _can_reraise(s: HandState, seat: int) -> bool:
-    """False if the only aggression since seat's last action was a short all-in.
+    """False if no full raise came after the seat's last action on this street.
 
-    A seat that has not yet acted this street may always raise.
+    A seat that has not yet acted this street may always raise. A short all-in alone does not
+    reopen raising for seats that have already acted. (A simplification of the TDA's cumulative
+    rule; heads-up the two agree.)
     """
     acts = [a for a in s.history if a.street == s.street]
     own = [i for i, a in enumerate(acts) if a.seat == seat]
@@ -135,26 +195,28 @@ def _can_reraise(s: HandState, seat: int) -> bool:
                 required = size
             bet = a.to
     since = [i for i in full_at if i > own[-1]]
-    return not since or all(full_at[i] for i in since)
+    return not since or any(full_at[i] for i in since)
 
 
 def legal_actions(s: HandState) -> Legal:
     if s.to_act is None:
         raise ValueError("no player to act")
     me = s.to_act
-    mine, theirs = s.street_bets[me], s.street_bets[1 - me]
+    mine = s.street_bets[me]
     current = max(s.street_bets)
-    max_to = min(s.stacks[me] + mine, s.stacks[1 - me] + theirs)
+    # What the deepest other seat that can still act could match.
+    others = [s.stacks[i] + s.street_bets[i] for i in active_seats(s) if i != me]
+    max_to = min(s.stacks[me] + mine, max(others, default=0))
     aggressive: ActionKind | None = None
     min_to = hi = None
     if max_to > current and _can_reraise(s, me):
         aggressive = ActionKind.BET if current == 0 else ActionKind.RAISE
         base = BB if current == 0 else current + s.last_raise
         min_to, hi = min(base, max_to), max_to
-    call = min(max(theirs - mine, 0), s.stacks[me])
+    call = min(max(current - mine, 0), s.stacks[me])
     return Legal(
         fold=call > 0,
-        check=theirs <= mine,
+        check=current <= mine,
         call=call,
         aggressive=aggressive,
         min_to=min_to,
@@ -179,7 +241,8 @@ def apply(s: HandState, a: Action) -> HandState:
             raise _illegal(a, "nothing to call")
         if a.to != 0:
             raise _illegal(a, "fold must have to=0")
-        folded = me
+        if len(live_seats(s)) == 2:
+            folded = me  # this fold ends the hand
     elif a.kind == ActionKind.CHECK:
         if not lg.check:
             raise _illegal(a, "facing a bet")
@@ -212,7 +275,7 @@ def apply(s: HandState, a: Action) -> HandState:
         last_raise=last_raise,
         folded=folded,
     )
-    return replace(ns, to_act=_next_actor(ns, me))
+    return replace(ns, to_act=_next_actor(ns, (me + 1) % len(s.stacks)))
 
 
 def is_terminal(s: HandState) -> bool:
@@ -233,12 +296,13 @@ def deal(s: HandState, cards: tuple[int, ...]) -> HandState:
     ns = replace(
         s,
         pot=s.pot + sum(s.street_bets),
-        street_bets=(0, 0),
+        street_bets=(0,) * len(s.stacks),
         street=Street(s.street + 1),
         board=(*s.board, *cards),
         last_raise=BB,
     )
-    return replace(ns, to_act=None if 0 in ns.stacks else 1 - ns.button)
+    # Fewer than two seats able to bet: no betting, the board runs out.
+    return replace(ns, to_act=_next_actor(ns, (ns.button + 1) % len(ns.stacks)))
 
 
 def total_pot(s: HandState) -> int:
@@ -255,7 +319,10 @@ def pot_odds(s: HandState) -> float:
 
 
 def position_name(s: HandState, seat: int) -> str:
-    return "BTN" if seat == s.button else "BB"
+    n = len(s.stacks)
+    if n == 2:
+        return "BTN" if seat == s.button else "BB"
+    return _POSITIONS[n][(seat - s.button) % n]
 
 
 def last_aggressor(s: HandState, street: Street) -> int | None:
