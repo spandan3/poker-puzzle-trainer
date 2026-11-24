@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "bb_call_mult": 1.6,
+  "damping": {"bluff": 0.5, "thin": 0.6, "call": 0.8},
+  "profiles": {
+    "tight": {
+      "open": {"UTG": 11, "CO": 18, "BTN": 30, "SB": 26},
+      "vs_open": {"threebet": 4, "call": 7},
+      "vs_threebet": {"jam": 2.5, "call": 4},
+      "vs_jam": {"call": 3}
+    },
+    "tag": {
+      "open": {"UTG": 14, "CO": 24, "BTN": 40, "SB": 34},
+      "vs_open": {"threebet": 6, "call": 9},
+      "vs_threebet": {"jam": 3, "call": 6},
+      "vs_jam": {"call": 4}
+    },
+    "lag": {
+      "open": {"UTG": 19, "CO": 32, "BTN": 52, "SB": 45},
+      "vs_open": {"threebet": 9, "call": 12},
+      "vs_threebet": {"jam": 4, "call": 9},
+      "vs_jam": {"call": 5}
+    },
+    "sticky": {
+      "open": {"UTG": 16, "CO": 27, "BTN": 45, "SB": 40},
+      "vs_open": {"threebet": 4, "call": 18},
+      "vs_threebet": {"jam": 2.5, "call": 12},
+      "vs_jam": {"call": 6}
+    }
+  }
+}

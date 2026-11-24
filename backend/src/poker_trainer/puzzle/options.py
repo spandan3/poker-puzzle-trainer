@@ -2,8 +2,16 @@
 
 from __future__ import annotations
 
-from poker_trainer.game.state import Action, ActionKind, HandState, Street, legal_actions
+from poker_trainer.game.state import (
+    Action,
+    ActionKind,
+    HandState,
+    Legal,
+    Street,
+    legal_actions,
+)
 from poker_trainer.puzzle.model import Option
+from poker_trainer.villain import preflop5
 from poker_trainer.villain.strategy import UnsupportedSpot, allin, bet_to, raise_to
 
 _BET_FRACS = ((0.33, "bet 33%"), (0.5, "bet 50%"), (0.75, "bet 75%"), (1.0, "bet 100%"))
@@ -30,6 +38,9 @@ def hero_options(s: HandState) -> tuple[Option, ...]:
     check = Action(me, ActionKind.CHECK, s.street)
     call = Action(me, ActionKind.CALL, s.street, s.street_bets[me] + lg.call)
     entries: list[tuple[str, Action]] = []
+
+    if s.street == Street.PREFLOP and len(s.stacks) != 2:
+        return _merge(s, _preflop_multiway(s, lg, fold, call))
 
     if s.street == Street.PREFLOP:
         acts = [a for a in s.history if a.street == Street.PREFLOP]
@@ -62,6 +73,28 @@ def hero_options(s: HandState) -> tuple[Option, ...]:
     if lg.aggressive is not None:
         entries.append(("all-in", allin(s)))
     return _merge(s, entries)
+
+
+def _preflop_multiway(
+    s: HandState, lg: Legal, fold: Action, call: Action
+) -> list[tuple[str, Action]]:
+    """5-max pre-flop: the same tree as the bots (``villain/preflop5.py``), facing a jam first."""
+    if len(s.stacks) != preflop5.SEATS:
+        raise UnsupportedSpot(f"no pre-flop options for {len(s.stacks)} seats")
+    if preflop5.has_limp(s):
+        raise UnsupportedSpot("limped pots are not supported")
+    if preflop5.facing_jam(s, lg):
+        return [("fold", fold), ("call", call)]
+    r = len(preflop5.preflop_raises(s))
+    if r == 0:
+        entries = [("fold", fold)]
+    elif r == 1:
+        entries = [("fold", fold), ("call", call)]
+    else:
+        return [("fold", fold), ("call", call), ("all-in", allin(s))]
+    entries += [(lab, raise_to(s, m)) for m, lab in _RAISE_MULTS]
+    entries.append(("all-in", allin(s)))
+    return entries
 
 
 def custom_action(s: HandState, to: int) -> Action:

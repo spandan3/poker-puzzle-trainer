@@ -312,11 +312,24 @@ def action_distribution(profile: Profile, s: HandState) -> Distribution:
     """Per-combo probability of each legal action for the seat to act.
 
     Arrays are ``(1326,)``; for every combo not blocked by the board they sum to 1, and
-    board-blocked combos are 0 everywhere. Pre-flop nothing is blocked.
+    board-blocked combos are 0 everywhere. Pre-flop nothing is blocked. Pre-flop, two seats use
+    the per-combo heads-up tables and five seats the 5-max ranking policy (``preflop5``); any
+    other table size raises ``UnsupportedSpot``.
     """
     lg = _legal(s)
     if s.street == Street.PREFLOP:
-        return _preflop(profile, s)
+        n = len(s.stacks)
+        if n == 2:
+            return _preflop(profile, s)
+        if n != 5:
+            raise UnsupportedSpot(f"no pre-flop policy for {n} seats")
+        from poker_trainer.villain import preflop5  # imports this module: keep it lazy
+
+        fm = preflop5.load_fivemax()
+        block = fm.profiles.get(profile.name)
+        if block is None:
+            raise UnsupportedSpot(f"no 5-max pre-flop block for profile {profile.name!r}")
+        return preflop5.distribution(fm, block, s)
     r = role(s)
     entries = _facing(profile, s, r, lg) if r.startswith("facing") else _unopened(profile, s, r, lg)
     return _merge(entries)
