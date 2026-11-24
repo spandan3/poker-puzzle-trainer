@@ -24,7 +24,7 @@ Play full 5-handed cash-game hands (Hero + 4 bots) in a saved session, next to t
 
 ## 3. Engine
 
-- **State.** `HandState` holds per-seat tuples (stacks, street bets, total contributions, folded flags), and the number of seats comes from the stacks. With two seats every rule, value and legal-action result is identical to today's.
+- **State.** `HandState` holds per-seat tuples (stacks, street bets), and the number of seats comes from the stacks. Folded seats come from the history, and contributions come from the hand's start stacks. With two seats every rule, value and legal-action result is identical to today's.
 - **Bet cap.** A seat can bet at most what the deepest other live player can still match. Heads-up that is the effective-stack cap used today. With more players, a seat can still be all-in for less than others and a bet can still exceed one caller's stack, so side pots arise.
 - **Round end.** A betting round ends when every live seat that isn't all-in has acted since the last full raise and matched the bet. A short all-in doesn't reopen raising for seats that have already acted (today's `_can_reraise` rule, generalised). The board runs out once at most one seat can still bet.
 - **Settlement (`game/settle.py`).**
@@ -54,15 +54,15 @@ Play full 5-handed cash-game hands (Hero + 4 bots) in a saved session, next to t
 
 - **Two live players** (one opponent): the heads-up policy is used exactly as it is, roles included (c-bet, lead, stab, facing bet, facing raise). This covers most 5-max flops.
 - **Three or more live players:** start from the heads-up distribution for the seat to act, then apply a factor *d^k*, where *k* is the number of live opponents minus one:
-  - bluffs (bets and raises with air and weak draws) are multiplied by *d_bluff^k*;
+  - bluffs (bets and raises with air, weak draws and weak made hands) are multiplied by *d_bluff^k*;
   - bets with medium hands are multiplied by *d_thin^k*;
   - the freed probability goes to check (unopened) or fold (facing a bet);
   - facing a bet, the continue probability of everything below strong hands is multiplied by *d_call^k*, and strong hands and the nuts keep their floor.
 
-  The constants live in one data file, with starting values *d_bluff* = 0.5, *d_thin* = 0.6 and *d_call* = 0.8. Arrays still sum to 1 per combo.
+  Damping is applied to the policy's category tables, before actions are merged, and is skipped for committed hands at low SPR. The constants live in one data file, with starting values *d_bluff* = 0.5, *d_thin* = 0.6 and *d_call* = 0.8. Arrays still sum to 1 per combo.
 - **Roles with several players.** "c-bet" is the previous street's last aggressor. "Lead" is the first seat to act on the street with no aggression before it. "Stab" means checked to by at least one seat.
 - **SPR** uses the effective stack against the deepest live opponent.
-- **Version.** `STRATEGY_VERSION` goes to 2, because the 5-max policy is new. Heads-up behaviour doesn't change, and a test pins it.
+- **Version.** `STRATEGY_VERSION` stays 1, because heads-up behaviour doesn't change and a test pins it. The 5-max policy is versioned by its two data files, stored with each 5-max hand.
 
 ## 6. Hero's options
 
