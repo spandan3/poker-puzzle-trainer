@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from poker_trainer.engine.cards import parse_cards
+from poker_trainer.engine.combos import combo_index
 from poker_trainer.game.state import (
     Action,
     ActionKind,
@@ -20,6 +21,7 @@ from poker_trainer.game.state import (
     live_seats,
     needs_board,
     new_hand,
+    total_pot,
 )
 from poker_trainer.puzzle.options import custom_action, hero_options
 from poker_trainer.villain import strategy
@@ -32,7 +34,7 @@ from poker_trainer.villain.features import (
 )
 from poker_trainer.villain.narrowing import describe
 from poker_trainer.villain.preflop5 import Damping, load_fivemax
-from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile
+from poker_trainer.villain.profiles import FACING_ACTIONS, PROFILE_NAMES, load_profile
 from poker_trainer.villain.strategy import (
     UnsupportedSpot,
     action_distribution,
@@ -367,6 +369,21 @@ def test_facing_jam_no_raise_damping(name):
             m = cats == cat
             for a in d:
                 np.testing.assert_array_equal(d[a][m], dists[0][a][m])
+    # Pin the order: the bluff-raise and call damping apply BEFORE "no raise legal -> raise
+    # moves to call", so a bluff category calls (call0 + raise0 * bluff^k) * call^k.
+    assert street_spr(s) > 1.0
+    m0 = strategy._matrix(p.facing[strategy.role(s)], FACING_ACTIONS)
+    lg = legal_actions(s)
+    cont = strategy._continue(m0[:, 1] + m0[:, 2], lg.call / (total_pot(s) - lg.call))
+    base = m0[:, 1] + m0[:, 2]
+    share = np.divide(cont, base, out=np.zeros_like(base), where=base > 0)
+    call0, raise0 = m0[:, 1] * share, m0[:, 2] * share
+    for k in (1, 2, 3):
+        for cat in BLUFF:
+            m = cats == cat
+            expected = (call0[int(cat)] + raise0[int(cat)] * D.bluff**k) * D.call**k
+            assert raise0[int(cat)] > 0, cat  # the order matters only if there is a raise to move
+            np.testing.assert_allclose(total(dists[k], (C,))[m], expected, rtol=1e-12, atol=0)
 
 
 @pytest.mark.parametrize("name", PROFILE_NAMES)
@@ -461,6 +478,34 @@ def test_damping_constants_from_fivemax():
     assert strategy._damping() is D
 
 
+def test_damping_parameter_overrides_the_live_constants():
+    p = PROFILES["lag"]
+    custom = Damping(bluff=0.1, thin=0.2, call=0.3)
+    assert custom != D
+    for _, s in _unopened_states() + _facing_states():
+        live = action_distribution(p, s)
+        same(live, action_distribution(p, s, damping=None))
+        same(live, action_distribution(p, s, damping=D))
+        if strategy._extra_opponents(s) == 0:  # heads-up: constants are never read
+            same(live, action_distribution(p, s, damping=custom))
+            continue
+        d = action_distribution(p, s, damping=custom)
+        facing = role(s).startswith("facing")
+        kinds = (C, R) if facing else (B,)
+        assert np.all(total(d, kinds) <= total(live, kinds) + 1e-15)
+        assert np.any(total(d, kinds) < total(live, kinds) - 1e-6)
+        assert_valid(s, d)
+    # sample_action threads it too: with ~zero call damping an AIR hand always folds.
+    s = apply(five_flop(), bet_to(five_flop(), 0.33))
+    cats = cats_of(s)
+    hole = next(
+        (a, b) for a in range(52) for b in range(a + 1, 52) if cats[combo_index(a, b)] == H.AIR
+    )
+    tiny = Damping(bluff=1e-9, thin=1e-9, call=1e-9)
+    rng = random.Random(1)
+    assert all(sample_action(p, s, hole, rng, damping=tiny).kind == F for _ in range(20))
+
+
 def test_unit_damping_is_identity(monkeypatch):
     monkeypatch.setattr(strategy, "_damping", lambda: Damping(bluff=1.0, thin=1.0, call=1.0))
     p = PROFILES["lag"]
@@ -553,7 +598,11 @@ def _play(i: int, hero: bool, forced: bool, stats) -> bool:
     return multiway
 
 
-@pytest.mark.parametrize("forced", [False, True], ids=["natural", "multiway"])
+@pytest.mark.parametrize(
+    "forced",
+    [False, pytest.param(True, marks=pytest.mark.slow)],
+    ids=["natural", "multiway"],
+)
 @pytest.mark.parametrize("hero", [False, True], ids=["bots", "hero"])
 def test_simulated_five_seat_hands(hero, forced):
     """Seeded five-seat hands to the end: no UnsupportedSpot, every distribution valid.

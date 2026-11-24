@@ -289,18 +289,18 @@ def _scale(m: np.ndarray, rows: list[int], cols: slice | int, factor: float, to:
     m[rows, to] += removed.sum(axis=1) if removed.ndim == 2 else removed
 
 
-def _damp_unopened(m: np.ndarray, k: int) -> None:
+def _damp_unopened(m: np.ndarray, k: int, damping: Damping | None = None) -> None:
     """Multiway: bluff bets x bluff^k, MEDIUM's thin bets x thin^k; the removed mass checks."""
-    d = _damping()
+    d = damping if damping is not None else _damping()
     _scale(m, _BLUFF_ROWS, slice(1, None), d.bluff**k, 0)
     _scale(m, [_THIN_ROW], slice(1, None), d.thin**k, 0)
 
 
-def _damp_facing(m: np.ndarray, k: int, committed: bool) -> None:
+def _damp_facing(m: np.ndarray, k: int, committed: bool, damping: Damping | None = None) -> None:
     """Multiway facing a bet: MEDIUM's raise -> call, bluff raises x bluff^k, then continuing
     (call + raise) below STRONG x call^k; the removed mass folds. ``committed`` (low SPR) skips
     the ``_COMMITTED`` rows, which the low-SPR step then handles as heads-up."""
-    d = _damping()
+    d = damping if damping is not None else _damping()
     skip = {int(c) for c in _COMMITTED} if committed else set()
     if _THIN_ROW not in skip:
         m[_THIN_ROW, 1] += m[_THIN_ROW, 2]
@@ -310,7 +310,7 @@ def _damp_facing(m: np.ndarray, k: int, committed: bool) -> None:
 
 
 def _unopened(
-    profile: Profile, s: HandState, r: str, lg: Legal, k: int = 0
+    profile: Profile, s: HandState, r: str, lg: Legal, k: int = 0, damping: Damping | None = None
 ) -> list[tuple[Action, np.ndarray]]:
     m = _matrix(profile.unopened[r], UNOPENED_ACTIONS)  # check, bet_33, bet_75
     if s.street == Street.RIVER:
@@ -321,7 +321,7 @@ def _unopened(
         m[rows, 1:] *= _DRAW_BET_BOOST
         m[rows] /= m[rows].sum(axis=1, keepdims=True)
     if k > 0:
-        _damp_unopened(m, k)
+        _damp_unopened(m, k, damping)
     rows = _row_index(s.board)
     check = _check(s)
     can_bet = lg.aggressive == ActionKind.BET
@@ -346,7 +346,7 @@ def _continue(base: np.ndarray, f: float) -> np.ndarray:
 
 
 def _facing(
-    profile: Profile, s: HandState, r: str, lg: Legal, k: int = 0
+    profile: Profile, s: HandState, r: str, lg: Legal, k: int = 0, damping: Damping | None = None
 ) -> list[tuple[Action, np.ndarray]]:
     m = _matrix(profile.facing[r], FACING_ACTIONS)  # fold, call, raise
     if s.street == Street.RIVER:
@@ -362,7 +362,7 @@ def _facing(
     m[_BLOCKED_ROW] = 0.0
     low_spr = street_spr(s) <= _LOW_SPR
     if k > 0:
-        _damp_facing(m, k, committed=low_spr)
+        _damp_facing(m, k, committed=low_spr, damping=damping)
     if lg.aggressive != ActionKind.RAISE:
         m[:, 1] += m[:, 2]
         m[:, 2] = 0.0
@@ -376,7 +376,9 @@ def _facing(
     return [(_fold(s), m[rows, 0]), (call, m[rows, 1]), (raise_, m[rows, 2])]
 
 
-def action_distribution(profile: Profile, s: HandState) -> Distribution:
+def action_distribution(
+    profile: Profile, s: HandState, *, damping: Damping | None = None
+) -> Distribution:
     """Per-combo probability of each legal action for the seat to act.
 
     Arrays are ``(1326,)``; for every combo not blocked by the board they sum to 1, and
@@ -386,6 +388,7 @@ def action_distribution(profile: Profile, s: HandState) -> Distribution:
     table size; with k = live opponents - 1 > 0 (all-in opponents count) they are damped first
     (``_damp_unopened`` / ``_damp_facing``, constants in ``fivemax.json``). k = 0 never touches
     them, so heads-up (and a multiway hand down to two live seats) is the heads-up policy.
+    ``damping`` overrides the live constants (a per-seat snapshot); ``None`` reads the file.
     """
     lg = _legal(s)
     if s.street == Street.PREFLOP:
@@ -401,25 +404,34 @@ def action_distribution(profile: Profile, s: HandState) -> Distribution:
         if block is None:
             raise UnsupportedSpot(f"no 5-max pre-flop block for profile {profile.name!r}")
         return preflop5.distribution(fm, block, s)
-    return _postflop(profile, s, lg, _extra_opponents(s))
+    return _postflop(profile, s, lg, _extra_opponents(s), damping)
 
 
-def _postflop(profile: Profile, s: HandState, lg: Legal, k: int) -> Distribution:
+def _postflop(
+    profile: Profile, s: HandState, lg: Legal, k: int, damping: Damping | None = None
+) -> Distribution:
     """The post-flop policy with multiway damping ``k`` (live opponents - 1; 0 is heads-up)."""
     r = role(s)
     build = _facing if r.startswith("facing") else _unopened
-    return _merge(build(profile, s, r, lg, k))
+    return _merge(build(profile, s, r, lg, k, damping))
 
 
 class _Uniform(Protocol):
     def random(self) -> float: ...
 
 
-def sample_action(profile: Profile, s: HandState, hole: tuple[int, int], rng: _Uniform) -> Action:
+def sample_action(
+    profile: Profile,
+    s: HandState,
+    hole: tuple[int, int],
+    rng: _Uniform,
+    *,
+    damping: Damping | None = None,
+) -> Action:
     """Sample the seat-to-act's action for its actual hole cards (deterministic given rng)."""
     ensure_distinct(tuple(hole), s.board)
     i = combo_index(*hole)
-    dist = action_distribution(profile, s)
+    dist = action_distribution(profile, s, damping=damping)
     weights = [(a, float(arr[i])) for a, arr in dist.items() if arr[i] > 0.0]
     if not weights:
         raise ValueError(f"no action has positive probability for hole {hole}")
