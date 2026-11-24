@@ -2,6 +2,17 @@
 
 Recorded 2026-11-24 on branch `m12-5max`, before any M12 engine change (Task 0).
 
+Environment: code at commit `4613233` (the original heads-up engine, no M12 engine change). Python 3.13.18, numpy 2.5.4, Linux 6.18.44 x86_64 (glibc 2.39). The competence run takes about 2 minutes.
+
+Deterministic: the command was run twice and the two outputs are byte-identical, and identical to the block below. Task 3 must match it exactly.
+
+Pre-existing baseline FAIL rows (not regressions, and not to be fixed in M12):
+
+- seed 0, `tight bluff_share_75` = 0.145, band [0.15, 0.32], 36 samples: FAIL.
+- seed 0, `tight cbet_flop` = 0.515, band [0.45, 0.70], 25 samples: FAIL (insufficient samples).
+
+These are the only two FAIL rows in the output (summary: `tight bluff_share_75` 1/2 and `tight cbet_flop` 1/2). Tuning `tight` belongs to M14 (profile tuning).
+
 ## Competence output
 
 Command, from `backend/`: `uv run competence --profile all --hands 200 --seeds 0-1`
