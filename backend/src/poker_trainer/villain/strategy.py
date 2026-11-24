@@ -43,7 +43,7 @@ from poker_trainer.villain.profiles import (
 )
 
 if TYPE_CHECKING:
-    from poker_trainer.villain.preflop5 import Damping
+    from poker_trainer.villain.preflop5 import Damping, FiveMax
 
 ALLIN_FRACTION = 0.6
 OPEN_MULT = 2.5
@@ -377,7 +377,11 @@ def _facing(
 
 
 def action_distribution(
-    profile: Profile, s: HandState, *, damping: Damping | None = None
+    profile: Profile,
+    s: HandState,
+    *,
+    damping: Damping | None = None,
+    fivemax: FiveMax | None = None,
 ) -> Distribution:
     """Per-combo probability of each legal action for the seat to act.
 
@@ -388,8 +392,13 @@ def action_distribution(
     table size; with k = live opponents - 1 > 0 (all-in opponents count) they are damped first
     (``_damp_unopened`` / ``_damp_facing``, constants in ``fivemax.json``). k = 0 never touches
     them, so heads-up (and a multiway hand down to two live seats) is the heads-up policy.
-    ``damping`` overrides the live constants (a per-seat snapshot); ``None`` reads the file.
+    ``fivemax`` is a 5-max data snapshot (``preflop5.FiveMax``, e.g. one bot seat's): when
+    given, the 5-max pre-flop policy reads its ``bb_call_mult`` and ``profile.name`` block, and
+    ``damping`` defaults to its ``damping``. ``damping`` overrides the damping constants. Each
+    left as ``None`` reads the live ``fivemax.json``. Heads-up neither is ever read.
     """
+    if damping is None and fivemax is not None:
+        damping = fivemax.damping
     lg = _legal(s)
     if s.street == Street.PREFLOP:
         n = len(s.stacks)
@@ -399,7 +408,7 @@ def action_distribution(
             raise UnsupportedSpot(f"no pre-flop policy for {n} seats")
         from poker_trainer.villain import preflop5  # imports this module: keep it lazy
 
-        fm = preflop5.load_fivemax()
+        fm = fivemax if fivemax is not None else preflop5.load_fivemax()
         block = fm.profiles.get(profile.name)
         if block is None:
             raise UnsupportedSpot(f"no 5-max pre-flop block for profile {profile.name!r}")
@@ -427,11 +436,15 @@ def sample_action(
     rng: _Uniform,
     *,
     damping: Damping | None = None,
+    fivemax: FiveMax | None = None,
 ) -> Action:
-    """Sample the seat-to-act's action for its actual hole cards (deterministic given rng)."""
+    """Sample the seat-to-act's action for its actual hole cards (deterministic given rng).
+
+    ``damping`` and ``fivemax`` are passed to ``action_distribution``.
+    """
     ensure_distinct(tuple(hole), s.board)
     i = combo_index(*hole)
-    dist = action_distribution(profile, s, damping=damping)
+    dist = action_distribution(profile, s, damping=damping, fivemax=fivemax)
     weights = [(a, float(arr[i])) for a, arr in dist.items() if arr[i] > 0.0]
     if not weights:
         raise ValueError(f"no action has positive probability for hole {hole}")

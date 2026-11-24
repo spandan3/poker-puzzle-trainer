@@ -41,6 +41,7 @@ from poker_trainer.game.state import (
     Street,
     position_name,
 )
+from poker_trainer.villain.profiles import PROFILE_NAMES
 from poker_trainer.villain.strategy import (
     Distribution,
     UnsupportedSpot,
@@ -95,40 +96,115 @@ def _pct(x: object, what: str) -> float:
     return float(x)
 
 
+# Every problem in the data is a ValueError, type errors included (hence the TRY004 noqa).
+def _num(x: object, what: str) -> float:
+    if isinstance(x, bool) or not isinstance(x, int | float):
+        raise ValueError(f"{what} must be a number, got {x!r}")  # noqa: TRY004
+    return float(x)
+
+
+def _keys(raw: object, want: tuple[str, ...], what: str) -> Mapping:
+    """``raw`` as a mapping with exactly the keys ``want`` (missing or unknown keys raise)."""
+    if not isinstance(raw, Mapping):
+        raise ValueError(f"{what} must be an object, got {type(raw).__name__}")  # noqa: TRY004
+    if set(raw) != set(want):
+        raise ValueError(f"{what} needs exactly the keys {sorted(want)}, got {sorted(raw)}")
+    return raw
+
+
 def profile_from_block(name: str, raw: Mapping) -> FiveMaxProfile:
-    """Parse and check one profile block of ``fivemax.json``."""
-    opens = raw["open"]
-    if set(opens) != set(OPEN_POSITIONS):
-        raise ValueError(f"{name}: open needs exactly {OPEN_POSITIONS}, got {sorted(opens)}")
+    """Parse and check one profile block of ``fivemax.json`` (every problem is a ValueError)."""
+    raw = _keys(raw, ("open", "vs_open", "vs_threebet", "vs_jam"), name)
+    opens = _keys(raw["open"], OPEN_POSITIONS, f"{name}.open")
+    vs_open = _keys(raw["vs_open"], ("threebet", "call"), f"{name}.vs_open")
+    vs_3b = _keys(raw["vs_threebet"], ("jam", "call"), f"{name}.vs_threebet")
+    vs_jam = _keys(raw["vs_jam"], ("call",), f"{name}.vs_jam")
     p = FiveMaxProfile(
         open=MappingProxyType({k: _pct(opens[k], f"{name}.open.{k}") for k in OPEN_POSITIONS}),
-        threebet=_pct(raw["vs_open"]["threebet"], f"{name}.vs_open.threebet"),
-        call=_pct(raw["vs_open"]["call"], f"{name}.vs_open.call"),
-        jam_vs_threebet=_pct(raw["vs_threebet"]["jam"], f"{name}.vs_threebet.jam"),
-        call_vs_threebet=_pct(raw["vs_threebet"]["call"], f"{name}.vs_threebet.call"),
-        call_vs_jam=_pct(raw["vs_jam"]["call"], f"{name}.vs_jam.call"),
+        threebet=_pct(vs_open["threebet"], f"{name}.vs_open.threebet"),
+        call=_pct(vs_open["call"], f"{name}.vs_open.call"),
+        jam_vs_threebet=_pct(vs_3b["jam"], f"{name}.vs_threebet.jam"),
+        call_vs_threebet=_pct(vs_3b["call"], f"{name}.vs_threebet.call"),
+        call_vs_jam=_pct(vs_jam["call"], f"{name}.vs_jam.call"),
     )
     if p.threebet + p.call > 100.0 or p.jam_vs_threebet + p.call_vs_threebet > 100.0:
         raise ValueError(f"{name}: buckets add up to more than 100%")
     return p
 
 
-def fivemax_from_dict(raw: Mapping) -> FiveMax:
-    mult = raw["bb_call_mult"]
-    if not isinstance(mult, int | float) or mult < 1.0:
-        raise ValueError(f"bb_call_mult must be >= 1, got {mult!r}")
-    d = raw["damping"]
-    damping = Damping(bluff=float(d["bluff"]), thin=float(d["thin"]), call=float(d["call"]))
+def _version(x: object, what: str) -> int:
+    if isinstance(x, bool) or not isinstance(x, int) or x < 1:
+        raise ValueError(f"{what} must be an integer >= 1, got {x!r}")
+    return x
+
+
+def _damping_from_dict(raw: object) -> Damping:
+    d = _keys(raw, ("bluff", "thin", "call"), "damping")
+    damping = Damping(**{k: _num(d[k], f"damping.{k}") for k in ("bluff", "thin", "call")})
     for k, v in vars(damping).items():
         if not 0.0 < v <= 1.0:
             raise ValueError(f"damping.{k} must be in (0, 1], got {v}")
+    return damping
+
+
+def _bb_call_mult(x: object) -> float:
+    mult = _num(x, "bb_call_mult")
+    if mult < 1.0:
+        raise ValueError(f"bb_call_mult must be >= 1, got {x!r}")
+    return mult
+
+
+def fivemax_from_dict(raw: Mapping) -> FiveMax:
+    """Parse and check ``fivemax.json`` (or a subset of its profiles): exact keys, types and
+    ranges, and profile names from ``PROFILE_NAMES``. Every problem is a ValueError."""
+    raw = _keys(raw, ("version", "bb_call_mult", "damping", "profiles"), "fivemax")
+    profiles = raw["profiles"]
+    if not isinstance(profiles, Mapping):
+        raise ValueError("profiles must be an object")  # noqa: TRY004
+    unknown = sorted(set(profiles) - set(PROFILE_NAMES))
+    if unknown:
+        raise ValueError(f"unknown profiles {unknown}; expected some of {PROFILE_NAMES}")
     return FiveMax(
-        version=int(raw["version"]),
-        bb_call_mult=float(mult),
-        damping=damping,
+        version=_version(raw["version"], "version"),
+        bb_call_mult=_bb_call_mult(raw["bb_call_mult"]),
+        damping=_damping_from_dict(raw["damping"]),
         profiles=MappingProxyType(
-            {name: profile_from_block(name, block) for name, block in raw["profiles"].items()}
+            {name: profile_from_block(name, block) for name, block in profiles.items()}
         ),
+    )
+
+
+SEAT_SNAPSHOT_KEYS = ("version", "bb_call_mult", "damping", "block")
+
+
+def seat_snapshot(name: str) -> dict:
+    """One profile's slice of the live ``fivemax.json``, for a bot seat to keep.
+
+    ``{"version", "bb_call_mult", "damping", "block"}`` as a fresh plain dict (JSON-safe);
+    ``fivemax_from_snapshot(name, seat_snapshot(name))`` plays as the live file does now,
+    even after the file changes.
+    """
+    if name not in PROFILE_NAMES:
+        raise ValueError(f"unknown profile {name!r}; expected one of {PROFILE_NAMES}")
+    raw = _read("fivemax.json")
+    return {
+        "version": raw["version"],
+        "bb_call_mult": raw["bb_call_mult"],
+        "damping": raw["damping"],
+        "block": raw["profiles"][name],
+    }
+
+
+def fivemax_from_snapshot(name: str, raw: Mapping) -> FiveMax:
+    """A one-profile ``FiveMax`` from a ``seat_snapshot`` dict, checked as strictly as the file."""
+    raw = _keys(raw, SEAT_SNAPSHOT_KEYS, f"{name} 5-max snapshot")
+    return fivemax_from_dict(
+        {
+            "version": raw["version"],
+            "bb_call_mult": raw["bb_call_mult"],
+            "damping": raw["damping"],
+            "profiles": {name: raw["block"]},
+        }
     )
 
 
@@ -138,7 +214,10 @@ def _read(name: str) -> dict:
 
 @lru_cache(maxsize=1)
 def load_fivemax() -> FiveMax:
-    return fivemax_from_dict(_read("fivemax.json"))
+    fm = fivemax_from_dict(_read("fivemax.json"))
+    if set(fm.profiles) != set(PROFILE_NAMES):
+        raise ValueError(f"fivemax.json needs a block for each of {PROFILE_NAMES}")
+    return fm
 
 
 @lru_cache(maxsize=1)

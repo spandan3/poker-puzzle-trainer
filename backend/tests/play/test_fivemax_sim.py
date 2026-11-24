@@ -19,6 +19,7 @@ from poker_trainer.game.state import (
 from poker_trainer.play.hand import (
     HERO_SEAT,
     HandRecord,
+    SeatBot,
     advance_seats,
     hero_act_seats,
     outcome5,
@@ -32,9 +33,9 @@ from poker_trainer.play.session import (
     next_stacks5,
 )
 from poker_trainer.puzzle.options import custom_action, hero_options
-from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile
+from poker_trainer.villain.profiles import PROFILE_NAMES
 
-PROFILES = {name: load_profile(name) for name in PROFILE_NAMES}
+BOTS = {name: SeatBot.live(name) for name in PROFILE_NAMES}
 SESSION_HANDS = 100  # each session deals fresh random profiles to the four bot seats
 CUSTOM_PROB = 0.2
 TOP_UP_PROB = 0.1
@@ -86,7 +87,7 @@ def simulate(n_hands: int, seed: int) -> Stats:
         if h % SESSION_HANDS == 0:
             names = {seat: rng.choice(PROFILE_NAMES) for seat in range(1, SEATS5)}
             hero, bots = START, [START] * (SEATS5 - 1)
-        profiles = {seat: PROFILES[name] for seat, name in names.items()}
+        profiles = {seat: BOTS[name] for seat, name in names.items()}
         hero, new_bots, bought = next_stacks5(hero, bots, top_up=rng.random() < TOP_UP_PROB)
         stats.rebuys += bought > 0
         stacks = (hero, *new_bots)

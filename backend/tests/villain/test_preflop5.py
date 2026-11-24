@@ -130,6 +130,46 @@ def test_fivemax_file():
         preflop5.fivemax_from_dict(bad)
 
 
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda d: d.pop("damping"),
+        lambda d: d.update(extra=1),
+        lambda d: d.update(version="1"),
+        lambda d: d.update(version=0),
+        lambda d: d.update(bb_call_mult=True),
+        lambda d: d["damping"].update(bluff="0.5"),
+        lambda d: d["damping"].update(extra=0.5),
+        lambda d: d["profiles"].update(maniac=d["profiles"]["tag"]),
+        lambda d: d["profiles"]["tag"].pop("vs_jam"),
+        lambda d: d["profiles"]["tag"]["vs_jam"].update(fold=1),
+        lambda d: d["profiles"]["tag"]["open"].pop("SB"),
+        lambda d: d["profiles"]["tag"].update(vs_open=[4, 7]),
+    ],
+)
+def test_fivemax_validation_is_strict(change):
+    raw = json.loads(files("poker_trainer.villain").joinpath("fivemax.json").read_text("utf-8"))
+    change(raw)
+    with pytest.raises(ValueError):
+        preflop5.fivemax_from_dict(raw)
+
+
+def test_a_seat_snapshot_is_the_live_block():
+    for name in PROFILE_NAMES:
+        snap = preflop5.seat_snapshot(name)
+        fm = preflop5.fivemax_from_snapshot(name, json.loads(json.dumps(snap)))
+        assert (fm.version, fm.bb_call_mult, fm.damping) == (
+            FM.version,
+            FM.bb_call_mult,
+            FM.damping,
+        )
+        assert dict(fm.profiles) == {name: FM.profiles[name]}
+    with pytest.raises(ValueError):
+        preflop5.seat_snapshot("maniac")
+    with pytest.raises(ValueError):
+        preflop5.fivemax_from_snapshot("tag", {**preflop5.seat_snapshot("tag"), "profiles": {}})
+
+
 # ---------------------------------------------------------------------------
 # buckets
 # ---------------------------------------------------------------------------

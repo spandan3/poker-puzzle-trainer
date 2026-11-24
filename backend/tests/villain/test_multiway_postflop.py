@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import random
 from collections import defaultdict
 
@@ -504,6 +505,15 @@ def test_damping_parameter_overrides_the_live_constants():
     tiny = Damping(bluff=1e-9, thin=1e-9, call=1e-9)
     rng = random.Random(1)
     assert all(sample_action(p, s, hole, rng, damping=tiny).kind == F for _ in range(20))
+
+
+def test_fivemax_snapshot_supplies_the_damping_and_an_explicit_damping_wins():
+    p = PROFILES["sticky"]
+    custom = Damping(bluff=0.1, thin=0.2, call=0.3)
+    snap = dataclasses.replace(load_fivemax(), damping=custom)
+    for _, s in _unopened_states() + _facing_states():
+        same(action_distribution(p, s, damping=custom), action_distribution(p, s, fivemax=snap))
+        same(action_distribution(p, s), action_distribution(p, s, fivemax=snap, damping=D))
 
 
 def test_unit_damping_is_identity(monkeypatch):
