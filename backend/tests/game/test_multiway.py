@@ -72,8 +72,10 @@ def test_four_and_six_seat_position_names():
 
 
 def test_multiway_blinds_need_stacks_above_the_big_blind():
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError, match="exceed the big blind"):
         new_hand(0, (200, 200, 2))
+    with pytest.raises(ValueError, match="exceed the big blind"):
+        new_hand(1, (200, 1, 200, 200))
     with pytest.raises(ValueError):
         new_hand(0, (200,) * 7)
     with pytest.raises(ValueError):
@@ -196,7 +198,7 @@ def test_short_all_in_does_not_reopen_raising():
     assert s.to_act is None
 
 
-def test_full_raise_after_a_short_all_in_reopens():
+def test_call_for_less_then_a_full_raise_leaves_the_next_seat_able_to_raise():
     s = new_hand(0, (200, 200, 200, 25))  # BTN 0, SB 1, BB 2, CO 3 (first)
     s = act(s, K.RAISE, 20)  # seat 3 acts first and opens to 20 (a raise of 18)
     assert s.history[-1].seat == 3
@@ -208,6 +210,17 @@ def test_full_raise_after_a_short_all_in_reopens():
     assert s.stacks[3] == 0
     assert s.to_act == 0
     assert legal_actions(s).aggressive == K.RAISE  # the BB's full raise reopened it
+
+
+def test_short_all_in_does_not_stop_an_unacted_seat_raising():
+    s = new_hand(0, (200, 200, 200, 3, 200))  # BTN 0, SB 1, BB 2, UTG 3, CO 4
+    s = act(s, K.RAISE, 3)  # UTG all-in for 3: a raise of 1, short of the 2 minimum
+    assert s.stacks[3] == 0 and s.last_raise == 2
+    assert s.to_act == 4
+    lg = legal_actions(s)
+    # The CO has not acted, so the short all-in does not close its raising.
+    assert lg.aggressive == K.RAISE
+    assert lg.min_to == 5
 
 
 def test_short_all_in_after_full_raise_still_reopens():

@@ -160,6 +160,37 @@ def test_odd_chip_order_wraps_round_the_table():
     assert out.stacks == (193 + 8, 193 + 7, 199)
 
 
+def test_odd_chip_goes_clockwise_from_button_plus_one_not_by_seat_index():
+    start = (200, 200, 200, 200)  # BTN 0, SB 1, BB 2, CO 3
+    s = new_hand(0, start)
+    s = act(s, K.RAISE, 5)  # CO
+    s = act(s, K.CALL)  # BTN
+    s = act(s, K.CALL)  # SB
+    s = act(s, K.FOLD)  # BB folds its 2: pot 5 * 3 + 2 = 17
+    s = run_out(s, "AcKdQh7s2d")
+    # Seats 0 and 1 both make the ace-high straight; the CO has ace high only.
+    holes = (h("JcTc"), h("JdTd"), None, h("3c4c"))
+    out = settle_pots(s, holes, start)
+    assert out.pots == (PotAward(17, (0, 1, 3), (0, 1)),)
+    # The odd chip goes to seat 1 (button+1), not to the lower seat index 0.
+    assert out.stacks == (195 + 8, 195 + 9, 198, 195)
+
+
+def test_odd_chip_clockwise_when_the_button_is_not_seat_zero():
+    start = (200, 200, 200, 200)  # BTN 2, SB 3, BB 0, UTG 1 (first)
+    s = new_hand(2, start)
+    s = act(s, K.RAISE, 5)  # seat 1
+    s = act(s, K.CALL)  # BTN 2
+    s = act(s, K.CALL)  # SB 3
+    s = act(s, K.FOLD)  # BB 0 folds its 2: pot 17
+    s = run_out(s, "AcKdQh7s2d")
+    holes = (None, h("JcTc"), h("3c4c"), h("JdTd"))
+    out = settle_pots(s, holes, start)
+    assert out.pots == (PotAward(17, (1, 2, 3), (1, 3)),)
+    # Clockwise from button+1 = seat 3: seat 3 is before seat 1.
+    assert out.stacks == (198, 195 + 8, 195, 195 + 9)
+
+
 def test_everyone_folds_to_one_seat():
     start = (200, 200, 200, 200, 200)
     s = new_hand(0, start)

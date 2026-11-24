@@ -152,7 +152,8 @@ def new_hand(button: int, stacks: tuple[int, ...] = (START_STACK, START_STACK)) 
         first = button
     else:
         # Session rules keep every stack above the big blind, so no blind is posted all-in.
-        assert all(x > BB for x in stacks), f"every stack must exceed the big blind: {stacks}"
+        if not all(x > BB for x in stacks):
+            raise ValueError(f"every stack must exceed the big blind: {stacks}")
         posts[(button + 1) % n] = SB
         posts[(button + 2) % n] = BB
         first = (button + 3) % n

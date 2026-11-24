@@ -74,7 +74,8 @@ def _choose(rng: random.Random, s: new.HandState) -> tuple[str, int]:
 
 def _play_one(seed: int) -> None:
     rng = random.Random(f"hu-reference:{seed}")
-    stacks = (rng.randint(2, 600), rng.randint(2, 600))
+    # About a quarter of the stacks are short (1 to 12 chips), the rest 2 to 600.
+    stacks = tuple(rng.randint(1, 12) if rng.random() < 0.25 else rng.randint(2, 600) for _ in "ab")
     button = rng.randrange(2)
     deck = list(range(52))
     rng.shuffle(deck)

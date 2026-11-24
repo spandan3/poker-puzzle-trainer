@@ -10,7 +10,12 @@ from each seat's total contribution:
 - adjacent layers contested by the same seats form one pot;
 - each pot goes to the best hand among its seats; a tie splits it evenly, and odd chips go one
   at a time to the winners in clockwise order from ``button+1``;
-- if only one live seat is left, it takes everything as one pot.
+- if only one live seat is left, it takes everything as one pot. That one listed pot includes
+  the winner's own uncalled excess, so everyone-folds is not split into pot and returned bet.
+
+Play and API code should call ``settle_pots`` with the record's ``start_stacks``. ``settle``
+is the stacks-only form: with three or more seats it rebuilds each seat's contribution from the
+history, so it is only as good as that replay.
 """
 
 from __future__ import annotations
@@ -108,7 +113,8 @@ def settle_pots(
 
     ``start_stacks`` are the seats' stacks before the blinds (``new_hand``'s input); each seat's
     contribution is ``start_stacks[i] - s.stacks[i]``. ``holes[seat]`` is needed only for seats
-    still live at a showdown; others may be None.
+    still live at a showdown; others may be None. When everyone else folds, the single listed
+    pot is the whole pot, the winner's own uncalled excess included.
     """
     if not is_terminal(s):
         raise ValueError("cannot settle a hand that is not over")
