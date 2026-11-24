@@ -14,7 +14,7 @@ import numpy as np
 from poker_trainer.engine.cards import rank_of, suit_of
 from poker_trainer.engine.combos import COMBOS
 from poker_trainer.engine.evaluator import HandClass, evaluate, hand_class
-from poker_trainer.game.state import HandState, Street
+from poker_trainer.game.state import HandState, Street, live_seats
 
 _STRAIGHT_MAX_RANK = max(r for r in range(1, 8000) if hand_class(r) >= HandClass.STRAIGHT)
 
@@ -159,9 +159,19 @@ def board_texture(board: Sequence[int]) -> BoardTexture:
 
 
 def street_spr(s: HandState) -> float:
+    """Street-start SPR of the seat to act: its effective stack against the deepest live opponent.
+
+    Both stacks count this street's bets (``stack + street bet``), divided by the pot before this
+    street's bets. Heads-up this is the effective stack of the two seats, as before M12. All-in
+    opponents count (with what they put in this street).
+    """
     if s.street == Street.PREFLOP:
         raise ValueError("SPR is undefined pre-flop")
-    return min(s.stacks[i] + s.street_bets[i] for i in (0, 1)) / s.pot
+    me = s.to_act
+    if me is None:
+        raise ValueError("no player to act")
+    behind = [s.stacks[i] + s.street_bets[i] for i in live_seats(s) if i != me]
+    return min(s.stacks[me] + s.street_bets[me], max(behind)) / s.pot
 
 
 range_features.cache_clear = _range_features.cache_clear  # type: ignore[attr-defined]
