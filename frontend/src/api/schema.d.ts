@@ -179,7 +179,10 @@ export interface paths {
         /** Play Sessions */
         get: operations["play_sessions_api_play_sessions_get"];
         put?: never;
-        /** Start Play Session */
+        /**
+         * Start Play Session
+         * @description Start a session: heads-up by default (no body), or 5-max with ``{"table_size": 5}``.
+         */
         post: operations["start_play_session_api_play_sessions_post"];
         delete?: never;
         options?: never;
@@ -519,6 +522,19 @@ export interface components {
             actual: number;
             /** Required */
             required: number;
+        };
+        /**
+         * BotSeatInfo
+         * @description A bot at the session's table; ``profile`` is null when the profile setting is off.
+         */
+        BotSeatInfo: {
+            /** Name */
+            name: string;
+            profile: components["schemas"]["ProfileInfo"] | null;
+            /** Seat */
+            seat: number;
+            /** Stack */
+            stack: number;
         };
         /** Branch */
         Branch: {
@@ -901,6 +917,13 @@ export interface components {
             id: number;
             /** Result Bb */
             result_bb: number | null;
+            /**
+             * Table Size
+             * @default 2
+             */
+            table_size: number;
+            /** Winner Names */
+            winner_names: string[];
         };
         /** PlayHandView */
         PlayHandView: {
@@ -927,7 +950,14 @@ export interface components {
             status: "in_progress" | "complete";
             table: components["schemas"]["TableView"];
         };
-        /** PlayOutcome */
+        /**
+         * PlayOutcome
+         * @description How a hand ended. ``winner`` heads-up is the hand's result; in 5-max it is "villain" when
+         *     the hand was abandoned or Hero folded, and otherwise the sign of Hero's delta.
+         *     ``villain_cards`` and ``showdown`` are heads-up showdowns only. ``pots`` are the awards
+         *     (empty for an abandoned hand) and ``shown`` the bots' cards revealed at a showdown,
+         *     clockwise from the seat after the button.
+         */
         PlayOutcome: {
             /**
              * Ended By
@@ -938,7 +968,11 @@ export interface components {
             hero_delta_bb: number;
             /** Hero Delta Chips */
             hero_delta_chips: number;
+            /** Pots */
+            pots: components["schemas"]["PotAwardView"][];
             showdown: components["schemas"]["Showdown"] | null;
+            /** Shown */
+            shown: components["schemas"]["ShownCards"][];
             /** Villain Cards */
             villain_cards: string[] | null;
             /**
@@ -959,6 +993,18 @@ export interface components {
             /** Villain Cards */
             villain_cards: string[];
         };
+        /**
+         * PlaySessionIn
+         * @description Optional body of ``POST /play/sessions``: heads-up (2, the default) or 5-max (5).
+         */
+        PlaySessionIn: {
+            /**
+             * Table Size
+             * @default 2
+             * @enum {integer}
+             */
+            table_size?: 2 | 5;
+        };
         /** PlaySessionSummary */
         PlaySessionSummary: {
             /** Created At */
@@ -975,11 +1021,22 @@ export interface components {
             open: boolean;
             /** Profile Label */
             profile_label: string;
+            /**
+             * Table Size
+             * @default 2
+             */
+            table_size: number;
         };
-        /** PlaySessionView */
+        /**
+         * PlaySessionView
+         * @description ``profile`` and ``bot_stack`` are the heads-up bot's (null in 5-max). ``bots`` lists
+         *     every bot seat with its stack after the last finished hand.
+         */
         PlaySessionView: {
             /** Bot Stack */
-            bot_stack: number;
+            bot_stack: number | null;
+            /** Bots */
+            bots: components["schemas"]["BotSeatInfo"][];
             /** Can Top Up */
             can_top_up: boolean;
             hand: components["schemas"]["PlayHandView"] | null;
@@ -999,7 +1056,24 @@ export interface components {
             net_chips: number;
             /** Open */
             open: boolean;
-            profile: components["schemas"]["ProfileInfo"];
+            profile: components["schemas"]["ProfileInfo"] | null;
+            /** Table Size */
+            table_size: number;
+        };
+        /**
+         * PotAwardView
+         * @description One pot of a finished hand: ``label`` is "main pot", "side pot 1", ...; ``eligible``
+         *     are the seats contesting it and ``winners`` those it went to (a split has several).
+         */
+        PotAwardView: {
+            /** Amount */
+            amount: number;
+            /** Eligible */
+            eligible: number[];
+            /** Label */
+            label: string;
+            /** Winners */
+            winners: number[];
         };
         /** ProfileInfo */
         ProfileInfo: {
@@ -1091,6 +1165,37 @@ export interface components {
             version: number;
         };
         /**
+         * SeatView
+         * @description One seat at a played table. ``name`` is "You" for Hero, "Villain" for the heads-up bot
+         *     and "Bot 1" to "Bot 4" in 5-max. ``profile`` is the bot's profile (null for Hero); the
+         *     client hides it per setting. ``cards`` are Hero's cards, or a bot's cards once they are
+         *     shown at a showdown; otherwise null. In a finished hand ``stack`` is the settled stack,
+         *     ``street_bet`` is 0 and ``all_in`` is false.
+         */
+        SeatView: {
+            /** All In */
+            all_in: boolean;
+            /** Cards */
+            cards: string[] | null;
+            /** Folded */
+            folded: boolean;
+            /** Is Button */
+            is_button: boolean;
+            /** Is Hero */
+            is_hero: boolean;
+            /** Name */
+            name: string;
+            /** Position */
+            position: string;
+            profile: components["schemas"]["ProfileInfo"] | null;
+            /** Seat */
+            seat: number;
+            /** Stack */
+            stack: number;
+            /** Street Bet */
+            street_bet: number;
+        };
+        /**
          * SettingsPatch
          * @description Partial update: only fields the client sent are applied (``profile: null`` = random).
          */
@@ -1155,6 +1260,13 @@ export interface components {
              * @enum {string}
              */
             winner: "hero" | "villain" | "split";
+        };
+        /** ShownCards */
+        ShownCards: {
+            /** Cards */
+            cards: string[];
+            /** Seat */
+            seat: number;
         };
         /** Simplification */
         Simplification: {
@@ -1252,25 +1364,38 @@ export interface components {
         /**
          * TableFrame
          * @description The table after the first ``k`` history entries, before any pot award.
+         *
+         *     ``to_act`` is "hero", "villain" (any bot) or null; ``to_act_seat`` is that seat. ``folded``
+         *     has one flag per seat. ``pots`` are the pots as they stand, the main pot first: only chips
+         *     already in the middle (the bets of streets that are over), an uncalled excess left out;
+         *     empty while nothing is in the middle.
          */
         TableFrame: {
             /** Board Len */
             board_len: number;
+            /** Folded */
+            folded: boolean[];
             /** Pot */
             pot: number;
+            /** Pots */
+            pots: number[];
             /** Stacks */
             stacks: number[];
             /** Street Bets */
             street_bets: number[];
             /** To Act */
             to_act: ("hero" | "villain") | null;
+            /** To Act Seat */
+            to_act_seat: number | null;
         };
         /**
          * TableView
          * @description The table in a played hand: ``PuzzleView`` without the answer-form fields.
          *
          *     In a finished hand ``stacks`` are the settled stacks, ``street_bets`` are zero and ``pot``
-         *     is the pot that was awarded.
+         *     is the pot that was awarded (in 5-max the sum of the listed pots: an uncalled bet goes back
+         *     and is not part of it). ``villain_position`` and ``villain_profile`` are heads-up only (null
+         *     in 5-max); ``seats`` describes every seat at any table size.
          */
         TableView: {
             /** Board */
@@ -1287,6 +1412,8 @@ export interface components {
             pot: number;
             /** Pot Odds */
             pot_odds: number | null;
+            /** Seats */
+            seats: components["schemas"]["SeatView"][];
             /** Stacks */
             stacks: number[];
             /**
@@ -1296,11 +1423,13 @@ export interface components {
             street: "preflop" | "flop" | "turn" | "river";
             /** Street Bets */
             street_bets: number[];
+            /** Table Size */
+            table_size: number;
             /** To Call */
             to_call: number;
             /** Villain Position */
-            villain_position: string;
-            villain_profile: components["schemas"]["ProfileInfo"];
+            villain_position: string | null;
+            villain_profile: components["schemas"]["ProfileInfo"] | null;
         };
         /**
          * TrendPoint
@@ -1666,7 +1795,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PlaySessionIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             201: {
@@ -1675,6 +1808,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlaySessionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

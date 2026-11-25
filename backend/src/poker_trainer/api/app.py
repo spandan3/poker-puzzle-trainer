@@ -43,6 +43,7 @@ from poker_trainer.api.schemas import (
     PlayActionIn,
     PlayHandSummary,
     PlayHandView,
+    PlaySessionIn,
     PlaySessionSummary,
     PlaySessionView,
     PuzzleView,
@@ -234,8 +235,12 @@ def check_llm(request: Request, db: Db, user_id: UserId) -> dict[str, Any]:
 
 
 @router.post("/play/sessions", status_code=201, response_model=PlaySessionView)
-def start_play_session(db: Db, user_id: UserId, play_rng: PlayRng) -> dict[str, Any]:
-    return play_service.start_session(db, user_id, play_rng)
+def start_play_session(
+    db: Db, user_id: UserId, play_rng: PlayRng, body: PlaySessionIn | None = None
+) -> dict[str, Any]:
+    """Start a session: heads-up by default (no body), or 5-max with ``{"table_size": 5}``."""
+    body = body or PlaySessionIn()
+    return play_service.start_session(db, user_id, play_rng, body.table_size)
 
 
 @router.get("/play/sessions/current", response_model=PlaySessionView)  # before {session_id}

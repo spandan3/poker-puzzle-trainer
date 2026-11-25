@@ -1,0 +1,452 @@
+{
+  "bot_stack": null,
+  "bots": [
+    {
+      "name": "Bot 1",
+      "profile": {
+        "description": "Tight and solid: narrow ranges, value-heavy, rarely bluffs.",
+        "label": "Tight",
+        "name": "tight"
+      },
+      "seat": 1,
+      "stack": 174
+    },
+    {
+      "name": "Bot 2",
+      "profile": {
+        "description": "Tight and solid: narrow ranges, value-heavy, rarely bluffs.",
+        "label": "Tight",
+        "name": "tight"
+      },
+      "seat": 2,
+      "stack": 264
+    },
+    {
+      "name": "Bot 3",
+      "profile": {
+        "description": "Solid tight-aggressive regular: value-heavy, bluffs in balance.",
+        "label": "TAG",
+        "name": "tag"
+      },
+      "seat": 3,
+      "stack": 195
+    },
+    {
+      "name": "Bot 4",
+      "profile": {
+        "description": "Competent, but defends wide and calls down lighter than most.",
+        "label": "Sticky",
+        "name": "sticky"
+      },
+      "seat": 4,
+      "stack": 200
+    }
+  ],
+  "can_top_up": false,
+  "hand": {
+    "action_count": 5,
+    "custom": {
+      "allowed": true,
+      "max_to": 200,
+      "min_to": 2
+    },
+    "decision_count": 1,
+    "frames": [
+      {
+        "board_len": 0,
+        "folded": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "pot": 3,
+        "pots": [],
+        "stacks": [
+          205,
+          174,
+          264,
+          194,
+          198
+        ],
+        "street_bets": [
+          0,
+          0,
+          0,
+          1,
+          2
+        ],
+        "to_act": "hero",
+        "to_act_seat": 0
+      },
+      {
+        "board_len": 0,
+        "folded": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "pot": 8,
+        "pots": [],
+        "stacks": [
+          200,
+          174,
+          264,
+          194,
+          198
+        ],
+        "street_bets": [
+          5,
+          0,
+          0,
+          1,
+          2
+        ],
+        "to_act": "villain",
+        "to_act_seat": 1
+      },
+      {
+        "board_len": 0,
+        "folded": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "pot": 13,
+        "pots": [],
+        "stacks": [
+          200,
+          169,
+          264,
+          194,
+          198
+        ],
+        "street_bets": [
+          5,
+          5,
+          0,
+          1,
+          2
+        ],
+        "to_act": "villain",
+        "to_act_seat": 2
+      },
+      {
+        "board_len": 0,
+        "folded": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "pot": 18,
+        "pots": [],
+        "stacks": [
+          200,
+          169,
+          259,
+          194,
+          198
+        ],
+        "street_bets": [
+          5,
+          5,
+          5,
+          1,
+          2
+        ],
+        "to_act": "villain",
+        "to_act_seat": 3
+      },
+      {
+        "board_len": 0,
+        "folded": [
+          false,
+          false,
+          false,
+          true,
+          false
+        ],
+        "pot": 18,
+        "pots": [],
+        "stacks": [
+          200,
+          169,
+          259,
+          194,
+          198
+        ],
+        "street_bets": [
+          5,
+          5,
+          5,
+          1,
+          2
+        ],
+        "to_act": "villain",
+        "to_act_seat": 4
+      },
+      {
+        "board_len": 3,
+        "folded": [
+          false,
+          false,
+          false,
+          true,
+          true
+        ],
+        "pot": 18,
+        "pots": [
+          18
+        ],
+        "stacks": [
+          200,
+          169,
+          259,
+          194,
+          198
+        ],
+        "street_bets": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "to_act": "hero",
+        "to_act_seat": 0
+      }
+    ],
+    "hand_no": 7,
+    "id": 7,
+    "options": [
+      {
+        "index": 0,
+        "kind": "check",
+        "label": "check",
+        "to": 0
+      },
+      {
+        "index": 1,
+        "kind": "bet",
+        "label": "bet 33%",
+        "to": 6
+      },
+      {
+        "index": 2,
+        "kind": "bet",
+        "label": "bet 50%",
+        "to": 9
+      },
+      {
+        "index": 3,
+        "kind": "bet",
+        "label": "bet 75%",
+        "to": 14
+      },
+      {
+        "index": 4,
+        "kind": "bet",
+        "label": "bet 100%",
+        "to": 18
+      },
+      {
+        "index": 5,
+        "kind": "bet",
+        "label": "all-in",
+        "to": 200
+      }
+    ],
+    "outcome": null,
+    "session_id": 1,
+    "status": "in_progress",
+    "table": {
+      "board": [
+        "Tc",
+        "3s",
+        "2h"
+      ],
+      "hero_cards": [
+        "Kc",
+        "Jd"
+      ],
+      "hero_position": "UTG",
+      "hero_seat": 0,
+      "history": [
+        {
+          "actor": "hero",
+          "all_in": false,
+          "amount": 5,
+          "kind": "raise",
+          "pot_before": 3,
+          "street": "preflop",
+          "text": "Pre-flop: opens to 5",
+          "to": 5
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 5,
+          "kind": "call",
+          "pot_before": 8,
+          "street": "preflop",
+          "text": "Pre-flop: calls",
+          "to": 5
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 5,
+          "kind": "call",
+          "pot_before": 13,
+          "street": "preflop",
+          "text": "Pre-flop: calls",
+          "to": 5
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 0,
+          "kind": "fold",
+          "pot_before": 18,
+          "street": "preflop",
+          "text": "Pre-flop: folds",
+          "to": 0
+        },
+        {
+          "actor": "villain",
+          "all_in": false,
+          "amount": 0,
+          "kind": "fold",
+          "pot_before": 18,
+          "street": "preflop",
+          "text": "Pre-flop: folds",
+          "to": 0
+        }
+      ],
+      "pot": 18,
+      "pot_odds": null,
+      "seats": [
+        {
+          "all_in": false,
+          "cards": [
+            "Kc",
+            "Jd"
+          ],
+          "folded": false,
+          "is_button": false,
+          "is_hero": true,
+          "name": "You",
+          "position": "UTG",
+          "profile": null,
+          "seat": 0,
+          "stack": 200,
+          "street_bet": 0
+        },
+        {
+          "all_in": false,
+          "cards": null,
+          "folded": false,
+          "is_button": false,
+          "is_hero": false,
+          "name": "Bot 1",
+          "position": "CO",
+          "profile": {
+            "description": "Tight and solid: narrow ranges, value-heavy, rarely bluffs.",
+            "label": "Tight",
+            "name": "tight"
+          },
+          "seat": 1,
+          "stack": 169,
+          "street_bet": 0
+        },
+        {
+          "all_in": false,
+          "cards": null,
+          "folded": false,
+          "is_button": true,
+          "is_hero": false,
+          "name": "Bot 2",
+          "position": "BTN",
+          "profile": {
+            "description": "Tight and solid: narrow ranges, value-heavy, rarely bluffs.",
+            "label": "Tight",
+            "name": "tight"
+          },
+          "seat": 2,
+          "stack": 259,
+          "street_bet": 0
+        },
+        {
+          "all_in": false,
+          "cards": null,
+          "folded": true,
+          "is_button": false,
+          "is_hero": false,
+          "name": "Bot 3",
+          "position": "SB",
+          "profile": {
+            "description": "Solid tight-aggressive regular: value-heavy, bluffs in balance.",
+            "label": "TAG",
+            "name": "tag"
+          },
+          "seat": 3,
+          "stack": 194,
+          "street_bet": 0
+        },
+        {
+          "all_in": false,
+          "cards": null,
+          "folded": true,
+          "is_button": false,
+          "is_hero": false,
+          "name": "Bot 4",
+          "position": "BB",
+          "profile": {
+            "description": "Competent, but defends wide and calls down lighter than most.",
+            "label": "Sticky",
+            "name": "sticky"
+          },
+          "seat": 4,
+          "stack": 198,
+          "street_bet": 0
+        }
+      ],
+      "stacks": [
+        200,
+        169,
+        259,
+        194,
+        198
+      ],
+      "street": "flop",
+      "street_bets": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "table_size": 5,
+      "to_call": 0,
+      "villain_position": null,
+      "villain_profile": null
+    }
+  },
+  "hands_played": 6,
+  "hero_bought_chips": 238,
+  "hero_stack": 205,
+  "id": 1,
+  "must_rebuy": false,
+  "net_bb": -16.5,
+  "net_chips": -33,
+  "open": true,
+  "profile": null,
+  "table_size": 5
+}

@@ -12,6 +12,7 @@ import type {
   NextHandIn,
   PlayActionIn,
   PlayHandSummary,
+  PlaySessionIn,
   PlaySessionSummary,
   PlaySessionView,
   PuzzleView,
@@ -19,6 +20,7 @@ import type {
   SettingsView,
   StatsView,
   StreetName,
+  TableSize,
 } from './types'
 
 export class ApiError extends Error {
@@ -172,9 +174,14 @@ export async function currentPlaySession(): Promise<PlaySessionView | null> {
   return (await readBody(res)) as PlaySessionView
 }
 
-/** Starts a session against a random bot; 409 when one is already open. */
-export function startPlaySession(): Promise<PlaySessionView> {
-  return request('POST', '/api/play/sessions')
+/**
+ * Starts a session against random bots; 409 when one is already open. With no `tableSize` no
+ * body is sent and the server deals heads-up; `5` starts a 5-max table.
+ */
+export function startPlaySession(tableSize?: TableSize): Promise<PlaySessionView> {
+  return tableSize === undefined
+    ? request('POST', '/api/play/sessions')
+    : request('POST', '/api/play/sessions', { table_size: tableSize } satisfies PlaySessionIn)
 }
 
 /** Ends a session; a running hand is abandoned. */

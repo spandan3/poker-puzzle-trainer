@@ -483,6 +483,42 @@
         "title": "BluffCheck",
         "type": "object"
       },
+      "BotSeatInfo": {
+        "additionalProperties": false,
+        "description": "A bot at the session's table; ``profile`` is null when the profile setting is off.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "integer"
+          },
+          "stack": {
+            "title": "Stack",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seat",
+          "name",
+          "profile",
+          "stack"
+        ],
+        "title": "BotSeatInfo",
+        "type": "object"
+      },
       "Branch": {
         "additionalProperties": false,
         "properties": {
@@ -1739,6 +1775,18 @@
               }
             ],
             "title": "Result Bb"
+          },
+          "table_size": {
+            "default": 2,
+            "title": "Table Size",
+            "type": "integer"
+          },
+          "winner_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Winner Names",
+            "type": "array"
           }
         },
         "required": [
@@ -1749,7 +1797,9 @@
           "ended_by",
           "decision_count",
           "analysed",
-          "ev_loss_bb"
+          "ev_loss_bb",
+          "table_size",
+          "winner_names"
         ],
         "title": "PlayHandSummary",
         "type": "object"
@@ -1834,6 +1884,7 @@
       },
       "PlayOutcome": {
         "additionalProperties": false,
+        "description": "How a hand ended. ``winner`` heads-up is the hand's result; in 5-max it is \"villain\" when\nthe hand was abandoned or Hero folded, and otherwise the sign of Hero's delta.\n``villain_cards`` and ``showdown`` are heads-up showdowns only. ``pots`` are the awards\n(empty for an abandoned hand) and ``shown`` the bots' cards revealed at a showdown,\nclockwise from the seat after the button.",
         "properties": {
           "ended_by": {
             "enum": [
@@ -1852,6 +1903,13 @@
             "title": "Hero Delta Chips",
             "type": "integer"
           },
+          "pots": {
+            "items": {
+              "$ref": "#/components/schemas/PotAwardView"
+            },
+            "title": "Pots",
+            "type": "array"
+          },
           "showdown": {
             "anyOf": [
               {
@@ -1861,6 +1919,13 @@
                 "type": "null"
               }
             ]
+          },
+          "shown": {
+            "items": {
+              "$ref": "#/components/schemas/ShownCards"
+            },
+            "title": "Shown",
+            "type": "array"
           },
           "villain_cards": {
             "anyOf": [
@@ -1892,7 +1957,9 @@
           "hero_delta_chips",
           "hero_delta_bb",
           "villain_cards",
-          "showdown"
+          "showdown",
+          "pots",
+          "shown"
         ],
         "title": "PlayOutcome",
         "type": "object"
@@ -1938,6 +2005,23 @@
         "title": "PlayReveal",
         "type": "object"
       },
+      "PlaySessionIn": {
+        "additionalProperties": false,
+        "description": "Optional body of ``POST /play/sessions``: heads-up (2, the default) or 5-max (5).",
+        "properties": {
+          "table_size": {
+            "default": 2,
+            "enum": [
+              2,
+              5
+            ],
+            "title": "Table Size",
+            "type": "integer"
+          }
+        },
+        "title": "PlaySessionIn",
+        "type": "object"
+      },
       "PlaySessionSummary": {
         "additionalProperties": false,
         "properties": {
@@ -1975,6 +2059,11 @@
           "profile_label": {
             "title": "Profile Label",
             "type": "string"
+          },
+          "table_size": {
+            "default": 2,
+            "title": "Table Size",
+            "type": "integer"
           }
         },
         "required": [
@@ -1984,17 +2073,33 @@
           "profile_label",
           "hands_played",
           "net_bb",
-          "open"
+          "open",
+          "table_size"
         ],
         "title": "PlaySessionSummary",
         "type": "object"
       },
       "PlaySessionView": {
         "additionalProperties": false,
+        "description": "``profile`` and ``bot_stack`` are the heads-up bot's (null in 5-max). ``bots`` lists\nevery bot seat with its stack after the last finished hand.",
         "properties": {
           "bot_stack": {
-            "title": "Bot Stack",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot Stack"
+          },
+          "bots": {
+            "items": {
+              "$ref": "#/components/schemas/BotSeatInfo"
+            },
+            "title": "Bots",
+            "type": "array"
           },
           "can_top_up": {
             "title": "Can Top Up",
@@ -2043,7 +2148,18 @@
             "type": "boolean"
           },
           "profile": {
-            "$ref": "#/components/schemas/ProfileInfo"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "table_size": {
+            "title": "Table Size",
+            "type": "integer"
           }
         },
         "required": [
@@ -2058,9 +2174,47 @@
           "hands_played",
           "must_rebuy",
           "can_top_up",
-          "hand"
+          "hand",
+          "table_size",
+          "bots"
         ],
         "title": "PlaySessionView",
+        "type": "object"
+      },
+      "PotAwardView": {
+        "additionalProperties": false,
+        "description": "One pot of a finished hand: ``label`` is \"main pot\", \"side pot 1\", ...; ``eligible``\nare the seats contesting it and ``winners`` those it went to (a split has several).",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "eligible": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Eligible",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "winners": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Winners",
+            "type": "array"
+          }
+        },
+        "required": [
+          "amount",
+          "eligible",
+          "winners",
+          "label"
+        ],
+        "title": "PotAwardView",
         "type": "object"
       },
       "ProfileInfo": {
@@ -2339,6 +2493,87 @@
         "title": "RevealProfile",
         "type": "object"
       },
+      "SeatView": {
+        "additionalProperties": false,
+        "description": "One seat at a played table. ``name`` is \"You\" for Hero, \"Villain\" for the heads-up bot\nand \"Bot 1\" to \"Bot 4\" in 5-max. ``profile`` is the bot's profile (null for Hero); the\nclient hides it per setting. ``cards`` are Hero's cards, or a bot's cards once they are\nshown at a showdown; otherwise null. In a finished hand ``stack`` is the settled stack,\n``street_bet`` is 0 and ``all_in`` is false.",
+        "properties": {
+          "all_in": {
+            "title": "All In",
+            "type": "boolean"
+          },
+          "cards": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cards"
+          },
+          "folded": {
+            "title": "Folded",
+            "type": "boolean"
+          },
+          "is_button": {
+            "title": "Is Button",
+            "type": "boolean"
+          },
+          "is_hero": {
+            "title": "Is Hero",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "string"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "integer"
+          },
+          "stack": {
+            "title": "Stack",
+            "type": "integer"
+          },
+          "street_bet": {
+            "title": "Street Bet",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seat",
+          "name",
+          "position",
+          "stack",
+          "street_bet",
+          "folded",
+          "all_in",
+          "is_hero",
+          "is_button",
+          "profile",
+          "cards"
+        ],
+        "title": "SeatView",
+        "type": "object"
+      },
       "SettingsPatch": {
         "additionalProperties": false,
         "description": "Partial update: only fields the client sent are applied (``profile: null`` = random).",
@@ -2495,6 +2730,28 @@
           "winner"
         ],
         "title": "Showdown",
+        "type": "object"
+      },
+      "ShownCards": {
+        "additionalProperties": false,
+        "properties": {
+          "cards": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cards",
+            "type": "array"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seat",
+          "cards"
+        ],
+        "title": "ShownCards",
         "type": "object"
       },
       "Simplification": {
@@ -2793,15 +3050,29 @@
       },
       "TableFrame": {
         "additionalProperties": false,
-        "description": "The table after the first ``k`` history entries, before any pot award.",
+        "description": "The table after the first ``k`` history entries, before any pot award.\n\n``to_act`` is \"hero\", \"villain\" (any bot) or null; ``to_act_seat`` is that seat. ``folded``\nhas one flag per seat. ``pots`` are the pots as they stand, the main pot first: only chips\nalready in the middle (the bets of streets that are over), an uncalled excess left out;\nempty while nothing is in the middle.",
         "properties": {
           "board_len": {
             "title": "Board Len",
             "type": "integer"
           },
+          "folded": {
+            "items": {
+              "type": "boolean"
+            },
+            "title": "Folded",
+            "type": "array"
+          },
           "pot": {
             "title": "Pot",
             "type": "integer"
+          },
+          "pots": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Pots",
+            "type": "array"
           },
           "stacks": {
             "items": {
@@ -2831,6 +3102,17 @@
               }
             ],
             "title": "To Act"
+          },
+          "to_act_seat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Act Seat"
           }
         },
         "required": [
@@ -2838,14 +3120,17 @@
           "street_bets",
           "pot",
           "board_len",
-          "to_act"
+          "to_act",
+          "to_act_seat",
+          "folded",
+          "pots"
         ],
         "title": "TableFrame",
         "type": "object"
       },
       "TableView": {
         "additionalProperties": false,
-        "description": "The table in a played hand: ``PuzzleView`` without the answer-form fields.\n\nIn a finished hand ``stacks`` are the settled stacks, ``street_bets`` are zero and ``pot``\nis the pot that was awarded.",
+        "description": "The table in a played hand: ``PuzzleView`` without the answer-form fields.\n\nIn a finished hand ``stacks`` are the settled stacks, ``street_bets`` are zero and ``pot``\nis the pot that was awarded (in 5-max the sum of the listed pots: an uncalled bet goes back\nand is not part of it). ``villain_position`` and ``villain_profile`` are heads-up only (null\nin 5-max); ``seats`` describes every seat at any table size.",
         "properties": {
           "board": {
             "items": {
@@ -2891,6 +3176,13 @@
             ],
             "title": "Pot Odds"
           },
+          "seats": {
+            "items": {
+              "$ref": "#/components/schemas/SeatView"
+            },
+            "title": "Seats",
+            "type": "array"
+          },
           "stacks": {
             "items": {
               "type": "integer"
@@ -2915,16 +3207,34 @@
             "title": "Street Bets",
             "type": "array"
           },
+          "table_size": {
+            "title": "Table Size",
+            "type": "integer"
+          },
           "to_call": {
             "title": "To Call",
             "type": "integer"
           },
           "villain_position": {
-            "title": "Villain Position",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Villain Position"
           },
           "villain_profile": {
-            "$ref": "#/components/schemas/ProfileInfo"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -2940,7 +3250,9 @@
           "to_call",
           "pot_odds",
           "history",
-          "villain_profile"
+          "villain_profile",
+          "table_size",
+          "seats"
         ],
         "title": "TableView",
         "type": "object"
@@ -3583,7 +3895,25 @@
         "summary": "Play Sessions"
       },
       "post": {
+        "description": "Start a session: heads-up by default (no body), or 5-max with ``{\"table_size\": 5}``.",
         "operationId": "start_play_session_api_play_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PlaySessionIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "content": {
@@ -3594,6 +3924,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Start Play Session"

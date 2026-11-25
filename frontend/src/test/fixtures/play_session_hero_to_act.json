@@ -1,5 +1,17 @@
 {
   "bot_stack": 200,
+  "bots": [
+    {
+      "name": "Villain",
+      "profile": {
+        "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+        "label": "LAG",
+        "name": "lag"
+      },
+      "seat": 1,
+      "stack": 200
+    }
+  ],
   "can_top_up": false,
   "hand": {
     "action_count": 3,
@@ -12,7 +24,12 @@
     "frames": [
       {
         "board_len": 0,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 3,
+        "pots": [],
         "stacks": [
           199,
           198
@@ -21,11 +38,17 @@
           1,
           2
         ],
-        "to_act": "hero"
+        "to_act": "hero",
+        "to_act_seat": 0
       },
       {
         "board_len": 0,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 7,
+        "pots": [],
         "stacks": [
           195,
           198
@@ -34,11 +57,19 @@
           5,
           2
         ],
-        "to_act": "villain"
+        "to_act": "villain",
+        "to_act_seat": 1
       },
       {
         "board_len": 3,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 10,
+        "pots": [
+          10
+        ],
         "stacks": [
           195,
           195
@@ -47,11 +78,19 @@
           0,
           0
         ],
-        "to_act": "villain"
+        "to_act": "villain",
+        "to_act_seat": 1
       },
       {
         "board_len": 3,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 10,
+        "pots": [
+          10
+        ],
         "stacks": [
           195,
           195
@@ -60,7 +99,8 @@
           0,
           0
         ],
-        "to_act": "hero"
+        "to_act": "hero",
+        "to_act_seat": 0
       }
     ],
     "hand_no": 1,
@@ -152,6 +192,41 @@
       ],
       "pot": 10,
       "pot_odds": null,
+      "seats": [
+        {
+          "all_in": false,
+          "cards": [
+            "8d",
+            "4c"
+          ],
+          "folded": false,
+          "is_button": true,
+          "is_hero": true,
+          "name": "You",
+          "position": "BTN",
+          "profile": null,
+          "seat": 0,
+          "stack": 195,
+          "street_bet": 0
+        },
+        {
+          "all_in": false,
+          "cards": null,
+          "folded": false,
+          "is_button": false,
+          "is_hero": false,
+          "name": "Villain",
+          "position": "BB",
+          "profile": {
+            "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+            "label": "LAG",
+            "name": "lag"
+          },
+          "seat": 1,
+          "stack": 195,
+          "street_bet": 0
+        }
+      ],
       "stacks": [
         195,
         195
@@ -161,6 +236,7 @@
         0,
         0
       ],
+      "table_size": 2,
       "to_call": 0,
       "villain_position": "BB",
       "villain_profile": {
@@ -182,5 +258,6 @@
     "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
     "label": "LAG",
     "name": "lag"
-  }
+  },
+  "table_size": 2
 }

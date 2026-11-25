@@ -6,7 +6,8 @@
     "id": 2,
     "net_bb": 0.0,
     "open": true,
-    "profile_label": "LAG"
+    "profile_label": "LAG",
+    "table_size": 2
   },
   {
     "created_at": "2026-11-14T18:01:00+00:00",
@@ -15,6 +16,7 @@
     "id": 1,
     "net_bb": -52.5,
     "open": false,
-    "profile_label": "LAG"
+    "profile_label": "LAG",
+    "table_size": 2
   }
 ]

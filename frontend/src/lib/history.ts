@@ -1,4 +1,4 @@
-import type { ActionLogEntry, StreetName, TableView } from '../api/types'
+import type { ActionLogEntry, StreetName, HeadsUpTable } from '../api/types'
 import { formatBb } from './format'
 
 export const STREET_ORDER: readonly StreetName[] = ['preflop', 'flop', 'turn', 'river']
@@ -75,7 +75,7 @@ const BOARD_SLICE: Record<StreetName, [number, number]> = {
  * `toAct` says who the last section is waiting for (default Hero); `null` for a finished hand.
  */
 export function groupHistory(
-  view: TableView,
+  view: HeadsUpTable,
   answer?: ActionLogEntry,
   toAct: 'hero' | 'villain' | null = 'hero',
 ): HistorySection[] {
@@ -88,7 +88,7 @@ export function groupHistory(
       if (e.street !== street) return
       entries.push({
         actor: e.actor,
-        position: e.actor === 'hero' ? view.hero_position : view.villain_position,
+        position: (e.actor === 'hero' ? view.hero_position : view.villain_position) ?? '',
         text: texts[j]!,
       })
     })

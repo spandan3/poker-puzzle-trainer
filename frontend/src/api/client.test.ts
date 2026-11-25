@@ -183,6 +183,12 @@ describe('client', () => {
       await startPlaySession()
       expect(lastCall().url).toBe('/api/play/sessions')
       expect(lastCall().init.method).toBe('POST')
+      expect(lastCall().init.body).toBeUndefined() // no body: the server deals heads-up
+      await startPlaySession(5)
+      expect(lastCall().url).toBe('/api/play/sessions')
+      expect(lastCall().init.body).toBe(JSON.stringify({ table_size: 5 }))
+      await startPlaySession(2)
+      expect(lastCall().init.body).toBe(JSON.stringify({ table_size: 2 }))
       await endPlaySession(3)
       expect(lastCall().url).toBe('/api/play/sessions/3/end')
       await nextPlayHand(3, { top_up: true, expected_hands: 4 })

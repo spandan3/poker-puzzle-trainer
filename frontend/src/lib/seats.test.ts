@@ -75,6 +75,6 @@ describe('seatsFromView with a play table', () => {
     expect(seats.map((s) => s.name)).toEqual(['Hero', 'Villain'])
     expect(seats[0]!.cards).toEqual(table.hero_cards)
     expect(seats[1]!.faceDown).toBe(true)
-    expect(seats[1]!.profile?.label).toBe(table.villain_profile.label)
+    expect(seats[1]!.profile?.label).toBe(table.villain_profile?.label)
   })
 })

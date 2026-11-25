@@ -32,6 +32,11 @@ export type PlayHandSummary = Schemas['PlayHandSummary']
 export type PlayOutcome = Schemas['PlayOutcome']
 export type PlayReveal = Schemas['PlayReveal']
 export type PlayActionIn = Schemas['PlayActionIn']
+export type PlaySessionIn = Schemas['PlaySessionIn']
+export type SeatView = Schemas['SeatView']
+export type PotAwardView = Schemas['PotAwardView']
+export type ShownCards = Schemas['ShownCards']
+export type BotSeatInfo = Schemas['BotSeatInfo']
 export type NextHandIn = Schemas['NextHandIn']
 export type DecisionReview = Schemas['DecisionReview']
 export type HandAnalysis = Schemas['HandAnalysis']
@@ -40,10 +45,17 @@ export type HandAnalysis = Schemas['HandAnalysis']
 export type PlayActionChoice = { option: number } | { custom_to: number }
 
 /**
+ * The table a puzzle and a played hand share: a played `TableView` without its seat views. A
+ * `PuzzleView` satisfies it. `villain_position` and `villain_profile` are null only at a 5-max
+ * table, which the heads-up table components don't show.
+ */
+export type HeadsUpTable = Omit<TableView, 'seats' | 'table_size'>
+
+/**
  * What the answer panel needs: the table plus Hero's menu. A `PuzzleView` satisfies it; for a
  * played hand it is `{ ...hand.table, options: hand.options, custom: hand.custom }`.
  */
-export type ActionView = TableView & {
+export type ActionView = HeadsUpTable & {
   options: OptionBrief[]
   custom: CustomSizes
   id?: number
@@ -52,5 +64,6 @@ export type ActionView = TableView & {
 }
 
 export type StreetName = ActionLogEntry['street']
+export type TableSize = NonNullable<PlaySessionIn['table_size']>
 export type ActionKindName = ActionLogEntry['kind']
 export type Intent = NonNullable<AttemptIn['intent']>

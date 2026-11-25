@@ -11,6 +11,7 @@ from poker_trainer.api.dev_fixtures import (
     search,
     write_fixtures,
     write_llm_fixture,
+    write_play5_fixtures,
     write_play_fixtures,
 )
 from poker_trainer.api.schemas import (
@@ -127,3 +128,57 @@ def test_write_play_fixtures_deterministic(tmp_path):
 
 def test_committed_play_fixtures_match_the_models():
     _check_play_fixtures(FIXTURES_DIR)
+
+
+PLAY5_FILES = {
+    "play5_session_hero_to_act.json": PlaySessionView,
+    "play5_session_hero_folded.json": PlaySessionView,
+    "play5_session_side_pot.json": PlaySessionView,
+    "play5_hands.json": TypeAdapter(list[PlayHandSummary]),
+    "play5_sessions.json": TypeAdapter(list[PlaySessionSummary]),
+}
+
+
+def _check_play5_fixtures(out):
+    """Each 5-max file is LF-only, valid for its model, and shows what the UI needs."""
+    data = {}
+    for name, model in PLAY5_FILES.items():
+        raw = (out / name).read_bytes()
+        assert raw.endswith(b"\n") and b"\r" not in raw, name
+        data[name] = json.loads(raw)
+        _validate(model, data[name])
+    for name in PLAY5_FILES:
+        if name.startswith("play5_session_"):
+            v = data[name]
+            assert v["table_size"] == 5 and v["profile"] is None and v["bot_stack"] is None
+            assert len(v["hand"]["table"]["seats"]) == 5
+    to_act = data["play5_session_hero_to_act.json"]["hand"]
+    assert to_act["status"] == "in_progress" and to_act["options"]
+    assert to_act["table"]["board"] and sum(not s["folded"] for s in to_act["table"]["seats"]) >= 3
+    folded = data["play5_session_hero_folded.json"]["hand"]
+    assert folded["status"] == "complete" and folded["table"]["seats"][0]["folded"]
+    assert folded["outcome"]["winner"] == "villain"
+    side = data["play5_session_side_pot.json"]["hand"]["outcome"]
+    assert side["ended_by"] == "showdown" and len(side["pots"]) >= 2
+    assert len({tuple(p["winners"]) for p in side["pots"]}) >= 2
+    assert [p["label"] for p in side["pots"]][:2] == ["main pot", "side pot 1"]
+    hands = data["play5_hands.json"]
+    assert hands and all(h["table_size"] == 5 and not h["analysed"] for h in hands)
+    sessions = data["play5_sessions.json"]
+    assert [s["table_size"] for s in sessions] == [2, 5]
+    assert sessions[1]["profile_label"] == "5-max"
+    return data
+
+
+def test_write_play5_fixtures_deterministic(tmp_path):
+    real_clock = service.utcnow
+    write_play5_fixtures(tmp_path / "a")
+    write_play5_fixtures(tmp_path / "b")
+    assert service.utcnow is real_clock
+    for name in PLAY5_FILES:
+        assert (tmp_path / "a" / name).read_bytes() == (tmp_path / "b" / name).read_bytes(), name
+    _check_play5_fixtures(tmp_path / "a")
+
+
+def test_committed_play5_fixtures_match_the_models():
+    _check_play5_fixtures(FIXTURES_DIR)

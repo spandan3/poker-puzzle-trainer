@@ -24,6 +24,7 @@ export type FixtureName =
   | 'stats_empty'
   | 'history_page'
   | `play_${string}`
+  | `play5_${string}`
 
 /** Loads `src/test/fixtures/<name>.json`, trusting the caller's type (the files come from the API). */
 export function fixture<T = PuzzleView>(name: FixtureName): T {
@@ -54,3 +55,9 @@ export const playHandAnalysisFixture = (): HandAnalysis =>
 export const playSessionsFixture = (): PlaySessionSummary[] =>
   fixture<PlaySessionSummary[]>('play_sessions')
 export const playHandsFixture = (): PlayHandSummary[] => fixture<PlayHandSummary[]>('play_hands')
+
+export const play5SessionFixture = (name: 'hero_to_act' | 'hero_folded' | 'side_pot') =>
+  fixture<PlaySessionView>(`play5_session_${name}`)
+export const play5SessionsFixture = (): PlaySessionSummary[] =>
+  fixture<PlaySessionSummary[]>('play5_sessions')
+export const play5HandsFixture = (): PlayHandSummary[] => fixture<PlayHandSummary[]>('play5_hands')

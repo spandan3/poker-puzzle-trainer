@@ -1,4 +1,4 @@
-import type { TableView } from '../api/types'
+import type { HeadsUpTable } from '../api/types'
 
 /** Where a seat sits around the table. Heads-up uses `bottom` (Hero) and `top` (Villain). */
 export const SEAT_SLOTS = [
@@ -46,7 +46,7 @@ export interface SeatsOptions {
 const BUTTON_POSITION = 'BTN'
 
 /** The seats of a heads-up table: Hero at the bottom, Villain at the top. */
-export function seatsFromView(view: TableView, opts: SeatsOptions): SeatInfo[] {
+export function seatsFromView(view: HeadsUpTable, opts: SeatsOptions): SeatInfo[] {
   const heroSeat = view.hero_seat
   const villainSeat = 1 - heroSeat
   const revealed = opts.villainCards !== undefined
@@ -66,17 +66,16 @@ export function seatsFromView(view: TableView, opts: SeatsOptions): SeatInfo[] {
     {
       slot: 'top',
       name: 'Villain',
-      position: view.villain_position,
+      position: view.villain_position ?? '',
       stackChips: view.stacks[villainSeat] ?? 0,
       betChips: view.street_bets[villainSeat] ?? 0,
       isHero: false,
       isButton: view.villain_position === BUTTON_POSITION,
       cards: revealed ? [...opts.villainCards!] : [null, null],
       faceDown: !revealed,
-      profile: {
-        label: view.villain_profile.label,
-        description: view.villain_profile.description,
-      },
+      profile: view.villain_profile
+        ? { label: view.villain_profile.label, description: view.villain_profile.description }
+        : undefined,
       showProfile: opts.showProfile,
     },
   ]

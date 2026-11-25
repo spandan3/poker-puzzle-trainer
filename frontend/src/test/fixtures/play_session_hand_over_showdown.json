@@ -1,5 +1,17 @@
 {
   "bot_stack": 205,
+  "bots": [
+    {
+      "name": "Villain",
+      "profile": {
+        "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+        "label": "LAG",
+        "name": "lag"
+      },
+      "seat": 1,
+      "stack": 205
+    }
+  ],
   "can_top_up": true,
   "hand": {
     "action_count": 8,
@@ -12,7 +24,12 @@
     "frames": [
       {
         "board_len": 0,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 3,
+        "pots": [],
         "stacks": [
           199,
           198
@@ -21,11 +38,17 @@
           1,
           2
         ],
-        "to_act": "hero"
+        "to_act": "hero",
+        "to_act_seat": 0
       },
       {
         "board_len": 0,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 7,
+        "pots": [],
         "stacks": [
           195,
           198
@@ -34,11 +57,19 @@
           5,
           2
         ],
-        "to_act": "villain"
+        "to_act": "villain",
+        "to_act_seat": 1
       },
       {
         "board_len": 3,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 10,
+        "pots": [
+          10
+        ],
         "stacks": [
           195,
           195
@@ -47,11 +78,19 @@
           0,
           0
         ],
-        "to_act": "villain"
+        "to_act": "villain",
+        "to_act_seat": 1
       },
       {
         "board_len": 3,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 10,
+        "pots": [
+          10
+        ],
         "stacks": [
           195,
           195
@@ -60,11 +99,19 @@
           0,
           0
         ],
-        "to_act": "hero"
+        "to_act": "hero",
+        "to_act_seat": 0
       },
       {
         "board_len": 4,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 10,
+        "pots": [
+          10
+        ],
         "stacks": [
           195,
           195
@@ -73,11 +120,19 @@
           0,
           0
         ],
-        "to_act": "villain"
+        "to_act": "villain",
+        "to_act_seat": 1
       },
       {
         "board_len": 4,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 10,
+        "pots": [
+          10
+        ],
         "stacks": [
           195,
           195
@@ -86,11 +141,19 @@
           0,
           0
         ],
-        "to_act": "hero"
+        "to_act": "hero",
+        "to_act_seat": 0
       },
       {
         "board_len": 5,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 10,
+        "pots": [
+          10
+        ],
         "stacks": [
           195,
           195
@@ -99,11 +162,19 @@
           0,
           0
         ],
-        "to_act": "villain"
+        "to_act": "villain",
+        "to_act_seat": 1
       },
       {
         "board_len": 5,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 10,
+        "pots": [
+          10
+        ],
         "stacks": [
           195,
           195
@@ -112,11 +183,19 @@
           0,
           0
         ],
-        "to_act": "hero"
+        "to_act": "hero",
+        "to_act_seat": 0
       },
       {
         "board_len": 5,
+        "folded": [
+          false,
+          false
+        ],
         "pot": 10,
+        "pots": [
+          10
+        ],
         "stacks": [
           195,
           195
@@ -125,7 +204,8 @@
           0,
           0
         ],
-        "to_act": null
+        "to_act": null,
+        "to_act_seat": null
       }
     ],
     "hand_no": 1,
@@ -135,11 +215,33 @@
       "ended_by": "showdown",
       "hero_delta_bb": -2.5,
       "hero_delta_chips": -5,
+      "pots": [
+        {
+          "amount": 10,
+          "eligible": [
+            0,
+            1
+          ],
+          "label": "main pot",
+          "winners": [
+            1
+          ]
+        }
+      ],
       "showdown": {
         "hero_hand": "High card",
         "villain_hand": "Pair",
         "winner": "villain"
       },
+      "shown": [
+        {
+          "cards": [
+            "7h",
+            "4d"
+          ],
+          "seat": 1
+        }
+      ],
       "villain_cards": [
         "7h",
         "4d"
@@ -246,6 +348,44 @@
       ],
       "pot": 10,
       "pot_odds": null,
+      "seats": [
+        {
+          "all_in": false,
+          "cards": [
+            "8d",
+            "4c"
+          ],
+          "folded": false,
+          "is_button": true,
+          "is_hero": true,
+          "name": "You",
+          "position": "BTN",
+          "profile": null,
+          "seat": 0,
+          "stack": 195,
+          "street_bet": 0
+        },
+        {
+          "all_in": false,
+          "cards": [
+            "7h",
+            "4d"
+          ],
+          "folded": false,
+          "is_button": false,
+          "is_hero": false,
+          "name": "Villain",
+          "position": "BB",
+          "profile": {
+            "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
+            "label": "LAG",
+            "name": "lag"
+          },
+          "seat": 1,
+          "stack": 205,
+          "street_bet": 0
+        }
+      ],
       "stacks": [
         195,
         205
@@ -255,6 +395,7 @@
         0,
         0
       ],
+      "table_size": 2,
       "to_call": 0,
       "villain_position": "BB",
       "villain_profile": {
@@ -276,5 +417,6 @@
     "description": "Loose-aggressive: wide ranges, frequent pressure, more bluffs.",
     "label": "LAG",
     "name": "lag"
-  }
+  },
+  "table_size": 2
 }

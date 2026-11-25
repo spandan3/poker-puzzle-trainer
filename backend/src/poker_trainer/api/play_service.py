@@ -1,8 +1,9 @@
 """Play vs Bots: the database side of sessions and hands. No FastAPI here.
 
-A session is one saved cash game against the bot with a profile snapshot; a hand is a
-``HandRecord`` stored as rows (button, stacks, deck, the bot's seed and the actions so far) and
-rebuilt by replay. Every query filters by ``user_id``. A hand's actions are written
+A session is one saved cash game, heads-up against one bot (a profile snapshot in the
+``profile*`` columns) or 5-max against four (``seats``: per bot seat its display name, stack
+and ``SeatBot`` snapshot); a hand is a ``HandRecord`` stored as rows (button, stacks, deck, the
+bots' seed and the actions so far) and rebuilt by replay. Every query filters by ``user_id``. A hand's actions are written
 compare-and-set on ``action_count`` so a stale or doubled click cannot act twice, and finishing a
 hand updates the hand row and its session row in one transaction.
 """
@@ -18,10 +19,16 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from poker_trainer.api import play_views, service
-from poker_trainer.api.service import MAX_ID, ConcurrentSubmit, InvalidAnswer, NotFound
+from poker_trainer.api.service import (
+    MAX_ID,
+    ConcurrentSubmit,
+    InvalidAnswer,
+    NotFound,
+    ServiceError,
+)
 from poker_trainer.api.views import action_log, option_ev_to_dict
 from poker_trainer.db.blob import encode_puzzle
-from poker_trainer.db.models import PlayDecisionRow, PlayHandRow, PlaySessionRow
+from poker_trainer.db.models import PlayDecisionRow, PlayHandRow, PlaySessionRow, UserSettings
 from poker_trainer.explain.facts import Facts, build_facts
 from poker_trainer.explain.template import explain
 from poker_trainer.game.state import Action, ActionKind, Street, new_hand, position_name
@@ -29,18 +36,30 @@ from poker_trainer.play.analyse import DecisionAnalysis, analyse_decision, hero_
 from poker_trainer.play.hand import (
     HERO_SEAT,
     HandOutcome,
+    HandOutcome5,
     HandRecord,
+    SeatBot,
     abandon,
     advance,
+    advance_seats,
     hero_act,
-    outcome,
+    hero_act_seats,
     replay,
 )
-from poker_trainer.play.session import START, new_record, next_stacks
+from poker_trainer.play.session import (
+    SEATS5,
+    START,
+    new_record,
+    new_record5,
+    next_button,
+    next_stacks,
+    next_stacks5,
+)
 from poker_trainer.puzzle.model import load_config
 from poker_trainer.puzzle.options import custom_action, hero_options
 from poker_trainer.villain import strategy
 from poker_trainer.villain.features import load_thresholds
+from poker_trainer.villain.preflop5 import load_fivemax, load_ranking
 from poker_trainer.villain.profiles import PROFILE_NAMES, Profile, profile_data, profile_from_dict
 from poker_trainer.villain.strategy import STRATEGY_VERSION
 
@@ -48,6 +67,18 @@ PlayRng = Callable[[], random.Random]
 
 _IN_PROGRESS = "in_progress"
 _COMPLETE = "complete"
+HEADS_UP = 2
+FIVEMAX_LABEL = "5-max"
+NO_FIVEMAX_ANALYSIS = "Analysis of 5-max hands comes in a later version."
+
+
+class AnalysisUnavailable(ServiceError):
+    """The hand cannot be analysed yet (5-max hands)."""
+
+    status_code = 409
+
+
+Outcome = HandOutcome | HandOutcome5
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +97,7 @@ def _action_from_dict(d: dict[str, Any]) -> Action:
 def _record(row: PlayHandRow) -> HandRecord:
     return HandRecord(
         button=row.button,
-        start_stacks=(row.start_stacks[0], row.start_stacks[1]),
+        start_stacks=tuple(int(x) for x in row.start_stacks),
         deck=tuple(row.deck),
         bot_seed=row.bot_seed,
         actions=tuple(_action_from_dict(a) for a in row.actions),
@@ -75,12 +106,56 @@ def _record(row: PlayHandRow) -> HandRecord:
 
 
 def _profile(sess: PlaySessionRow) -> Profile:
-    """The session's profile as it was dealt; never the live profile file."""
+    """The session's profile as it was dealt; never the live profile file. In 5-max this is
+    Bot 1's (the legacy columns hold its snapshot); nothing there reads it."""
     return profile_from_dict(sess.profile, sess.profile_data)
 
 
-def _finished_values(record: HandRecord, out: HandOutcome) -> dict[str, Any]:
-    return {
+def _five_max(sess: PlaySessionRow) -> bool:
+    return sess.table_size != HEADS_UP
+
+
+def _seats(sess: PlaySessionRow) -> list[dict[str, Any]]:
+    assert sess.seats is not None, "a 5-max session has seats"
+    return list(sess.seats)
+
+
+def _seat_bots(sess: PlaySessionRow) -> dict[int, SeatBot]:
+    """Each 5-max bot seat's snapshot as it sat down; never the live data files."""
+    return {int(e["seat"]): SeatBot.from_dict(e["bot"]) for e in _seats(sess)}
+
+
+def _bot_infos(sess: PlaySessionRow) -> tuple[play_views.SeatBotInfo, ...] | None:
+    """The 5-max bot seats for the views (None heads-up: the views use the profile)."""
+    if not _five_max(sess):
+        return None
+    bots = _seat_bots(sess)
+    return tuple(
+        play_views.SeatBotInfo(int(e["seat"]), str(e["name"]), bots[int(e["seat"])].profile)
+        for e in _seats(sess)
+    )
+
+
+def _outcome(record: HandRecord) -> Outcome | None:
+    return play_views.hand_outcome(record)
+
+
+def _award_dicts(out: Outcome) -> list[dict[str, Any]] | None:
+    """The stored pots of a finished 5-max hand (None heads-up: the column stays null)."""
+    if not isinstance(out, HandOutcome5):
+        return None
+    return [
+        {
+            "amount": int(p.amount),
+            "eligible": [int(i) for i in p.eligible],
+            "winners": [int(i) for i in p.winners],
+        }
+        for p in out.pots
+    ]
+
+
+def _finished_values(record: HandRecord, out: Outcome) -> dict[str, Any]:
+    values = {
         "actions": [_action_dict(a) for a in record.actions],
         "action_count": len(record.actions),
         "abandoned": record.abandoned,
@@ -90,42 +165,84 @@ def _finished_values(record: HandRecord, out: HandOutcome) -> dict[str, Any]:
         "hero_delta_chips": int(out.hero_delta),
         "decision_count": len(hero_decisions(record)),
     }
+    pots = _award_dicts(out)
+    if pots is not None:
+        values["pots"] = pots
+    return values
 
 
-def _settle_session(sess: PlaySessionRow, button: int, out: HandOutcome) -> None:
+def _settle_session(sess: PlaySessionRow, button: int, out: Outcome) -> None:
     """A finished hand moves the session: its stacks, the hand count and the button."""
-    sess.hero_stack, sess.bot_stack = int(out.stacks[0]), int(out.stacks[1])
+    if _five_max(sess):
+        sess.hero_stack = int(out.stacks[HERO_SEAT])
+        sess.seats = [{**e, "stack": int(out.stacks[int(e["seat"])])} for e in _seats(sess)]
+        sess.next_button = next_button(button, SEATS5)
+    else:
+        sess.hero_stack, sess.bot_stack = int(out.stacks[0]), int(out.stacks[1])
+        sess.next_button = 1 - button
     sess.hands_played += 1
-    sess.next_button = 1 - button
 
 
-def _view(sess: PlaySessionRow, hand: PlayHandRow | None) -> dict[str, Any]:
-    profile = _profile(sess)
-    hv = (
-        None
-        if hand is None
-        else play_views.hand_view(
-            hand.id,
-            hand.hand_no,
-            sess.id,
-            _record(hand),
-            profile,
-            decision_count=hand.decision_count,
-        )
+def _show_profile(db: Session, user_id: int) -> bool:
+    """The user's "show profile" setting, read without creating the settings row."""
+    row = db.get(UserSettings, user_id)
+    return True if row is None else bool(row.show_profile)
+
+
+def _hand_view(sess: PlaySessionRow, hand: PlayHandRow) -> dict[str, Any]:
+    five = _five_max(sess)
+    return play_views.hand_view(
+        hand.id,
+        hand.hand_no,
+        sess.id,
+        _record(hand),
+        None if five else _profile(sess),
+        decision_count=hand.decision_count,
+        bots=_bot_infos(sess),
     )
+
+
+def _view(db: Session, sess: PlaySessionRow, hand: PlayHandRow | None) -> dict[str, Any]:
+    show = _show_profile(db, sess.user_id)
+    hv = None if hand is None else _hand_view(sess, hand)
+    if _five_max(sess):
+        infos = _bot_infos(sess)
+        assert infos is not None
+        stacks = {int(e["seat"]): int(e["stack"]) for e in _seats(sess)}
+        profile = None
+        bot_stack = None
+        bots = [
+            {
+                "seat": b.seat,
+                "name": b.name,
+                "profile": play_views.profile_info(b.profile) if show else None,
+                "stack": stacks[b.seat],
+            }
+            for b in infos
+        ]
+    else:
+        p = _profile(sess)
+        profile = play_views.profile_info(p)
+        bot_stack = sess.bot_stack
+        bots = [
+            {
+                "seat": 1,
+                "name": play_views.HU_BOT_NAME,
+                "profile": profile if show else None,
+                "stack": sess.bot_stack,
+            }
+        ]
     return play_views.session_view(
         {
             "id": sess.id,
             "open": sess.ended_at is None,
-            "profile": {
-                "name": profile.name,
-                "label": profile.label,
-                "description": profile.description,
-            },
+            "profile": profile,
             "hero_stack": sess.hero_stack,
-            "bot_stack": sess.bot_stack,
+            "bot_stack": bot_stack,
             "hero_bought_chips": sess.hero_bought_chips,
             "hands_played": sess.hands_played,
+            "table_size": sess.table_size,
+            "bots": bots,
         },
         hv,
     )
@@ -193,14 +310,22 @@ def _deal(
     user_id: int,
     sess: PlaySessionRow,
     hand_no: int,
-    stacks: tuple[int, int],
+    stacks: tuple[int, ...],
     rng: random.Random,
 ) -> PlayHandRow:
-    """Deal hand ``hand_no`` and advance the bot to Hero's turn; settle it at once if it is
-    already over (the bot folded the button). The insert is flushed first, so a doubled "next
-    hand" hits the ``(session_id, hand_no)`` constraint before anything else changes."""
+    """Deal hand ``hand_no`` and advance the bots to Hero's turn; settle it at once if it is
+    already over (heads-up the bot folded the button; in 5-max the bots folded round to Hero's
+    big blind). The insert is flushed first, so a doubled "next hand" hits the
+    ``(session_id, hand_no)`` constraint before anything else changes."""
     button = sess.next_button
-    record = advance(new_record(button, stacks, rng), _profile(sess))
+    five = _five_max(sess)
+    if five:
+        record = advance_seats(new_record5(button, stacks, rng), _seat_bots(sess))
+        ranking_version, _ = load_ranking()
+        bot_versions = {"hand_ranking": ranking_version, "fivemax": load_fivemax().version}
+    else:
+        record = advance(new_record(button, (stacks[0], stacks[1]), rng), _profile(sess))
+        bot_versions = None
     row = PlayHandRow(
         user_id=user_id,
         session_id=sess.id,
@@ -218,10 +343,12 @@ def _deal(
         strategy_version=STRATEGY_VERSION,
         categories_version=load_thresholds().version,
         config_version=load_config().version,
+        table_size=sess.table_size,
+        bot_versions=bot_versions,
     )
     db.add(row)
     db.flush()
-    out = outcome(record)
+    out = _outcome(record)
     if out is not None:
         for k, v in _finished_values(record, out).items():
             setattr(row, k, v)
@@ -237,41 +364,80 @@ def _refresh(db: Session, *rows: Any) -> None:
             db.refresh(r)
 
 
-def start_session(db: Session, user_id: int, play_rng: PlayRng) -> dict[str, Any]:
+def _new_session_row(user_id: int, rng: random.Random, table_size: int) -> PlaySessionRow:
+    """A new session row. Heads-up draws the profile then the button from ``rng``, exactly as
+    before 5-max; 5-max draws four profiles (repeats allowed) then the button."""
+    if table_size == HEADS_UP:
+        name = rng.choice(PROFILE_NAMES)
+        data = profile_data(name)
+        profile = profile_from_dict(name, data)
+        return PlaySessionRow(
+            user_id=user_id,
+            created_at=service.utcnow(),
+            profile=name,
+            profile_version=profile.version,
+            profile_data=data,
+            hero_stack=START,
+            bot_stack=START,
+            hero_bought_chips=START,
+            next_button=rng.randrange(2),
+            hands_played=0,
+            table_size=HEADS_UP,
+        )
+    if table_size != SEATS5:
+        raise InvalidAnswer(f"table_size must be 2 or {SEATS5}")
+    bots = [SeatBot.live(rng.choice(PROFILE_NAMES)) for _ in range(1, SEATS5)]
+    first = bots[0].to_dict()
+    return PlaySessionRow(
+        user_id=user_id,
+        created_at=service.utcnow(),
+        # the legacy NOT NULL columns hold Bot 1's snapshot; nothing reads them in 5-max
+        profile=first["profile"],
+        profile_version=bots[0].profile.version,
+        profile_data=first["profile_data"],
+        hero_stack=START,
+        bot_stack=0,  # heads-up only
+        hero_bought_chips=START,
+        next_button=rng.randrange(SEATS5),
+        hands_played=0,
+        table_size=SEATS5,
+        seats=[
+            {
+                "seat": seat,
+                "name": play_views.bot_name(seat, SEATS5),
+                "stack": START,
+                "bot": bot.to_dict(),
+            }
+            for seat, bot in enumerate(bots, start=1)
+        ],
+    )
+
+
+def start_session(
+    db: Session, user_id: int, play_rng: PlayRng, table_size: int = HEADS_UP
+) -> dict[str, Any]:
+    """Start a session at a heads-up (2) or 5-max (5) table and deal its first hand."""
     if _open_session(db, user_id) is not None:
         raise ConcurrentSubmit("a session is already open")
     rng = play_rng()
-    name = rng.choice(PROFILE_NAMES)
-    data = profile_data(name)
-    profile = profile_from_dict(name, data)
-    sess = PlaySessionRow(
-        user_id=user_id,
-        created_at=service.utcnow(),
-        profile=name,
-        profile_version=profile.version,
-        profile_data=data,
-        hero_stack=START,
-        bot_stack=START,
-        hero_bought_chips=START,
-        next_button=rng.randrange(2),
-        hands_played=0,
-    )
+    sess = _new_session_row(user_id, rng, table_size)
+    stacks = (START,) * sess.table_size
     try:
         db.add(sess)
         db.flush()
-        hand = _deal(db, user_id, sess, 1, (START, START), rng)
+        hand = _deal(db, user_id, sess, 1, stacks, rng)
         db.commit()
     except IntegrityError:
         db.rollback()
         raise ConcurrentSubmit("a session is already open")
-    return _view(sess, hand)
+    return _view(db, sess, hand)
 
 
 def current_session(db: Session, user_id: int) -> dict[str, Any]:
     sess = _open_session(db, user_id)
     if sess is None:
         raise NotFound("no open session")
-    return _view(sess, _latest_hand(db, user_id, sess.id))
+    return _view(db, sess, _latest_hand(db, user_id, sess.id))
 
 
 def next_hand(
@@ -291,27 +457,41 @@ def next_hand(
     last = _latest_hand(db, user_id, sess.id)
     if last is not None and last.status != _COMPLETE:
         raise ConcurrentSubmit("the current hand is still being played")
-    hero, bot, bought = next_stacks(sess.hero_stack, sess.bot_stack, top_up=top_up)
+    stacks: tuple[int, ...]
+    values: dict[str, Any]
+    if _five_max(sess):
+        seats = _seats(sess)
+        hero, bots, bought = next_stacks5(
+            sess.hero_stack, [int(e["stack"]) for e in seats], top_up=top_up
+        )
+        new_seats = [{**e, "stack": int(b)} for e, b in zip(seats, bots, strict=True)]
+        stacks = (hero, *bots)
+        values = {"hero_stack": hero, "seats": new_seats}
+    else:
+        hero, bot, bought = next_stacks(sess.hero_stack, sess.bot_stack, top_up=top_up)
+        stacks = (hero, bot)
+        values = {"hero_stack": hero, "bot_stack": bot}
     # the session write is conditional: another tab may have ended it since it was loaded
     res = db.execute(
         update(PlaySessionRow)
         .where(PlaySessionRow.id == sess.id, PlaySessionRow.ended_at.is_(None))
-        .values(hero_stack=hero, bot_stack=bot)
+        .values(**values)
         .execution_options(synchronize_session=False)
     )
     if res.rowcount != 1:  # type: ignore[attr-defined]
         db.rollback()
         raise ConcurrentSubmit("the session has ended")
-    sess.hero_stack, sess.bot_stack = hero, bot
+    for k, v in values.items():
+        setattr(sess, k, v)
     sess.hero_bought_chips += bought
     hand_no = 1 if last is None else last.hand_no + 1
     try:
-        hand = _deal(db, user_id, sess, hand_no, (hero, bot), play_rng())
+        hand = _deal(db, user_id, sess, hand_no, stacks, play_rng())
         db.commit()
     except IntegrityError:
         db.rollback()
         raise ConcurrentSubmit("another request dealt the next hand")
-    return _view(sess, hand)
+    return _view(db, sess, hand)
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +504,7 @@ def _write_hand(
     row: PlayHandRow,
     expected: int,
     record: HandRecord,
-    out: HandOutcome | None,
+    out: Outcome | None,
 ) -> None:
     """Compare-and-set the hand's actions; no row updated means another request got there."""
     values: dict[str, Any] = (
@@ -378,25 +558,28 @@ def act(
         else:
             assert custom_to is not None
             action = custom_action(s, custom_to)
-        new = hero_act(record, profile, action)
+        if _five_max(sess):
+            new = hero_act_seats(record, _seat_bots(sess), action)
+        else:
+            new = hero_act(record, profile, action)
     except ValueError as e:
         raise InvalidAnswer(str(e))
-    out = outcome(new)
+    out = _outcome(new)
     _write_hand(db, row, expected_actions, new, out)
     if out is not None:
         _settle_session(sess, row.button, out)
     db.commit()
     _refresh(db, sess, row)
-    return _view(sess, row)
+    return _view(db, sess, row)
 
 
 def end_session(db: Session, user_id: int, session_id: int) -> dict[str, Any]:
-    """End the session; a running hand is abandoned (Hero keeps what is behind, the bot takes
-    the pot). Ending twice returns the same view."""
+    """End the session; a running hand is abandoned (Hero keeps what is behind; heads-up the bot
+    takes the pot, in 5-max see ``outcome5``). Ending twice returns the same view."""
     sess = _load_session(db, user_id, session_id)
     hand = _latest_hand(db, user_id, sess.id)
     if sess.ended_at is not None:
-        return _view(sess, hand)
+        return _view(db, sess, hand)
     res = db.execute(
         update(PlaySessionRow)
         .where(PlaySessionRow.id == sess.id, PlaySessionRow.ended_at.is_(None))
@@ -405,16 +588,16 @@ def end_session(db: Session, user_id: int, session_id: int) -> dict[str, Any]:
     )
     if res.rowcount != 1:  # type: ignore[attr-defined]  # ended by another request meanwhile
         db.rollback()
-        return _view(_load_session(db, user_id, session_id), hand)
+        return _view(db, _load_session(db, user_id, session_id), hand)
     if hand is not None and hand.status == _IN_PROGRESS:
         record = abandon(_record(hand))
-        out = outcome(record)
+        out = _outcome(record)
         assert out is not None
         _write_hand(db, hand, hand.action_count, record, out)
         _settle_session(sess, hand.button, out)
     db.commit()
     _refresh(db, sess, hand)
-    return _view(sess, hand)
+    return _view(db, sess, hand)
 
 
 # ---------------------------------------------------------------------------
@@ -423,10 +606,8 @@ def end_session(db: Session, user_id: int, session_id: int) -> dict[str, Any]:
 
 
 def get_hand(db: Session, user_id: int, hand_id: int) -> dict[str, Any]:
-    row, sess, record, profile = load_hand(db, user_id, hand_id)
-    return play_views.hand_view(
-        row.id, row.hand_no, sess.id, record, profile, decision_count=row.decision_count
-    )
+    row, sess, _, _ = load_hand(db, user_id, hand_id)
+    return _hand_view(sess, row)
 
 
 def list_sessions(db: Session, user_id: int) -> list[dict[str, Any]]:
@@ -440,13 +621,29 @@ def list_sessions(db: Session, user_id: int) -> list[dict[str, Any]]:
             "id": r.id,
             "created_at": r.created_at.isoformat(),
             "ended_at": None if r.ended_at is None else r.ended_at.isoformat(),
-            "profile_label": _profile(r).label,
+            "profile_label": FIVEMAX_LABEL if _five_max(r) else _profile(r).label,
             "hands_played": r.hands_played,
             "net_bb": (r.hero_stack - r.hero_bought_chips) / 2,
             "open": r.ended_at is None,
+            "table_size": r.table_size,
         }
         for r in rows
     ]
+
+
+def _winner_names(sess: PlaySessionRow, row: PlayHandRow) -> list[str]:
+    """Who took a pot in a finished hand, Hero as "You", in seat order. Heads-up it follows
+    ``winner`` (an abandoned hand is the bot's); in 5-max the stored pots (none when
+    abandoned)."""
+    if row.status != _COMPLETE:
+        return []
+    if row.table_size == HEADS_UP:
+        hero, bot = play_views.HERO_NAME, play_views.HU_BOT_NAME
+        return {"hero": [hero], "villain": [bot], "split": [hero, bot]}.get(row.winner or "", [])
+    names = {int(e["seat"]): str(e["name"]) for e in _seats(sess)}
+    names[HERO_SEAT] = play_views.HERO_NAME
+    winners = sorted({int(w) for p in row.pots or [] for w in p["winners"]})
+    return [names[w] for w in winners]
 
 
 def list_hands(db: Session, user_id: int, session_id: int) -> list[dict[str, Any]]:
@@ -464,8 +661,10 @@ def list_hands(db: Session, user_id: int, session_id: int) -> list[dict[str, Any
             "result_bb": None if r.hero_delta_chips is None else r.hero_delta_chips / 2,
             "ended_by": r.ended_by,
             "decision_count": r.decision_count,
-            "analysed": r.ev_loss_chips is not None,
+            "analysed": r.table_size == HEADS_UP and r.ev_loss_chips is not None,
             "ev_loss_bb": None if r.ev_loss_chips is None else r.ev_loss_chips / 2,
+            "table_size": r.table_size,
+            "winner_names": _winner_names(sess, r),
         }
         for r in rows
     ]
@@ -476,10 +675,20 @@ def list_hands(db: Session, user_id: int, session_id: int) -> list[dict[str, Any
 # ---------------------------------------------------------------------------
 
 
+def _heads_up_hand(
+    db: Session, user_id: int, hand_id: int
+) -> tuple[PlayHandRow, PlaySessionRow, HandRecord, Profile]:
+    """``load_hand`` for the analysis routes: a 5-max hand is refused (409)."""
+    row, sess, record, profile = load_hand(db, user_id, hand_id)
+    if row.table_size != HEADS_UP:
+        raise AnalysisUnavailable(NO_FIVEMAX_ANALYSIS)
+    return row, sess, record, profile
+
+
 def _finished_hand(
     db: Session, user_id: int, hand_id: int
 ) -> tuple[PlayHandRow, HandRecord, Profile]:
-    row, _, record, profile = load_hand(db, user_id, hand_id)
+    row, _, record, profile = _heads_up_hand(db, user_id, hand_id)
     if row.status != _COMPLETE:
         raise ConcurrentSubmit("the hand is still being played")
     return row, record, profile
@@ -621,8 +830,8 @@ def decision_explanation_inputs(
     db: Session, user_id: int, hand_id: int, n: int
 ) -> tuple[dict[str, Any], Facts]:
     """A stored, graded decision's template explanation and the facts it was written from
-    (404 for a decision that is not analysed or not graded)."""
-    _, _, record, profile = load_hand(db, user_id, hand_id)
+    (404 for a decision that is not analysed or not graded; 409 for a 5-max hand)."""
+    _, _, record, profile = _heads_up_hand(db, user_id, hand_id)
     _check_decision(record, n)
     row = _stored_decision(db, user_id, hand_id, n)
     if row is None or row.status != play_views.GRADED:
@@ -636,6 +845,7 @@ def decision_explanation_inputs(
 
 
 __all__ = [
+    "AnalysisUnavailable",
     "PlayRng",
     "act",
     "analyse",

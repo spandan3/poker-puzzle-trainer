@@ -1,0 +1,1011 @@
+[
+  {
+    "analysed": false,
+    "decision_count": 6,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 1,
+    "hero_position": "CO",
+    "id": 1,
+    "result_bb": 14.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 7,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 2,
+    "hero_position": "UTG",
+    "id": 2,
+    "result_bb": -32.5,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 2"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 3,
+    "hero_position": "BB",
+    "id": 3,
+    "result_bb": -1.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 1"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 4,
+    "hero_position": "SB",
+    "id": 4,
+    "result_bb": 1.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 5,
+    "hero_position": "BTN",
+    "id": 5,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 6,
+    "hero_position": "CO",
+    "id": 6,
+    "result_bb": 0.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 4"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 6,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 7,
+    "hero_position": "UTG",
+    "id": 7,
+    "result_bb": -19.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 1"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 4,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 8,
+    "hero_position": "BB",
+    "id": 8,
+    "result_bb": 3.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 9,
+    "hero_position": "SB",
+    "id": 9,
+    "result_bb": -0.5,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 3"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 4,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 10,
+    "hero_position": "BTN",
+    "id": 10,
+    "result_bb": -44.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 4"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 4,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 11,
+    "hero_position": "CO",
+    "id": 11,
+    "result_bb": -13.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 4"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 2,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 12,
+    "hero_position": "UTG",
+    "id": 12,
+    "result_bb": -2.5,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 4"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 7,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 13,
+    "hero_position": "BB",
+    "id": 13,
+    "result_bb": -100.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 4"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 4,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 14,
+    "hero_position": "SB",
+    "id": 14,
+    "result_bb": 3.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 15,
+    "hero_position": "BTN",
+    "id": 15,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 4,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 16,
+    "hero_position": "CO",
+    "id": 16,
+    "result_bb": -2.5,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 3"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 5,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 17,
+    "hero_position": "UTG",
+    "id": 17,
+    "result_bb": 6.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 0,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 18,
+    "hero_position": "BB",
+    "id": 18,
+    "result_bb": 0.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 6,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 19,
+    "hero_position": "SB",
+    "id": 19,
+    "result_bb": 18.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 20,
+    "hero_position": "BTN",
+    "id": 20,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 21,
+    "hero_position": "CO",
+    "id": 21,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 22,
+    "hero_position": "UTG",
+    "id": 22,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 5,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 23,
+    "hero_position": "BB",
+    "id": 23,
+    "result_bb": 7.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 24,
+    "hero_position": "SB",
+    "id": 24,
+    "result_bb": -0.5,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 2"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 25,
+    "hero_position": "BTN",
+    "id": 25,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 26,
+    "hero_position": "CO",
+    "id": 26,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 4,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 27,
+    "hero_position": "UTG",
+    "id": 27,
+    "result_bb": 3.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 4,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 28,
+    "hero_position": "BB",
+    "id": 28,
+    "result_bb": -7.5,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 4"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 29,
+    "hero_position": "SB",
+    "id": 29,
+    "result_bb": 1.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 30,
+    "hero_position": "BTN",
+    "id": 30,
+    "result_bb": 0.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 4"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 31,
+    "hero_position": "CO",
+    "id": 31,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 32,
+    "hero_position": "UTG",
+    "id": 32,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 33,
+    "hero_position": "BB",
+    "id": 33,
+    "result_bb": -1.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 3"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 34,
+    "hero_position": "SB",
+    "id": 34,
+    "result_bb": 1.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 4,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 35,
+    "hero_position": "BTN",
+    "id": 35,
+    "result_bb": -21.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 3"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 36,
+    "hero_position": "CO",
+    "id": 36,
+    "result_bb": 0.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 4"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 37,
+    "hero_position": "UTG",
+    "id": 37,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 5,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 38,
+    "hero_position": "BB",
+    "id": 38,
+    "result_bb": 5.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 39,
+    "hero_position": "SB",
+    "id": 39,
+    "result_bb": 1.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 40,
+    "hero_position": "BTN",
+    "id": 40,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 6,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 41,
+    "hero_position": "CO",
+    "id": 41,
+    "result_bb": -12.5,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 1"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 42,
+    "hero_position": "UTG",
+    "id": 42,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 0,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 43,
+    "hero_position": "BB",
+    "id": 43,
+    "result_bb": 0.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 4,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 44,
+    "hero_position": "SB",
+    "id": 44,
+    "result_bb": -2.5,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 3"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 45,
+    "hero_position": "BTN",
+    "id": 45,
+    "result_bb": 0.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 4"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 46,
+    "hero_position": "CO",
+    "id": 46,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 47,
+    "hero_position": "UTG",
+    "id": 47,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 48,
+    "hero_position": "BB",
+    "id": 48,
+    "result_bb": 3.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 49,
+    "hero_position": "SB",
+    "id": 49,
+    "result_bb": -82.0,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 2"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 50,
+    "hero_position": "BTN",
+    "id": 50,
+    "result_bb": 4.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 51,
+    "hero_position": "CO",
+    "id": 51,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 52,
+    "hero_position": "UTG",
+    "id": 52,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 53,
+    "hero_position": "BB",
+    "id": 53,
+    "result_bb": 3.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 54,
+    "hero_position": "SB",
+    "id": 54,
+    "result_bb": 3.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 55,
+    "hero_position": "BTN",
+    "id": 55,
+    "result_bb": 4.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 56,
+    "hero_position": "CO",
+    "id": 56,
+    "result_bb": 99.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 57,
+    "hero_position": "UTG",
+    "id": 57,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 58,
+    "hero_position": "BB",
+    "id": 58,
+    "result_bb": 3.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 59,
+    "hero_position": "SB",
+    "id": 59,
+    "result_bb": 3.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 60,
+    "hero_position": "BTN",
+    "id": 60,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 61,
+    "hero_position": "CO",
+    "id": 61,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 62,
+    "hero_position": "UTG",
+    "id": 62,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 63,
+    "hero_position": "BB",
+    "id": 63,
+    "result_bb": -90.5,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 1"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 64,
+    "hero_position": "SB",
+    "id": 64,
+    "result_bb": 3.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 65,
+    "hero_position": "BTN",
+    "id": 65,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 66,
+    "hero_position": "CO",
+    "id": 66,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 67,
+    "hero_position": "UTG",
+    "id": 67,
+    "result_bb": 93.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 68,
+    "hero_position": "BB",
+    "id": 68,
+    "result_bb": 3.0,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 69,
+    "hero_position": "SB",
+    "id": 69,
+    "result_bb": 3.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 70,
+    "hero_position": "BTN",
+    "id": 70,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "fold",
+    "ev_loss_bb": null,
+    "hand_no": 71,
+    "hero_position": "CO",
+    "id": 71,
+    "result_bb": 1.5,
+    "table_size": 5,
+    "winner_names": [
+      "You"
+    ]
+  },
+  {
+    "analysed": false,
+    "decision_count": 1,
+    "ended_by": "showdown",
+    "ev_loss_bb": null,
+    "hand_no": 72,
+    "hero_position": "UTG",
+    "id": 72,
+    "result_bb": -90.5,
+    "table_size": 5,
+    "winner_names": [
+      "Bot 3",
+      "Bot 4"
+    ]
+  }
+]

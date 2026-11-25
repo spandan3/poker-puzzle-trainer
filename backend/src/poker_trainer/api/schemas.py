@@ -121,13 +121,27 @@ class NextHandIn(BaseModel):
     top_up: Annotated[bool, Field(strict=True)] = False
 
 
+TableSize = Literal[2, 5]
+
+
+class PlaySessionIn(BaseModel):
+    """Optional body of ``POST /play/sessions``: heads-up (2, the default) or 5-max (5)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # a JSON "5" or true is not a table size (the literal refuses them)
+    table_size: TableSize = 2
+
+
 # ---------------------------------------------------------------------------
 # Responses
 # ---------------------------------------------------------------------------
 
 
 class _Out(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # A field with a default (only fields added after a model first shipped have one) is still
+    # listed as required in the response schema: every response carries it.
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
 
 
 # 13x13, rows and columns in ``class_grid`` order; None = every combo of the class is blocked
@@ -486,16 +500,38 @@ class StatsView(_Out):
 # ---------------------------------------------------------------------------
 
 
+class SeatView(_Out):
+    """One seat at a played table. ``name`` is "You" for Hero, "Villain" for the heads-up bot
+    and "Bot 1" to "Bot 4" in 5-max. ``profile`` is the bot's profile (null for Hero); the
+    client hides it per setting. ``cards`` are Hero's cards, or a bot's cards once they are
+    shown at a showdown; otherwise null. In a finished hand ``stack`` is the settled stack,
+    ``street_bet`` is 0 and ``all_in`` is false."""
+
+    seat: int
+    name: str
+    position: str
+    stack: int
+    street_bet: int
+    folded: bool
+    all_in: bool
+    is_hero: bool
+    is_button: bool
+    profile: ProfileInfo | None
+    cards: list[str] | None
+
+
 class TableView(_Out):
     """The table in a played hand: ``PuzzleView`` without the answer-form fields.
 
     In a finished hand ``stacks`` are the settled stacks, ``street_bets`` are zero and ``pot``
-    is the pot that was awarded."""
+    is the pot that was awarded (in 5-max the sum of the listed pots: an uncalled bet goes back
+    and is not part of it). ``villain_position`` and ``villain_profile`` are heads-up only (null
+    in 5-max); ``seats`` describes every seat at any table size."""
 
     street: StreetName
     hero_seat: int
     hero_position: str
-    villain_position: str
+    villain_position: str | None
     hero_cards: list[str]
     board: list[str]
     stacks: list[int]
@@ -504,26 +540,59 @@ class TableView(_Out):
     to_call: int
     pot_odds: float | None
     history: list[ActionLogEntry]
-    villain_profile: ProfileInfo
+    villain_profile: ProfileInfo | None
+    table_size: int
+    seats: list[SeatView]
 
 
 class TableFrame(_Out):
-    """The table after the first ``k`` history entries, before any pot award."""
+    """The table after the first ``k`` history entries, before any pot award.
+
+    ``to_act`` is "hero", "villain" (any bot) or null; ``to_act_seat`` is that seat. ``folded``
+    has one flag per seat. ``pots`` are the pots as they stand, the main pot first: only chips
+    already in the middle (the bets of streets that are over), an uncalled excess left out;
+    empty while nothing is in the middle."""
 
     stacks: list[int]
     street_bets: list[int]
     pot: int  # total pot including bets in front, as ``PuzzleView.pot``
     board_len: int
     to_act: Literal["hero", "villain"] | None
+    to_act_seat: int | None = None
+    folded: list[bool] = Field(default_factory=list)
+    pots: list[int] = Field(default_factory=list)
+
+
+class PotAwardView(_Out):
+    """One pot of a finished hand: ``label`` is "main pot", "side pot 1", ...; ``eligible``
+    are the seats contesting it and ``winners`` those it went to (a split has several)."""
+
+    amount: int
+    eligible: list[int]
+    winners: list[int]
+    label: str
+
+
+class ShownCards(_Out):
+    seat: int
+    cards: list[str]
 
 
 class PlayOutcome(_Out):
+    """How a hand ended. ``winner`` heads-up is the hand's result; in 5-max it is "villain" when
+    the hand was abandoned or Hero folded, and otherwise the sign of Hero's delta.
+    ``villain_cards`` and ``showdown`` are heads-up showdowns only. ``pots`` are the awards
+    (empty for an abandoned hand) and ``shown`` the bots' cards revealed at a showdown,
+    clockwise from the seat after the button."""
+
     ended_by: Literal["fold", "showdown", "abandoned"]
     winner: Literal["hero", "villain", "split"]
     hero_delta_chips: int
     hero_delta_bb: float
-    villain_cards: list[str] | None  # only for a showdown
+    villain_cards: list[str] | None  # only for a heads-up showdown
     showdown: Showdown | None
+    pots: list[PotAwardView] = Field(default_factory=list)
+    shown: list[ShownCards] = Field(default_factory=list)
 
 
 class PlayHandView(_Out):
@@ -540,12 +609,24 @@ class PlayHandView(_Out):
     outcome: PlayOutcome | None
 
 
+class BotSeatInfo(_Out):
+    """A bot at the session's table; ``profile`` is null when the profile setting is off."""
+
+    seat: int
+    name: str
+    profile: ProfileInfo | None
+    stack: int
+
+
 class PlaySessionView(_Out):
+    """``profile`` and ``bot_stack`` are the heads-up bot's (null in 5-max). ``bots`` lists
+    every bot seat with its stack after the last finished hand."""
+
     id: int
     open: bool
-    profile: ProfileInfo
+    profile: ProfileInfo | None
     hero_stack: int
-    bot_stack: int
+    bot_stack: int | None
     hero_bought_chips: int
     net_chips: int
     net_bb: float
@@ -553,16 +634,19 @@ class PlaySessionView(_Out):
     must_rebuy: bool
     can_top_up: bool
     hand: PlayHandView | None
+    table_size: int
+    bots: list[BotSeatInfo]
 
 
 class PlaySessionSummary(_Out):
     id: int
     created_at: str  # ISO 8601, always ending +00:00
     ended_at: str | None
-    profile_label: str
+    profile_label: str  # "5-max" for a 5-max session
     hands_played: int
     net_bb: float
     open: bool
+    table_size: int = 2
 
 
 class PlayHandSummary(_Out):
@@ -572,8 +656,12 @@ class PlayHandSummary(_Out):
     result_bb: float | None  # null while the hand is running
     ended_by: Literal["fold", "showdown", "abandoned"] | None
     decision_count: int
-    analysed: bool
+    analysed: bool  # always false for 5-max hands (no analysis yet)
     ev_loss_bb: float | None
+    table_size: int = 2
+    # who took a pot, Hero as "You", in seat order; empty while running or when abandoned
+    # in 5-max (a heads-up abandon reads as the bot's)
+    winner_names: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

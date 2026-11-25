@@ -72,6 +72,11 @@ def test_response_models_forbid_extra_fields():
         "PlayReveal",
         "AnalysisSummary",
         "HandAnalysis",
+        "SeatView",
+        "PotAwardView",
+        "ShownCards",
+        "BotSeatInfo",
+        "PlaySessionIn",
     ):
         assert getattr(schemas, name).model_config.get("extra") == "forbid", name
 
@@ -157,3 +162,41 @@ def test_large_responses_gzipped(client):
 def test_health_head(client):
     assert client.head("/api/health").status_code == 200
     assert client.get("/api/health").json()["status"] == "ok"
+
+
+def test_five_max_responses_match_models_exactly(play_client):
+    view = play_client.post("/api/play/sessions", json={"table_size": 5}).json()
+    assert set(view) == set(schemas.PlaySessionView.model_fields)
+    assert set(view["bots"][0]) == set(schemas.BotSeatInfo.model_fields)
+    hand = view["hand"]
+    assert set(hand["table"]) == set(schemas.TableView.model_fields)
+    assert set(hand["table"]["seats"][0]) == set(schemas.SeatView.model_fields)
+    assert set(hand["frames"][0]) == set(schemas.TableFrame.model_fields)
+    while hand["status"] == "in_progress":  # call or check down, to reach a showdown often
+        kinds = [o["kind"] for o in hand["options"]]
+        option = next((i for i, k in enumerate(kinds) if k in ("check", "call")), 0)
+        body = {"expected_actions": hand["action_count"], "option": option}
+        hand = play_client.post(f"/api/play/hands/{hand['id']}/actions", json=body).json()["hand"]
+    assert set(hand["outcome"]) == set(schemas.PlayOutcome.model_fields)
+    assert set(hand["outcome"]["pots"][0]) == set(schemas.PotAwardView.model_fields)
+    (item,) = play_client.get("/api/play/sessions").json()
+    assert set(item) == set(schemas.PlaySessionSummary.model_fields)
+    (row,) = play_client.get(f"/api/play/sessions/{view['id']}/hands").json()
+    assert set(row) == set(schemas.PlayHandSummary.model_fields)
+
+
+def test_new_response_fields_are_required_in_the_schema(client):
+    """Fields added with a default (so older payloads still validate) are still listed as
+    required: every response carries them."""
+    spec = client.get("/openapi.json").json()["components"]["schemas"]
+    for name, fields in (
+        ("TableFrame", {"to_act_seat", "folded", "pots"}),
+        ("PlayOutcome", {"pots", "shown"}),
+        ("PlaySessionSummary", {"table_size"}),
+        ("PlayHandSummary", {"table_size", "winner_names"}),
+        ("TableView", {"table_size", "seats"}),
+        ("PlaySessionView", {"table_size", "bots"}),
+    ):
+        assert fields <= set(spec[name]["required"]), name
+    assert spec["PlaySessionIn"]["properties"]["table_size"]["enum"] == [2, 5]
+    assert "required" not in spec["PlaySessionIn"]

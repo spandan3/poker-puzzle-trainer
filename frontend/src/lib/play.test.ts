@@ -22,6 +22,8 @@ function outcome(over: Partial<PlayOutcome>): PlayOutcome {
     hero_delta_bb: 1.5,
     villain_cards: null,
     showdown: null,
+    pots: [],
+    shown: [],
     ...over,
   }
 }

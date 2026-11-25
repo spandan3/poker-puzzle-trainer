@@ -90,14 +90,17 @@ def _opt_bb(x: float | None) -> float | None:
 
 def replay_log(
     button: int,
-    start_stacks: tuple[int, int],
+    start_stacks: Sequence[int],
     history: Sequence[Action],
     runout: Sequence[int],
     hero_seat: int,
     board_len: int,
 ) -> tuple[list[dict[str, Any]], HandState]:
-    """Rebuild a hand from its actions, dealing board cards from ``runout`` up to ``board_len``."""
-    s = new_hand(button, start_stacks)
+    """Rebuild a hand from its actions, dealing board cards from ``runout`` up to ``board_len``.
+
+    ``start_stacks`` has one stack per seat (any table size); ``actor`` is "hero" for
+    ``hero_seat`` and "villain" for every other seat."""
+    s = new_hand(button, tuple(int(x) for x in start_stacks))
 
     def deal_pending(st: HandState) -> HandState:
         while needs_board(st) and len(st.board) < board_len:

@@ -9,17 +9,24 @@ from pydantic import ValidationError
 
 from poker_trainer.api import play_views, schemas, views
 from poker_trainer.engine.cards import card_str
-from poker_trainer.game.state import Street, legal_actions
+from poker_trainer.game.settle import settle_pots
+from poker_trainer.game.state import ActionKind, Street, folded_seats, legal_actions, live_seats
 from poker_trainer.play.analyse import analyse_decision, hero_decisions
 from poker_trainer.play.hand import (
     HandRecord,
+    SeatBot,
     advance,
+    advance_seats,
     bot_cards,
     hero_act,
+    hero_act_seats,
+    hole,
+    holes,
     outcome,
+    outcome5,
     replay,
 )
-from poker_trainer.play.session import new_record
+from poker_trainer.play.session import new_record, new_record5
 from poker_trainer.puzzle.options import hero_options
 from poker_trainer.villain.profiles import PROFILE_NAMES, load_profile
 
@@ -431,3 +438,260 @@ def test_an_abandoned_hands_pot_goes_to_the_bot():
     assert v["outcome"]["winner"] == "villain" and pot > 0
     assert settled[1] - last["stacks"][1] == pot
     assert settled[0] == last["stacks"][0]
+
+
+# ---------------------------------------------------------------------------
+# 5-max (M12): seat views, frames, pot awards and what they never leak
+# ---------------------------------------------------------------------------
+
+FIVE_BOTS = {name: SeatBot.live(name) for name in PROFILE_NAMES}
+FIVE_POSITIONS = {"BTN", "SB", "BB", "UTG", "CO"}
+
+
+def _seat_bots(seed: int) -> dict[int, SeatBot]:
+    rng = random.Random(f"seats:{seed}")
+    return {seat: FIVE_BOTS[rng.choice(PROFILE_NAMES)] for seat in range(1, 5)}
+
+
+def _infos(bots: dict[int, SeatBot]):
+    return [play_views.SeatBotInfo(s, f"Bot {s}", b.profile) for s, b in sorted(bots.items())]
+
+
+def _hand5(seed: int):
+    """A seeded 5-max hand played to the end by a random Hero (a jam now and then, so all-ins
+    and side pots turn up), with uneven stacks; returns (record, bots)."""
+    rng = random.Random(f"hand5:{seed}")
+    stacks = (rng.randint(10, 400), *(rng.randint(80, 300) for _ in range(4)))
+    bots = _seat_bots(seed)
+    r = advance_seats(new_record5(seed % 5, stacks, random.Random(seed)), bots)
+    while outcome5(r) is None:
+        options = hero_options(replay(r))
+        pick = options[-1] if rng.random() < 0.3 else rng.choice(options)
+        r = hero_act_seats(r, bots, pick.action)
+    return r, bots
+
+
+def _view5(r: HandRecord, bots, *, decision_count: int = 0):
+    return play_views.hand_view(7, 2, 3, r, None, decision_count=decision_count, bots=_infos(bots))
+
+
+def _responses(r: HandRecord):
+    """Every record the API can serve for this hand: Hero to act, the end, and an abandon at
+    each Hero decision."""
+    for i in hero_decisions(r):
+        rec = replace(r, actions=r.actions[:i])
+        yield rec
+        yield replace(rec, abandoned=True)
+    yield r
+
+
+def _prefixes(r: HandRecord):
+    """``_responses`` and the record after every action (more than the API serves)."""
+    yield from _responses(r)
+    for k in range(len(r.actions)):
+        yield replace(r, actions=r.actions[:k])
+
+
+def test_five_max_table_seats_and_positions():
+    seen_buttons = set()
+    for seed in range(40):
+        r, bots = _hand5(seed)
+        for rec in _responses(r):
+            v = _view5(rec, bots)
+            t = v["table"]
+            schemas.PlayHandView.model_validate(v)
+            assert t["table_size"] == 5 and len(t["seats"]) == 5
+            assert t["villain_position"] is None and t["villain_profile"] is None
+            assert len(t["stacks"]) == len(t["street_bets"]) == 5
+            s = replay(rec)
+            assert {x["position"] for x in t["seats"]} == FIVE_POSITIONS
+            assert [x["is_button"] for x in t["seats"]] == [i == rec.button for i in range(5)]
+            assert t["seats"][rec.button]["position"] == "BTN"
+            assert [x["name"] for x in t["seats"]] == ["You", "Bot 1", "Bot 2", "Bot 3", "Bot 4"]
+            assert [x["is_hero"] for x in t["seats"]] == [True, False, False, False, False]
+            assert t["seats"][0]["profile"] is None and t["seats"][0]["cards"] == t["hero_cards"]
+            for x in t["seats"][1:]:
+                assert x["profile"]["name"] == bots[x["seat"]].profile.name
+            assert [x["stack"] for x in t["seats"]] == t["stacks"]
+            assert [x["street_bet"] for x in t["seats"]] == t["street_bets"]
+            assert [x["folded"] for x in t["seats"]] == [i in folded_seats(s) for i in range(5)]
+            done = v["outcome"] is not None
+            for x in t["seats"]:
+                assert x["all_in"] == (not done and not x["folded"] and s.stacks[x["seat"]] == 0)
+            seen_buttons.add(rec.button)
+    assert seen_buttons == set(range(5))
+
+
+def test_five_max_frames_carry_seat_folds_and_live_pots():
+    seen = {"side_pots": 0, "folds": 0}
+    for seed in range(60):
+        r, bots = _hand5(seed)
+        frames = _view5(r, bots)["frames"]
+        assert len(frames) == len(r.actions) + 1
+        for k, f in enumerate(frames):
+            schemas.TableFrame.model_validate(f)
+            s = replay(replace(r, actions=r.actions[:k]))
+            if k < len(r.actions):
+                assert f["to_act_seat"] == r.actions[k].seat  # who acts next is who acted
+            assert f["to_act"] == (
+                None if f["to_act_seat"] is None else "hero" if f["to_act_seat"] == 0 else "villain"
+            )
+            folded = {a.seat for a in r.actions[:k] if a.kind == ActionKind.FOLD}
+            assert f["folded"] == [i in folded for i in range(5)]
+            assert sum(f["stacks"]) + f["pot"] == sum(r.start_stacks)
+            middle = f["pot"] - sum(f["street_bets"])
+            assert sum(f["pots"]) <= middle and all(p > 0 for p in f["pots"])
+            if not any(st == 0 for st in s.stacks):  # nobody all-in: one pot, all of it
+                assert f["pots"] == ([middle] if middle else [])
+            seen["side_pots"] += len(f["pots"]) > 1
+            seen["folds"] += any(f["folded"])
+    assert all(seen.values()), seen
+
+
+def test_five_max_live_pots_by_hand():
+    """Three seats in the middle at 20, 50 and 50 (seat 1 all-in for 20): a main pot of 60 and
+    a side pot of 60; the uncalled excess of a lone deeper seat is left out."""
+    from poker_trainer.game.state import Action, Street, apply, deal, new_hand
+
+    s = new_hand(0, (200, 20, 200, 200, 200))  # SB seat 1, BB seat 2, UTG seat 3 first
+    for a in (
+        Action(3, ActionKind.RAISE, Street.PREFLOP, 50),
+        Action(4, ActionKind.FOLD, Street.PREFLOP, 0),
+        Action(0, ActionKind.FOLD, Street.PREFLOP, 0),
+        Action(1, ActionKind.CALL, Street.PREFLOP, 20),
+        Action(2, ActionKind.CALL, Street.PREFLOP, 50),
+    ):
+        s = apply(s, a)
+    s = deal(s, (0, 1, 2))
+    assert play_views._live_pots(s, (200, 20, 200, 200, 200)) == [60, 60]
+    s = apply(s, Action(2, ActionKind.BET, Street.FLOP, 100))
+    assert play_views._live_pots(s, (200, 20, 200, 200, 200)) == [60, 60]  # bets in front
+    s = apply(s, Action(3, ActionKind.CALL, Street.FLOP, 100))
+    s = deal(s, (3,))
+    assert play_views._live_pots(s, (200, 20, 200, 200, 200)) == [60, 260]
+
+
+def test_five_max_pot_awards_match_settle_pots():
+    seen = {"fold": 0, "showdown": 0, "side": 0, "uncalled": 0}
+    for seed in range(300):
+        r, bots = _hand5(seed)
+        v = _view5(r, bots)
+        out, t = v["outcome"], v["table"]
+        o = outcome5(r)
+        st = settle_pots(replay(r), holes(r), r.start_stacks)
+        assert out["winner"] == o.winner and out["hero_delta_chips"] == o.hero_delta
+        assert out["villain_cards"] is None and out["showdown"] is None
+        assert [(p["amount"], p["eligible"], p["winners"]) for p in out["pots"]] == [
+            (p.amount, list(p.eligible), list(p.winners)) for p in st.pots
+        ]
+        assert [p["label"] for p in out["pots"]] == [
+            "main pot",
+            *(f"side pot {k}" for k in range(1, len(out["pots"]))),
+        ]
+        assert t["stacks"] == list(st.stacks) and t["street_bets"] == [0] * 5
+        assert sum(p["amount"] for p in out["pots"]) == t["pot"]
+        assert sum(t["stacks"]) == sum(r.start_stacks)
+        pot = sum(r.start_stacks) - sum(v["frames"][-1]["stacks"])
+        seen["uncalled"] += t["pot"] < pot
+        seen[out["ended_by"]] += 1
+        seen["side"] += len(out["pots"]) > 1
+        if out["ended_by"] == "fold":
+            assert out["shown"] == []
+        else:
+            shown = [x["seat"] for x in out["shown"]]
+            assert shown == list(o.shown)
+            assert set(shown) == set(live_seats(replay(r))) - {0}
+    assert all(seen.values()), seen
+
+
+def test_five_max_abandoned_hand():
+    r, bots = _hand5(3)
+    rec = replace(r, actions=r.actions[: hero_decisions(r)[0]], abandoned=True)
+    v = _view5(rec, bots)
+    out = v["outcome"]
+    assert out["ended_by"] == "abandoned" and out["winner"] == "villain"
+    assert out["pots"] == [] and out["shown"] == []
+    assert v["table"]["stacks"] == list(outcome5(rec).stacks)
+    assert v["frames"][-1]["to_act"] is None and v["frames"][-1]["to_act_seat"] is None
+    assert v["options"] == [] and v["status"] == "complete"
+
+
+def _card_fields(v) -> list[str]:
+    """Every card-typed field of a hand view."""
+    t = v["table"]
+    cards = [*t["hero_cards"], *t["board"]]
+    for x in t["seats"]:
+        cards += x["cards"] or []
+    if v["outcome"] is not None:
+        cards += v["outcome"]["villain_cards"] or []
+        for x in v["outcome"]["shown"]:
+            cards += x["cards"]
+    return cards
+
+
+def test_no_leak_over_300_seeded_five_max_hands():
+    """No bot card in any response before a showdown, only the shown seats' after one, never a
+    folded seat's (the last folder included), never an undealt board card."""
+    shown_any = folded_after_bet = 0
+    for seed in range(300):
+        r, bots = _hand5(seed)
+        runout = [card_str(c) for c in r.deck[10:15]]
+        for rec in _prefixes(r):
+            v = _view5(rec, bots)
+            text = json.dumps(v)
+            cards = _card_fields(v)
+            out = v["outcome"]
+            shown = {x["seat"] for x in out["shown"]} if out else set()
+            if not (out and out["ended_by"] == "showdown"):
+                assert shown == set()
+            s = replay(rec)
+            assert shown <= set(live_seats(s)) - {0}
+            assert not shown & folded_seats(s)
+            for seat in range(1, 5):
+                for c in (card_str(x) for x in hole(rec, seat)):
+                    visible = seat in shown
+                    assert (c in cards) == visible, (seed, seat, c)
+                    assert (f'"{c}"' in text) == visible, (seed, seat, c)
+            dealt = len(v["table"]["board"])
+            assert v["table"]["board"] == runout[:dealt]
+            for c in runout[dealt:]:
+                assert f'"{c}"' not in text, (seed, c)
+            assert "deck" not in text and "bot_seed" not in text
+            shown_any += bool(shown)
+            folded_after_bet += bool(folded_seats(s) - {0}) and bool(out)
+    assert shown_any and folded_after_bet
+
+
+def test_heads_up_views_gain_seats_and_pots():
+    r, profile = _find(lambda r: outcome(r).ended_by == "showdown")
+    v = _view(r, profile)
+    t, out = v["table"], v["outcome"]
+    assert t["table_size"] == 2 and [x["name"] for x in t["seats"]] == ["You", "Villain"]
+    assert t["seats"][1]["profile"] == t["villain_profile"]
+    assert t["seats"][1]["position"] == t["villain_position"]
+    assert t["seats"][1]["cards"] == out["villain_cards"]
+    assert out["shown"] == [{"seat": 1, "cards": out["villain_cards"]}]
+    assert sum(p["amount"] for p in out["pots"]) == t["pot"]
+    assert out["pots"][0]["label"] == "main pot"
+    running = _view(_at_decision(r, 0), profile)
+    assert running["table"]["seats"][1]["cards"] is None
+    assert [f["to_act_seat"] for f in running["frames"]][-1] == 0
+    folded, fp = _find(lambda r: outcome(r).ended_by == "fold")
+    fv = _view(folded, fp)
+    assert fv["outcome"]["shown"] == [] and fv["table"]["seats"][1]["cards"] is None
+    assert len(fv["outcome"]["pots"]) == 1
+
+
+def test_session_view_five_max():
+    bots = [{"seat": s, "name": f"Bot {s}", "profile": None, "stack": 150 + s} for s in range(1, 5)]
+    sv = play_views.session_view(
+        _fields(profile=None, bot_stack=None, table_size=5, bots=bots), None
+    )
+    schemas.PlaySessionView.model_validate(sv)
+    assert sv["profile"] is None and sv["bot_stack"] is None and sv["table_size"] == 5
+    assert sv["bots"] == bots
+    hu = play_views.session_view(_fields(), None)
+    assert hu["table_size"] == 2
+    assert hu["bots"] == [
+        {"seat": 1, "name": "Villain", "profile": _fields()["profile"], "stack": 160}
+    ]

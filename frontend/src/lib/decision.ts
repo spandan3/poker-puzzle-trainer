@@ -6,7 +6,7 @@ import type {
   OptionResult,
   PuzzleView,
   StreetName,
-  TableView,
+  HeadsUpTable,
 } from '../api/types'
 import { chosenLabel, reviewChosenLabel } from './result'
 import { formatBb } from './format'
@@ -51,7 +51,7 @@ export interface DecisionData {
   rangeSteps: R['range_steps']
 }
 
-function contextFromView(view: PuzzleView | TableView): DecisionContext {
+function contextFromView(view: PuzzleView | HeadsUpTable): DecisionContext {
   return {
     street: view.street,
     potChips: view.pot,

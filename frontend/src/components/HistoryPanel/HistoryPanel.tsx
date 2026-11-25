@@ -1,12 +1,12 @@
 import { useEffect, useId, useRef } from 'react'
-import type { ActionLogEntry, TableView } from '../../api/types'
+import type { ActionLogEntry, HeadsUpTable } from '../../api/types'
 import { nowrapUnits } from '../../lib/format'
 import { groupHistory, STREET_LABELS } from '../../lib/history'
 import { Card } from '../Card/Card'
 import styles from './HistoryPanel.module.css'
 
 export interface HistoryPanelProps {
-  view: TableView
+  view: HeadsUpTable
   /** Hero's submitted action: shown in place of "Hero to act" once the puzzle is answered. */
   answer?: ActionLogEntry
   /** Who the last street waits for (default Hero); `null` once the hand is over. */

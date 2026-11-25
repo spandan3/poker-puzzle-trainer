@@ -16,7 +16,8 @@ service clock replaced, for the Progress page's ``stats.json``, ``stats_empty.js
 
 ``write_play_fixtures`` plays a scripted session against the bot on its own database, with a
 seeded ``play_rng`` and the service clock replaced, for the Play page's ``play_*.json``. Only
-those files are written with ``--play-only``::
+those files are written with ``--play-only``, together with the 5-max ``play5_*.json`` from
+``write_play5_fixtures`` (its own seeded session)::
 
     uv run python -m poker_trainer.api.dev_fixtures ../frontend/src/test/fixtures --play-only
 """
@@ -420,6 +421,130 @@ def write_play_fixtures(
             log("wrote play_sessions.json")
 
 
+# 5-max play fixtures: their own seeded session on their own database and clock
+PLAY5_SEED = 5
+PLAY5_MAX_HANDS = 600  # the script stops (and reports) when a wanted hand is not dealt by then
+PLAY5_FILES = (
+    "play5_session_hero_to_act.json",
+    "play5_session_hero_folded.json",
+    "play5_session_side_pot.json",
+    "play5_hands.json",
+    "play5_sessions.json",
+)
+
+
+def _play5_pick(options: list[dict[str, Any]], hand_no: int, jam: bool) -> int:
+    """Hero's scripted 5-max choice. ``jam``: the last option (all-in) pre-flop, then check or
+    call. Otherwise: fold to a pre-flop raise on every third hand, else ``_play_pick``."""
+    preflop_raise_faced = any(o["kind"] == "call" for o in options)
+    if jam:
+        if any(o["kind"] in ("bet", "raise") for o in options) and not any(
+            o["kind"] == "check" for o in options
+        ):
+            return int(options[-1]["index"])
+        return _play_pick(options)
+    if hand_no % 3 == 0 and preflop_raise_faced:
+        return int(next(o["index"] for o in options if o["kind"] == "fold"))
+    return _play_pick(options)
+
+
+def _live_count(hand: dict[str, Any]) -> int:
+    return sum(1 for s in hand["table"]["seats"] if not s["folded"])
+
+
+def _hero_folded_and_bots_played_on(hand: dict[str, Any]) -> bool:
+    """Hero folded, and the bots then played on to the flop or later."""
+    history = hand["table"]["history"]
+    hero = [i for i, e in enumerate(history) if e["actor"] == "hero"]
+    return (
+        bool(hero)
+        and history[hero[-1]]["kind"] == "fold"
+        and any(e["street"] != "preflop" for e in history[hero[-1] + 1 :])
+    )
+
+
+def write_play5_fixtures(out: Path, *, log: Callable[[str], None] = lambda _m: None) -> None:
+    """Write the ``play5_*.json`` files from one seeded 5-max session on a scripted clock.
+
+    - ``play5_session_hero_to_act.json``: the first post-flop spot with Hero to act and at
+      least three seats still in;
+    - ``play5_session_hero_folded.json``: the first finished hand Hero folded in, after which
+      the bots played on to the flop or later;
+    - ``play5_session_side_pot.json``: the first showdown with a side pot that goes to someone
+      other than the main pot's winner. Once the first two are found Hero jams every hand
+      pre-flop (then checks or calls), so a jam called by two bots with different stacks
+      behind turns up; the session's seed is fixed, so the search is too;
+    - ``play5_hands.json``: the session's hands;
+    - ``play5_sessions.json``: that session (ended) and a new open heads-up one.
+
+    Deterministic: the same code gives the same bytes. Nothing here touches the heads-up
+    fixtures' seeded stream.
+    """
+    out.mkdir(parents=True, exist_ok=True)
+    rng = random.Random(PLAY5_SEED)
+    found: dict[str, dict[str, Any]] = {}
+
+    with tempfile.TemporaryDirectory() as tmp, _scripted_clock(PLAY_START) as now:
+        url = f"sqlite:///{(Path(tmp) / 'play5.db').as_posix()}"
+        app = create_app(
+            AppSettings(_env_file=None, database_url=url, llm_provider="none"),
+            play_rng=lambda: rng,
+        )
+
+        def call(method: str, path: str, status: int = 200, **kw: Any) -> Any:
+            now[0] += PLAY_STEP
+            res = client.request(method, path, **kw)
+            if res.status_code != status:
+                raise RuntimeError(f"{method} {path}: {res.text}")
+            return res.json()
+
+        with TestClient(app) as client:
+            v = call("POST", "/api/play/sessions", 201, json={"table_size": 5})
+            for _ in range(PLAY5_MAX_HANDS):
+                jam = "hero_to_act" in found and "hero_folded" in found
+                while v["hand"]["status"] == "in_progress":
+                    hand = v["hand"]
+                    if (
+                        "hero_to_act" not in found
+                        and hand["table"]["board"]
+                        and _live_count(hand) >= 3
+                    ):
+                        found["hero_to_act"] = v
+                    body = {
+                        "expected_actions": hand["action_count"],
+                        "option": _play5_pick(hand["options"], hand["hand_no"], jam),
+                    }
+                    v = call("POST", f"/api/play/hands/{hand['id']}/actions", json=body)
+                hand = v["hand"]
+                out5 = hand["outcome"]
+                if "hero_folded" not in found and _hero_folded_and_bots_played_on(hand):
+                    found["hero_folded"] = v
+                if (
+                    "side_pot" not in found
+                    and out5["ended_by"] == "showdown"
+                    and len({tuple(p["winners"]) for p in out5["pots"]}) >= 2
+                ):
+                    found["side_pot"] = v
+                if len(found) == 3:
+                    break
+                body = {"expected_hands": v["hands_played"], "top_up": True}
+                v = call("POST", f"/api/play/sessions/{v['id']}/hands", 201, json=body)
+            else:
+                missing = {"hero_to_act", "hero_folded", "side_pot"} - set(found)
+                raise RuntimeError(f"no 5-max {sorted(missing)} within {PLAY5_MAX_HANDS} hands")
+
+            for name in ("hero_to_act", "hero_folded", "side_pot"):
+                _dump(out / f"play5_session_{name}.json", found[name])
+                log(f"wrote play5_session_{name}.json")
+            sid = v["id"]
+            _dump(out / "play5_hands.json", call("GET", f"/api/play/sessions/{sid}/hands"))
+            log("wrote play5_hands.json")
+            call("POST", f"/api/play/sessions/{sid}/end")
+            call("POST", "/api/play/sessions", 201)
+            _dump(out / "play5_sessions.json", call("GET", "/api/play/sessions"))
+            log("wrote play5_sessions.json")
+
+
 def reword(_url: str, _model: str, _system: str, prompt: str, *_rest: Any) -> str:
     """A fake model for ``explanation_llm.json``: the template's own text, visibly reworded
     ("In short: ", the hand in one paragraph, the verdict's first two paragraphs joined) and
@@ -597,6 +722,7 @@ def main(argv: list[str] | None = None) -> None:
     start = time.perf_counter()
     if play_only:
         write_play_fixtures(Path(args[0]), log=print)
+        write_play5_fixtures(Path(args[0]), log=print)
         print(f"total {time.perf_counter() - start:.1f}s")
         return
     found = search(log=print)
@@ -609,6 +735,7 @@ def main(argv: list[str] | None = None) -> None:
         never = None
     write_fixtures(Path(args[0]), found, log=print, never_continues=never)
     write_play_fixtures(Path(args[0]), log=print)
+    write_play5_fixtures(Path(args[0]), log=print)
     print(f"total {time.perf_counter() - start:.1f}s")
 
 
