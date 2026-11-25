@@ -8,6 +8,27 @@ describe('TableCentre', () => {
     expect(screen.getByText('Pot 131.5 bb')).toBeInTheDocument()
   })
 
+  it('names the main and side pots when there are several', () => {
+    render(<TableCentre board={[]} potChips={64} pots={[48, 16]} potOdds={null} showPotOdds />)
+    expect(screen.getByTestId('pot-label')).toHaveTextContent('Pot 24 bb · Side 8 bb')
+  })
+
+  it('numbers the side pots when there are more than one', () => {
+    render(<TableCentre board={[]} potChips={70} pots={[40, 20, 10]} potOdds={null} showPotOdds />)
+    expect(screen.getByTestId('pot-label')).toHaveTextContent(
+      'Pot 20 bb · Side 1 10 bb · Side 2 5 bb',
+    )
+  })
+
+  it('shows the total with a single pot, or none given', () => {
+    const { rerender } = render(
+      <TableCentre board={[]} potChips={18} pots={[18]} potOdds={null} showPotOdds />,
+    )
+    expect(screen.getByTestId('pot-label')).toHaveTextContent('Pot 9 bb')
+    rerender(<TableCentre board={[]} potChips={18} pots={[]} potOdds={null} showPotOdds />)
+    expect(screen.getByTestId('pot-label')).toHaveTextContent('Pot 9 bb')
+  })
+
   it('shows pot odds and the equity needed when present and enabled', () => {
     render(<TableCentre board={['9d', 'Jd', '2c']} potChips={40} potOdds={0.3425} showPotOdds />)
     expect(screen.getByText('Pot odds: call needs 34% equity')).toBeInTheDocument()

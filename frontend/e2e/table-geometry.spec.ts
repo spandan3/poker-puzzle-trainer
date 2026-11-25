@@ -2,6 +2,7 @@
 /// <reference lib="dom" />
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { wideFont } from './helpers'
 
 // The gallery draws every table inside the same width cap and minimum font as Puzzles and Play
 // (`tableLayout.module.css`), so these are the sizes a player sees at 1024×768 and 1280×800.
@@ -28,6 +29,8 @@ interface TableReport {
   clipped: string[]
   /** text that sticks out of its plate */
   stuck: string[]
+  /** the smallest gap between two seats (px; negative: they overlap) */
+  clearance: number
   /** how many text elements were checked (a guard against an empty selector) */
   checked: number
 }
@@ -88,6 +91,42 @@ async function measure(page: Page, index: number): Promise<TableReport> {
         })
       }
 
+      // a seat is its plate, hole cards, bet and dealer button; seats never touch each other, the
+      // board or the pot, and every part sits inside the table box
+      const tableBox = box(table)
+      const parts = seats.map((seat) => ({
+        slot: seat.dataset.slot,
+        boxes: [
+          ...seat.querySelectorAll(
+            '[data-part="plate"], [data-part="cards"] > *, [data-part="bet"], [aria-label="Dealer button"]',
+          ),
+        ].map(box),
+      }))
+      const clearances: number[] = []
+      for (const [i, a] of parts.entries()) {
+        for (const p of a.boxes) {
+          if (
+            p.x < tableBox.x - 0.5 ||
+            p.y < tableBox.y - 0.5 ||
+            p.x + p.w > tableBox.x + tableBox.w + 0.5 ||
+            p.y + p.h > tableBox.y + tableBox.h + 0.5
+          ) {
+            overlaps.push(`${a.slot} sticks out of the table box`)
+          }
+          centre.forEach((c, j) => meet(p, c) && overlaps.push(`${a.slot} seat / centre ${j}`))
+        }
+        for (const other of parts.slice(i + 1)) {
+          for (const p of a.boxes) {
+            for (const q of other.boxes) {
+              if (meet(p, q)) overlaps.push(`${a.slot} seat / ${other.slot} seat`)
+              const gapX = Math.max(p.x - (q.x + q.w), q.x - (p.x + p.w))
+              const gapY = Math.max(p.y - (q.y + q.h), q.y - (p.y + p.h))
+              clearances.push(Math.max(gapX, gapY))
+            }
+          }
+        }
+      }
+
       // a plate holds its rows: nothing sticks out of a plate or runs past its right edge
       const stuck: string[] = []
       for (const plate of table.querySelectorAll<HTMLElement>('[data-part="plate"]')) {
@@ -131,6 +170,7 @@ async function measure(page: Page, index: number): Promise<TableReport> {
         small,
         clipped,
         stuck,
+        clearance: clearances.length ? Math.min(...clearances) : Infinity,
         checked,
       }
     })
@@ -163,6 +203,46 @@ for (const [width, height] of SIZES) {
     expect([...seatCounts].sort()).toEqual([2, 5])
   })
 }
+
+test('table geometry with a wide fallback font, at 1024×768', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/?gallery')
+  await wideFont(page)
+  const tables = page.locator('#table section[aria-label="Poker table"]')
+  await expect(tables.first()).toBeAttached()
+  const count = await tables.count()
+  for (let i = 0; i < count; i++) {
+    await tables.nth(i).scrollIntoViewIfNeeded()
+    const report = await measure(page, i)
+    const where = `table ${i} (${report.seats} seats, ${report.font}px, wide font)`
+    expect(report.overlaps, where).toEqual([])
+    expect(report.clipped, where).toEqual([])
+    expect(report.stuck, where).toEqual([])
+  }
+})
+
+test('the five-seat gallery tables are all drawn, and their seats keep clear of each other', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/?gallery')
+  const tables = page.locator('#table section[aria-label="Poker table"]')
+  await expect(tables.first()).toBeAttached()
+  let fiveSeat = 0
+  for (let i = 0; i < (await tables.count()); i++) {
+    await tables.nth(i).scrollIntoViewIfNeeded()
+    const report = await measure(page, i)
+    if (report.seats !== 5) continue
+    fiveSeat++
+    expect(report.clearance, `table ${i}`).toBeGreaterThan(0)
+  }
+  // the synthetic table, a running hand, a side-pot jam, a side-pot showdown and a Hero fold
+  expect(fiveSeat).toBeGreaterThanOrEqual(6)
+  // the side-pot showdown names the pots
+  await expect(page.getByText('Pot 253.5 bb · Side 12 bb')).toBeVisible()
+})
 
 test('the 11px text floor holds with the table at its smallest font', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 })

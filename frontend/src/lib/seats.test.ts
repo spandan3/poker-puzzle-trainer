@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { playSessionFixture, puzzleFixture } from '../test/fixture'
-import { seatsFromView } from './seats'
+import { play5SessionFixture, playSessionFixture, puzzleFixture } from '../test/fixture'
+import { seatsFromPlayTable, seatsFromView } from './seats'
 
 describe('seatsFromView', () => {
   it('puts Hero at the bottom and Villain at the top', () => {
@@ -76,5 +76,85 @@ describe('seatsFromView with a play table', () => {
     expect(seats[0]!.cards).toEqual(table.hero_cards)
     expect(seats[1]!.faceDown).toBe(true)
     expect(seats[1]!.profile?.label).toBe(table.villain_profile?.label)
+  })
+})
+
+describe('seatsFromPlayTable', () => {
+  const five = play5SessionFixture('hero_to_act').hand!
+  const side = play5SessionFixture('side_pot').hand!
+
+  it('puts Hero at the bottom and the bots clockwise from Hero', () => {
+    const seats = seatsFromPlayTable(five.table, { showProfile: true })
+    expect(seats.map((s) => [s.slot, s.name])).toEqual([
+      ['bottom', 'You'],
+      ['bottom-left', 'Bot 1'],
+      ['top-left', 'Bot 2'],
+      ['top-right', 'Bot 3'],
+      ['bottom-right', 'Bot 4'],
+    ])
+  })
+
+  it('puts the one bot of a heads-up play table at the top', () => {
+    const view = playSessionFixture('hero_to_act').hand!.table
+    const seats = seatsFromPlayTable(view, { showProfile: true })
+    expect(seats.map((s) => [s.slot, s.isHero])).toEqual([
+      ['bottom', true],
+      ['top', false],
+    ])
+  })
+
+  it('refuses a table size it has no layout for', () => {
+    const view = { ...five.table, seats: five.table.seats.slice(0, 3) }
+    expect(() => seatsFromPlayTable(view, { showProfile: true })).toThrow()
+  })
+
+  it('marks the dealer button on the is_button seat only', () => {
+    const seats = seatsFromPlayTable(five.table, { showProfile: true })
+    expect(seats.filter((s) => s.isButton).map((s) => s.name)).toEqual(['Bot 2'])
+    expect(seats.find((s) => s.isButton)?.position).toBe('BTN')
+  })
+
+  it('flags folded seats, and shows them no cards', () => {
+    const seats = seatsFromPlayTable(five.table, { showProfile: true })
+    expect(seats.map((s) => s.folded)).toEqual([false, false, false, true, true])
+    for (const seat of seats.filter((s) => s.folded)) expect(seat.cards).toEqual([])
+  })
+
+  it("shows Hero's cards, and every other seat's face down unless the API gave its cards", () => {
+    const seats = seatsFromPlayTable(five.table, { showProfile: true })
+    expect(seats[0]).toMatchObject({ cards: ['Kc', 'Jd'], faceDown: false })
+    expect(seats[1]).toMatchObject({ cards: [null, null], faceDown: true })
+    const shown = seatsFromPlayTable(side.table, { showProfile: true })
+    expect(shown[3]).toMatchObject({ cards: ['As', 'Ac'], faceDown: false })
+    expect(shown[4]).toMatchObject({ cards: ['8s', '8c'], faceDown: false })
+    // folded bots stay unshown, and show nothing
+    expect(shown[1]).toMatchObject({ cards: [], folded: true })
+  })
+
+  it('shows the profile badge for bots only, and only when asked', () => {
+    const on = seatsFromPlayTable(five.table, { showProfile: true })
+    expect(on.map((s) => s.showProfile)).toEqual([false, true, true, true, true])
+    expect(on[3]?.profile?.label).toBe('TAG')
+    const off = seatsFromPlayTable(five.table, { showProfile: false })
+    expect(off.some((s) => s.showProfile)).toBe(false)
+  })
+
+  it('reads stacks and bets from the view, and from a frame when one is given', () => {
+    const plain = seatsFromPlayTable(five.table, { showProfile: true })
+    expect(plain.map((s) => s.stackChips)).toEqual(five.table.stacks)
+    const frame = five.frames[4]!
+    const seats = seatsFromPlayTable(five.table, { showProfile: true, frame })
+    expect(seats.map((s) => s.stackChips)).toEqual(frame.stacks)
+    expect(seats.map((s) => s.betChips)).toEqual([5, 5, 5, 1, 2])
+    // the folded flags follow the frame too: SB folded in frame 4, BB not yet in frame 3
+    expect(seats.map((s) => s.folded)).toEqual([false, false, false, true, false])
+  })
+
+  it('flags an all-in seat from a frame, and never a folded one', () => {
+    const last = seatsFromPlayTable(side.table, { showProfile: true, frame: side.frames[5]! })
+    expect(last.map((s) => s.allIn)).toEqual([false, false, false, true, true])
+    expect(last.map((s) => s.stackChips)).toEqual([301, 194, 192, 0, 0])
+    const mid = seatsFromPlayTable(side.table, { showProfile: true, frame: side.frames[4]! })
+    expect(mid.map((s) => s.allIn)).toEqual([false, false, false, true, false])
   })
 })

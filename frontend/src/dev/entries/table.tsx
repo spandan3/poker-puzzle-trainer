@@ -2,9 +2,10 @@ import type { CSSProperties, ReactNode } from 'react'
 import { Card } from '../../components/Card/Card'
 import { Table } from '../../components/Table/Table'
 import { TableCentre } from '../../components/TableCentre/TableCentre'
-import { SEAT_SLOTS, seatsFromView, type SeatInfo } from '../../lib/seats'
+import { tableAt } from '../../lib/play'
+import { SEAT_SLOTS, seatsFromPlayTable, seatsFromView, type SeatInfo } from '../../lib/seats'
 import layout from '../../styles/tableLayout.module.css'
-import { puzzleFixture } from '../../test/fixture'
+import { play5SessionFixture, puzzleFixture } from '../../test/fixture'
 import type { GalleryEntry } from '../Gallery'
 
 const RANKS = '23456789TJQKA'.split('')
@@ -59,6 +60,34 @@ const FIVE_SEATS: SeatInfo[] = SEAT_SLOTS.filter((slot) => slot !== 'top').map((
   showProfile: i !== 0,
 }))
 
+/** A 5-max table at one frame of a fixture hand (the last frame: the end of the reveal, before the stacks are settled; `settled`: the response's own table). */
+function fiveMaxTable(
+  name: 'hero_to_act' | 'hero_folded' | 'side_pot',
+  shownCount?: number,
+  settled = false,
+) {
+  const hand = play5SessionFixture(name).hand!
+  const index = Math.min(shownCount ?? hand.frames.length - 1, hand.frames.length - 1)
+  const frame = hand.frames[index]!
+  const view = shownCount === undefined ? hand.table : tableAt(hand, shownCount)
+  return (
+    <Capped>
+      <Table
+        seats={seatsFromPlayTable(view, { showProfile: true, frame: settled ? undefined : frame })}
+        centre={
+          <TableCentre
+            board={view.board}
+            potChips={settled ? view.pot : frame.pot}
+            pots={settled ? undefined : frame.pots}
+            potOdds={null}
+            showPotOdds={false}
+          />
+        }
+      />
+    </Capped>
+  )
+}
+
 const fiveCentre = (
   <TableCentre board={['9h', '8d', '2c']} potChips={64} potOdds={0.25} showPotOdds />
 )
@@ -104,6 +133,17 @@ const entry: GalleryEntry = {
       <Demo title="Heads-up, river: facing an all-in">
         {fixtureTable('facing_all_in', { showProfile: true })}
       </Demo>
+      <Demo title="5-max, pre-flop: three seats in for 2.5 bb, blinds posted, one seat folded">
+        {fiveMaxTable('hero_to_act', 4)}
+      </Demo>
+      <Demo title="5-max, flop: two seats folded">{fiveMaxTable('hero_to_act')}</Demo>
+      <Demo title="5-max, pre-flop: Hero jams, a short bot is all-in (side pot to come)">
+        {fiveMaxTable('side_pot', 4)}
+      </Demo>
+      <Demo title="5-max, showdown with a side pot: two bots all-in, two folded">
+        {fiveMaxTable('side_pot')}
+      </Demo>
+      <Demo title="5-max, Hero folded">{fiveMaxTable('hero_folded', undefined, true)}</Demo>
       <Demo title="Five seats (synthetic)">
         <Capped>
           <Table seats={FIVE_SEATS} centre={fiveCentre} />

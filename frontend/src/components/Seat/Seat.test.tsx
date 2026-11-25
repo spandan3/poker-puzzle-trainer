@@ -87,6 +87,25 @@ describe('Seat', () => {
     expect(screen.getByText('All-in')).toBeInTheDocument()
   })
 
+  it('marks a folded seat with a Folded tag, no All-in tag and no cards', () => {
+    const { container } = render(
+      <Seat seat={{ ...villain, folded: true, cards: [], stackChips: 0, betChips: 0 }} />,
+    )
+    const seat = screen.getByRole('group', { name: 'Villain, BTN' })
+    expect(seat).toHaveAttribute('data-folded', 'true')
+    expect(within(seat).getByText('Folded')).toBeInTheDocument()
+    expect(screen.queryByText('All-in')).toBeNull()
+    expect(container.querySelectorAll('[data-face]')).toHaveLength(0)
+  })
+
+  it('takes the All-in tag from the allIn flag, not only from an empty stack', () => {
+    const { rerender } = render(<Seat seat={{ ...villain, allIn: true }} />)
+    expect(screen.getByText('All-in')).toBeInTheDocument()
+    rerender(<Seat seat={{ ...villain, stackChips: 0, allIn: false }} />)
+    expect(screen.queryByText('All-in')).toBeNull()
+    expect(screen.getByRole('group')).not.toHaveAttribute('data-folded')
+  })
+
   it("shows Hero's cards face up", () => {
     render(
       <Seat

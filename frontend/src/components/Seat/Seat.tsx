@@ -11,7 +11,8 @@ export interface SeatProps {
 }
 
 export function Seat({ seat, className }: SeatProps) {
-  const allIn = seat.stackChips === 0
+  const folded = seat.folded === true
+  const allIn = !folded && (seat.allIn ?? seat.stackChips === 0)
   const profile = seat.showProfile ? seat.profile : undefined
   return (
     <div
@@ -21,6 +22,7 @@ export function Seat({ seat, className }: SeatProps) {
       data-slot={seat.slot}
       data-hero={seat.isHero ? 'true' : undefined}
       data-cards={seat.faceDown ? 'down' : 'up'}
+      data-folded={folded ? 'true' : undefined}
     >
       <div className={styles.cards} data-part="cards">
         {seat.cards.map((card, i) => (
@@ -42,7 +44,11 @@ export function Seat({ seat, className }: SeatProps) {
           <span className={styles.position}>{seat.position}</span>
         </div>
         <div className={styles.row}>
-          {allIn ? (
+          {folded ? (
+            <span className={styles.folded}>
+              <span className={styles.srOnly}>Stack {formatBb(seat.stackChips)}, </span>Folded
+            </span>
+          ) : allIn ? (
             <span className={styles.allIn}>
               <span className={styles.srOnly}>Stack 0 bb, </span>All-in
             </span>
