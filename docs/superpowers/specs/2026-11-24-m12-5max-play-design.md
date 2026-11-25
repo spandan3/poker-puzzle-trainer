@@ -1,5 +1,7 @@
 # M12 Play vs Bots, 5-max (play only) — Design
 
+> **Note (2026-11-25):** milestones after M12 were renumbered. 5-max analysis, called M13 here, is now M15 (later, if needed). M13 is a UI redesign and M14 is profile tuning. See the roadmap.
+
 Date: 2026-11-24. Extends `2026-11-12-play-vs-bots-design.md` §5. Decisions marked "user" were made with the user on 2026-11-24; the rest are Claude's calls, open to change before the plan is built.
 
 ## 1. Intent

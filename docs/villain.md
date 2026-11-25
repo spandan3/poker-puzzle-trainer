@@ -157,7 +157,7 @@ Each bot seat is stored in `play_sessions.seats` as `SeatBot.to_dict()`: its pro
 5. **Pre-flop ignores raise size.** BB defends the same range against a 2.5× and a 3× open, which is partly why Hero's pre-flop sizes are limited to 2.5×, 3× and all-in.
 6. **Pre-flop tree.** No limps or small 4-bets (invariant 6). Widening it would widen Play mode too.
 7. **Thin margins** listed in the sign-off report §9: LAG defence trending down past 2× pot, Sticky at 1.375 against the 1.40 pre-flop ceiling, over-defence against an uncapped BTN lead at pot or less.
-8. **5-max has no analysis yet** (M13). `RangeTracker` and the grader are still heads-up.
+8. **5-max has no analysis yet** (M15, after tuning). `RangeTracker` and the grader are still heads-up.
 
 **5-max (M14)**
 9. **The ranking ignores playability.** Equity against a random hand ranks small pairs and offsuit broadway-ish hands above suited connectors (TAG opens J9o and K8o on the BTN but not 22 or 76s), and close neighbours are in sampling-noise order (±0.2%).

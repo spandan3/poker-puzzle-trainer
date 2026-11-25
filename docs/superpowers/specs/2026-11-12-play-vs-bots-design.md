@@ -1,5 +1,7 @@
 # Play vs Bots — Design
 
+> **Note (2026-11-25):** milestones after M12 were renumbered. 5-max analysis, called M13 here, is now M15 (later, if needed). M13 is a UI redesign and M14 is profile tuning. See the roadmap.
+
 Date: 2026-11-12
 Status: draft for approval
 Builds on: `2026-11-10-poker-puzzle-trainer-design.md` (the main spec). Everything there still holds unless this document says otherwise.
