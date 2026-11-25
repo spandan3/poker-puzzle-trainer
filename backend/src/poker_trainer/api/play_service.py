@@ -549,7 +549,7 @@ def act(
     if expected_actions != row.action_count:
         raise ConcurrentSubmit("the table has moved on; reload it")
     s = replay(record)
-    try:
+    try:  # only Hero's own answer is a 422; a bot failing below is a server error
         if option is not None:
             options = hero_options(s)
             if not 0 <= option < len(options):
@@ -558,12 +558,12 @@ def act(
         else:
             assert custom_to is not None
             action = custom_action(s, custom_to)
-        if _five_max(sess):
-            new = hero_act_seats(record, _seat_bots(sess), action)
-        else:
-            new = hero_act(record, profile, action)
     except ValueError as e:
         raise InvalidAnswer(str(e))
+    if _five_max(sess):
+        new = hero_act_seats(record, _seat_bots(sess), action)
+    else:
+        new = hero_act(record, profile, action)
     out = _outcome(new)
     _write_hand(db, row, expected_actions, new, out)
     if out is not None:

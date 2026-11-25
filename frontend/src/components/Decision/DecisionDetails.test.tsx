@@ -57,6 +57,36 @@ describe('DecisionDetails', () => {
     ])
   })
 
+  it('returns to Why when Range was selected and the setting turns off, with one tab stop', async () => {
+    const user = userEvent.setup()
+    const view = render(<DecisionDetails showRange decision={decision} whyTab={<p>the why</p>} />)
+    await user.click(screen.getByRole('tab', { name: 'Range' }))
+    expect(screen.getByRole('tab', { name: 'Range' })).toHaveAttribute('aria-selected', 'true')
+    view.rerender(<DecisionDetails decision={decision} whyTab={<p>the why</p>} />)
+    expect(screen.queryByRole('tab', { name: 'Range' })).toBeNull()
+    expect(screen.getByRole('tab', { name: 'Why' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('the why')).toBeVisible()
+    const stops = screen.getAllByRole('tab').filter((t) => t.getAttribute('tabindex') === '0')
+    expect(stops).toHaveLength(1)
+    expect(stops[0]).toBe(screen.getByRole('tab', { name: 'Why' }))
+  })
+
+  it('leaves the Options and Maths tabs the same with or without the Range setting', async () => {
+    const user = userEvent.setup()
+    const text = async (showRange: boolean, tab: string) => {
+      const view = render(<DecisionDetails showRange={showRange} decision={decision} />)
+      await user.click(screen.getByRole('tab', { name: tab }))
+      const out = screen.getByRole('tabpanel').textContent
+      view.unmount()
+      return out
+    }
+    for (const tab of ['Options', 'Maths']) {
+      const off = await text(false, tab)
+      expect(off).toBeTruthy()
+      expect(await text(true, tab)).toBe(off)
+    }
+  })
+
   it('has Options, Maths and Range tabs, Options selected, without a Hand tab', () => {
     render(<DecisionDetails showRange decision={decision} />)
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([

@@ -608,6 +608,8 @@ test('Range tab: absent by default, present after the Settings toggle, and resto
     await expect(toggle).toBeChecked()
     await page.getByRole('banner').getByRole('link', { name: 'Puzzles' }).click()
     await expect(detailTabs).toHaveText(['Why', 'Options', 'Maths', 'Range', 'Hand'])
+    await page.getByRole('tab', { name: 'Range' }).click()
+    await expect(page.getByRole('tabpanel', { name: 'Range' })).toBeVisible()
   } finally {
     // the database is shared across tests
     await request.patch('/api/settings', { data: { show_range: false } })

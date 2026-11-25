@@ -49,7 +49,7 @@ function writeTab(tab: TabId): void {
   }
 }
 
-/** (Why,) Options, Maths, Range and (when given) Hand, as WAI-ARIA tabs. Why opens first when given. */
+/** (Why,) Options, Maths, (when on) Range and (when given) Hand, as WAI-ARIA tabs. Why opens first when given. */
 export const DecisionDetails = forwardRef<DecisionDetailsHandle, DecisionDetailsProps>(
   function DecisionDetails({ decision, whyTab, handTab, showRange = false }, handleRef) {
     const baseId = useId()

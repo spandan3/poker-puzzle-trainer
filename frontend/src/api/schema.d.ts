@@ -1393,8 +1393,10 @@ export interface components {
          * @description The table in a played hand: ``PuzzleView`` without the answer-form fields.
          *
          *     In a finished hand ``stacks`` are the settled stacks, ``street_bets`` are zero and ``pot``
-         *     is the pot that was awarded (in 5-max the sum of the listed pots: an uncalled bet goes back
-         *     and is not part of it). ``villain_position`` and ``villain_profile`` are heads-up only (null
+         *     is the pot that was awarded. In 5-max that is the sum of the listed pots; when the hand is
+         *     won by a fold, that pot includes the winner's own uncalled excess. The frames' ``pots`` leave
+         *     the uncalled excess out, so ``frames[-1].pots`` need not equal ``table.pot``.
+         *     ``villain_position`` and ``villain_profile`` are heads-up only (null
          *     in 5-max); ``seats`` describes every seat at any table size.
          */
         TableView: {

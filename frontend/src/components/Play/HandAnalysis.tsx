@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import * as client from '../../api/client'
-import type { DecisionReview, HandAnalysis as Analysis, TableView } from '../../api/types'
+import type {
+  DecisionReview,
+  HandAnalysis as Analysis,
+  SettingsView,
+  TableView,
+} from '../../api/types'
 import type { AnalysisApi } from '../../app/useHandAnalysis'
 import { useHandAnalysis } from '../../app/useHandAnalysis'
 import type { LlmSettings } from '../../app/useExplanation'
@@ -27,7 +32,7 @@ export interface HandAnalysisProps {
   handId: number
   api?: HandAnalysisApi
   /** the settings' LLM fields (whether the Why tab asks for a reworded explanation) and show_range (the Range tab) */
-  settings: (LlmSettings & { show_range?: boolean }) | null
+  settings: (LlmSettings & Pick<SettingsView, 'show_range'>) | null
   /** the Why tab's "Settings" link */
   onNavigate?: (page: Page) => void
   onClose: () => void
@@ -242,7 +247,7 @@ function StepDetails({
   review: DecisionReview
   analysis: Analysis
   api: HandAnalysisApi
-  settings: (LlmSettings & { show_range?: boolean }) | null
+  settings: (LlmSettings & Pick<SettingsView, 'show_range'>) | null
   onNavigate?: (page: Page) => void
 }) {
   const graded = isGraded(review)

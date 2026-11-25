@@ -66,7 +66,7 @@ def _record(play_db, hand_id):
 def _check_no_leak(view, record):
     """Bot cards appear only for seats shown at a showdown; undealt board cards never."""
     text = json.dumps(view)
-    hand = view["hand"]
+    hand = view.get("hand", view)  # a session view, or a hand view itself
     out = hand["outcome"]
     shown = {x["seat"] for x in out["shown"]} if out else set()
     s = replay(record)
@@ -77,7 +77,7 @@ def _check_no_leak(view, record):
         for c in (card_str(x) for x in hole(record, seat)):
             assert (f'"{c}"' in text) == (seat in shown), (hand["id"], seat, c)
     dealt = len(hand["table"]["board"])
-    for c in (card_str(x) for x in record.deck[10 + dealt : 15]):
+    for c in (card_str(x) for x in record.deck[10 + dealt :]):
         assert f'"{c}"' not in text, (hand["id"], c)
     assert "deck" not in text and "bot_seed" not in text
 
@@ -164,6 +164,10 @@ def test_play_a_five_max_session(play_client, play_db):
             assert play_client.get("/api/play/sessions/current").json() == v
             _check_no_leak(v, _record(play_db, v["hand"]["id"]))
         hand = v["hand"]
+        got = play_client.get(f"/api/play/hands/{hand['id']}")
+        assert got.status_code == 200
+        assert got.json() == hand
+        _check_no_leak(got.json(), _record(play_db, hand["id"]))
         out = hand["outcome"]
         record = _record(play_db, hand["id"])
         o = outcome5(record)
@@ -200,6 +204,7 @@ def test_play_a_five_max_session(play_client, play_db):
         )
         before = v["hero_bought_chips"]
         v = _deal(play_client, v, top_up=i % 4 == 0)
+        _check_no_leak(v, _record(play_db, v["hand"]["id"]))  # also a walk, already complete
         assert v["hero_bought_chips"] == before + bought
         assert _record(play_db, v["hand"]["id"]).start_stacks == (hero, *bots)
         if v["hand"]["status"] == "complete":
@@ -207,6 +212,7 @@ def test_play_a_five_max_session(play_client, play_db):
             played += 1
             prev_button = _record(play_db, v["hand"]["id"]).button
             v = _deal(play_client, v)
+            _check_no_leak(v, _record(play_db, v["hand"]["id"]))
     assert seen["showdown"] and seen["fold"] and seen["hero_folded"], seen
 
 
@@ -281,6 +287,28 @@ def test_end_mid_hand_abandons(play_client, play_db):
     assert last["ended_by"] == "abandoned" and last["winner_names"] == []
 
 
+def test_a_failing_bot_is_a_500_without_cards_and_a_bad_answer_is_a_422(
+    play_client, play_db, monkeypatch
+):
+    v = _start5(play_client)
+    while v["hand"]["status"] != "in_progress":
+        v = _deal(play_client, v)
+    hand = v["hand"]
+    bad = {"expected_actions": hand["action_count"], "option": len(hand["options"])}
+    r = play_client.post(f"/api/play/hands/{hand['id']}/actions", json=bad)
+    assert r.status_code == 422
+
+    def boom(*a, **k):
+        raise ValueError("bot broke: cards 2c 3d")
+
+    monkeypatch.setattr(play_service, "hero_act_seats", boom)
+    good = {"expected_actions": hand["action_count"], "option": 0}
+    quiet = type(play_client)(play_client.app, raise_server_exceptions=False)
+    r = quiet.post(f"/api/play/hands/{hand['id']}/actions", json=good)
+    assert r.status_code == 500
+    assert "2c" not in r.text and "bot broke" not in r.text
+
+
 def test_analysis_routes_refuse_five_max_hands(play_client):
     v = _finish(play_client, _start5(play_client))
     hid = v["hand"]["id"]
@@ -317,6 +345,13 @@ def test_lists_and_winner_names(play_client, play_db):
         assert row["winner_names"] == [names[w] for w in winners]
         assert row["hero_position"] == POSITIONS[(0 - record.button) % 5]
     assert any(row["winner_names"] and row["winner_names"] != ["You"] for row in rows)
+    text = json.dumps(rows)  # the list never carries a card
+    for row in rows:
+        record = _record(play_db, row["id"])
+        cards = [x for seat in range(1, 5) for x in hole(record, seat)] + list(record.deck[10:])
+        assert all(f'"{card_str(c)}"' not in text for c in cards), row["id"]
+        got = play_client.get(f"/api/play/hands/{row['id']}").json()
+        _check_no_leak(got, record)
 
 
 def test_bots_profiles_follow_the_setting(play_client):

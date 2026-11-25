@@ -20,7 +20,7 @@ export interface ResultSummaryProps {
   loading?: boolean
   /** show the `N` key hint and `aria-keyshortcuts` */
   shortcutsOn: boolean
-  /** scroll to the details (Why / Options / Maths / Range / Hand) and focus their tabs */
+  /** scroll to the details (Why / Options / Maths / (when on) Range / Hand) and focus their tabs */
   onDetails: () => void
 }
 

@@ -540,7 +540,11 @@ def test_five_max_frames_carry_seat_folds_and_live_pots():
             assert f["folded"] == [i in folded for i in range(5)]
             assert sum(f["stacks"]) + f["pot"] == sum(r.start_stacks)
             middle = f["pot"] - sum(f["street_bets"])
-            assert sum(f["pots"]) <= middle and all(p > 0 for p in f["pots"])
+            paid = sorted(
+                r.start_stacks[i] - f["stacks"][i] - f["street_bets"][i] for i in range(5)
+            )
+            excess = max(paid[-1] - paid[-2], 0)  # the top layer, paid by one seat alone
+            assert sum(f["pots"]) == middle - excess and all(p > 0 for p in f["pots"])
             if not any(st == 0 for st in s.stacks):  # nobody all-in: one pot, all of it
                 assert f["pots"] == ([middle] if middle else [])
             seen["side_pots"] += len(f["pots"]) > 1
@@ -569,6 +573,25 @@ def test_five_max_live_pots_by_hand():
     s = apply(s, Action(3, ActionKind.CALL, Street.FLOP, 100))
     s = deal(s, (3,))
     assert play_views._live_pots(s, (200, 20, 200, 200, 200)) == [60, 260]
+
+
+def test_five_max_live_pots_leave_out_uncalled_excess():
+    from poker_trainer.game.state import Action, Street, apply, deal, new_hand
+
+    stacks = (200, 20, 200, 200, 200)
+    s = new_hand(0, stacks)  # SB seat 1 (1), BB seat 2 (2), UTG seat 3 first
+    for a in (
+        Action(3, ActionKind.RAISE, Street.PREFLOP, 50),
+        Action(4, ActionKind.FOLD, Street.PREFLOP, 0),
+        Action(0, ActionKind.FOLD, Street.PREFLOP, 0),
+        Action(1, ActionKind.CALL, Street.PREFLOP, 20),
+        Action(2, ActionKind.FOLD, Street.PREFLOP, 0),
+    ):
+        s = apply(s, a)
+    s = deal(s, (0, 1, 2))
+    # In the middle: seat 1 20 (all-in), seat 2 2 (folded blind), seat 3 50. The 20-level pot is
+    # 20 + 2 + 20 = 42; seat 3's other 30 is uncalled and left out.
+    assert play_views._live_pots(s, stacks) == [42]
 
 
 def test_five_max_pot_awards_match_settle_pots():

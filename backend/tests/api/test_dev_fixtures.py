@@ -171,13 +171,13 @@ def _check_play5_fixtures(out):
 
 
 def test_write_play5_fixtures_deterministic(tmp_path):
+    """One run reproduces the committed files byte for byte (no clock, no random seed)."""
     real_clock = service.utcnow
-    write_play5_fixtures(tmp_path / "a")
-    write_play5_fixtures(tmp_path / "b")
+    write_play5_fixtures(tmp_path)
     assert service.utcnow is real_clock
     for name in PLAY5_FILES:
-        assert (tmp_path / "a" / name).read_bytes() == (tmp_path / "b" / name).read_bytes(), name
-    _check_play5_fixtures(tmp_path / "a")
+        assert (tmp_path / name).read_bytes() == (FIXTURES_DIR / name).read_bytes(), name
+    _check_play5_fixtures(tmp_path)
 
 
 def test_committed_play5_fixtures_match_the_models():

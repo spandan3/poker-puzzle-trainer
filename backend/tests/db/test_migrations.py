@@ -19,6 +19,7 @@ from poker_trainer.db import (
     make_sessionmaker,
     migrate,
 )
+from poker_trainer.db.models import PlaySessionRow
 from poker_trainer.puzzle.generate import generate_puzzle
 from poker_trainer.settings import get_settings
 from poker_trainer.stats.hero import hero_category
@@ -65,7 +66,9 @@ def test_models_match_migrations(tmp_path):
     engine = make_engine(url)
     try:
         with engine.connect() as conn:
-            ctx = MigrationContext.configure(conn, opts={"compare_type": True})
+            ctx = MigrationContext.configure(
+                conn, opts={"compare_type": True, "compare_server_default": True}
+            )
             assert compare_metadata(ctx, Base.metadata) == []
     finally:
         engine.dispose()
@@ -392,6 +395,17 @@ def test_fivemax_upgrade_keeps_heads_up_rows_and_downgrade_works(tmp_path):
     assert not hcols["table_size"]["nullable"]
     assert hcols["pots"]["nullable"] and hcols["bot_versions"]["nullable"]
     assert not ucols["show_range"]["nullable"]
+
+    seats = [{"seat": 1, "name": "Bot 1", "stack": 200, "bot": {"profile": "tag", "n": [1, 2.5]}}]
+    engine = make_engine(url)
+    try:
+        with make_sessionmaker(engine)() as db:
+            db.get(PlaySessionRow, 1).seats = seats
+            db.commit()
+        with make_sessionmaker(engine)() as db:
+            assert db.get(PlaySessionRow, 1).seats == seats
+    finally:
+        engine.dispose()
 
     command.downgrade(alembic_config(url), "0004_play")
     engine = make_engine(url)
