@@ -4,7 +4,7 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import type { PlaySessionView } from '../api/types'
-import { playSessionFixture, playSessionsFixture } from '../test/fixture'
+import { play5SessionFixture, playSessionFixture, playSessionsFixture } from '../test/fixture'
 import type { PlayApi } from './usePlayFlow'
 import { BOT_PAUSE_MS, usePlayFlow } from './usePlayFlow'
 
@@ -284,5 +284,121 @@ describe('next hand and end', () => {
     expect(result.current.state.kind).toBe('idle')
     expect(result.current.session).toBeNull()
     expect(api.listPlaySessions).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('5-max', () => {
+  const FOLDED = play5SessionFixture('hero_folded')
+  const SIDE_POT = play5SessionFixture('side_pot')
+  const FIVE_TO_ACT = play5SessionFixture('hero_to_act')
+  const total = FOLDED.hand!.table.history.length
+
+  function mockReducedMotion(reduce: boolean) {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: reduce && query.includes('prefers-reduced-motion'),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    )
+  }
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('start sends the chosen table size', async () => {
+    const api = fakeApi({ startPlaySession: vi.fn(async () => FIVE_TO_ACT) })
+    const { result } = await setup(api)
+    await act(async () => result.current.start(5))
+    await flush()
+    expect(api.startPlaySession).toHaveBeenCalledWith(5)
+  })
+
+  it('paces every bot action one per frame, for any bot seat, then the hand is over', async () => {
+    mockReducedMotion(false)
+    const api = fakeApi({ startPlaySession: vi.fn(async () => FOLDED) })
+    const { result } = await setup(api)
+    await act(async () => result.current.start(5))
+    await flush()
+    expect(result.current.shownCount).toBe(0)
+    expect(result.current.revealing).toBe(true)
+    for (let n = 1; n <= total; n++) {
+      await advance(BOT_PAUSE_MS - 1)
+      expect(result.current.shownCount).toBe(n - 1)
+      await advance(1)
+      expect(result.current.shownCount).toBe(n)
+    }
+    expect(result.current.revealing).toBe(false)
+    expect(result.current.state.kind).toBe('handOver')
+  })
+
+  it('reduced motion: no pause at a 5-max table', async () => {
+    mockReducedMotion(true)
+    const api = fakeApi({ startPlaySession: vi.fn(async () => FOLDED) })
+    const { result } = await setup(api)
+    await act(async () => result.current.start(5))
+    await flush()
+    expect(result.current.shownCount).toBe(total)
+    expect(result.current.revealing).toBe(false)
+    expect(result.current.state.kind).toBe('handOver')
+  })
+
+  it('reduced motion does not change heads-up pacing', async () => {
+    mockReducedMotion(true)
+    const api = fakeApi({ startPlaySession: vi.fn(async () => OVER) })
+    const { result } = await setup(api)
+    await act(async () => result.current.start(2))
+    await flush()
+    expect(result.current.shownCount).toBe(0)
+    expect(result.current.revealing).toBe(true)
+    await advance(BOT_PAUSE_MS)
+    expect(result.current.shownCount).toBe(1)
+  })
+
+  it('after Hero acts only the bots that follow are paced', async () => {
+    mockReducedMotion(false)
+    const api = fakeApi({
+      currentPlaySession: vi.fn(async () => FIVE_TO_ACT),
+      playAction: vi.fn(async () => FOLDED),
+    })
+    const { result } = await setup(api)
+    await act(async () => result.current.act({ option: 0 }))
+    await flush()
+    const before = FIVE_TO_ACT.hand!.action_count
+    expect(result.current.shownCount).toBe(before + 1)
+    expect(result.current.revealing).toBe(true)
+    await advance(BOT_PAUSE_MS)
+    expect(result.current.shownCount).toBe(before + 2)
+  })
+
+  it('Hero folded: Next hand works during the play-out and skips the pacing', async () => {
+    mockReducedMotion(false)
+    const api = fakeApi({
+      currentPlaySession: vi.fn(async () => FIVE_TO_ACT),
+      playAction: vi.fn(async () => FOLDED),
+      nextPlayHand: vi.fn(async () => FIVE_TO_ACT),
+    })
+    const { result } = await setup(api)
+    await act(async () => result.current.act({ option: 0 }))
+    await flush()
+    expect(result.current.revealing).toBe(true)
+    await act(async () => result.current.nextHand(false))
+    await flush()
+    expect(api.nextPlayHand).toHaveBeenCalledWith(FOLDED.id, {
+      top_up: false,
+      expected_hands: FOLDED.hands_played,
+    })
+    expect(result.current.session?.hand?.status).toBe('in_progress')
+  })
+
+  it('Hero still in the hand: Next hand waits for the reveal', async () => {
+    mockReducedMotion(false)
+    const api = fakeApi({ startPlaySession: vi.fn(async () => SIDE_POT) })
+    const { result } = await setup(api)
+    await act(async () => result.current.start(5))
+    await flush()
+    expect(result.current.revealing).toBe(true)
+    await act(async () => result.current.nextHand(false))
+    expect(api.nextPlayHand).not.toHaveBeenCalled()
   })
 })

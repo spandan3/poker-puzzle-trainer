@@ -1,11 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PlaySessionView, SettingsView } from '../../api/types'
 import type { PlayFlow, PlayState } from '../../app/usePlayFlow'
 import { formatBb } from '../../lib/format'
 import { signedBbFromBb } from '../../lib/play'
 import {
+  play5SessionFixture,
   playHandAnalysisFixture,
   playHandsFixture,
   playSessionFixture,
@@ -552,5 +553,140 @@ describe('PlayPage: inside another main', () => {
       />,
     )
     expect(screen.queryByRole('main')).toBeNull()
+  })
+})
+
+describe('PlayPage: 5-max', () => {
+  const TO_ACT = play5SessionFixture('hero_to_act')
+  const FOLDED = play5SessionFixture('hero_folded')
+  const SIDE = play5SessionFixture('side_pot')
+  const seat = (name: string) => screen.getByRole('group', { name: new RegExp(`^${name},`) })
+  const faceDown = (name: string) =>
+    within(seat(name)).queryAllByRole('img', { name: 'face-down card' })
+
+  afterEach(() => {
+    try {
+      window.localStorage.clear()
+    } catch {
+      // storage blocked
+    }
+  })
+
+  it('start panel: the mode defaults to Heads-up, Start sends the choice and it is remembered', async () => {
+    const onStart = vi.fn()
+    const user = userEvent.setup()
+    const ui = (
+      <StartPanel onStart={onStart} busy={false} past={[]} onOpenHand={vi.fn()} api={undefined} />
+    )
+    const { unmount } = render(ui)
+    const group = screen.getByRole('radiogroup', { name: 'Table' })
+    expect(within(group).getByRole('radio', { name: 'Heads-up' })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Start session' }))
+    expect(onStart).toHaveBeenLastCalledWith(2)
+    await user.click(within(group).getByRole('radio', { name: '5-max' }))
+    expect(within(group).getByRole('radio', { name: '5-max' })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Start session' }))
+    expect(onStart).toHaveBeenLastCalledWith(5)
+    unmount()
+    // a later visit starts on the remembered mode
+    render(ui)
+    expect(screen.getByRole('radio', { name: '5-max' })).toBeChecked()
+  })
+
+  it('the mode choice works with the arrow keys and survives blocked storage', async () => {
+    const user = userEvent.setup()
+    const blocked = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    const onStart = vi.fn()
+    render(<StartPanel onStart={onStart} busy={false} past={[]} onOpenHand={vi.fn()} />)
+    screen.getByRole('radio', { name: 'Heads-up' }).focus()
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('radio', { name: '5-max' })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Start session' }))
+    expect(onStart).toHaveBeenCalledWith(5)
+    blocked.mockRestore()
+    set.mockRestore()
+  })
+
+  it('a running hand: five seats, bots face down, Hero’s options at the decision', () => {
+    setup(TO_ACT)
+    // Bot 1 and Bot 2 are in the hand; Bot 3 and Bot 4 have folded and show no cards
+    for (const name of ['Bot 1', 'Bot 2']) expect(faceDown(name)).toHaveLength(2)
+    for (const name of ['Bot 3', 'Bot 4']) expect(faceDown(name)).toHaveLength(0)
+    expect(within(seat('You')).getAllByRole('img', FACE_UP)).toHaveLength(2)
+    const panel = screen.getByRole('form', { name: 'Your answer' })
+    expect(within(panel).getAllByRole('button').length).toBeGreaterThan(2)
+    expect(screen.getByText('Your turn')).toBeInTheDocument()
+    // the log names the actors and words Hero's own entries in the second person
+    const log = within(screen.getByRole('complementary'))
+    expect(log.getAllByRole('listitem')).toHaveLength(TO_ACT.hand!.table.history.length)
+    expect(log.getByText('Bot 4')).toBeInTheDocument()
+    expect(log.getAllByText('You').length).toBeGreaterThan(0)
+  })
+
+  it('mid-reveal: the log is cut to the entries shown, the next actor is named, and cards stay down', () => {
+    setup(SIDE, { shownCount: 2 })
+    const log = within(screen.getByRole('complementary'))
+    expect(log.getAllByRole('listitem')).toHaveLength(2)
+    expect(log.getByText('Bot 2 to act')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Next hand/ })).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Pots' })).toBeNull()
+    for (const name of ['Bot 1', 'Bot 2', 'Bot 3', 'Bot 4']) {
+      expect(within(seat(name)).queryAllByRole('img', FACE_UP)).toHaveLength(0)
+    }
+  })
+
+  it('the showdown is only turned over, with one award line per pot, once the reveal is over', () => {
+    setup(SIDE)
+    expect(within(seat('Bot 3')).getAllByRole('img', FACE_UP)).toHaveLength(2)
+    expect(within(seat('Bot 4')).getAllByRole('img', FACE_UP)).toHaveLength(2)
+    expect(faceDown('Bot 1')).toHaveLength(0) // folded: no cards
+    const pots = screen.getByRole('list', { name: 'Pots' })
+    expect(
+      within(pots)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Bot 3 takes the main pot, 253.5 bb', 'Bot 4 takes the side pot, 12 bb'])
+    expect(screen.getByText('You lost 90.5 bb')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Next hand/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Analyse/ })).toBeNull()
+  })
+
+  it('no award lines before the reveal ends, even though the outcome is in the response', () => {
+    setup(SIDE, { shownCount: SIDE.hand!.table.history.length - 1 })
+    expect(screen.queryByRole('list', { name: 'Pots' })).toBeNull()
+    expect(screen.queryByText(/takes the/)).toBeNull()
+  })
+
+  it('Hero folded: while the bots play out, Next hand is on offer and sends N', async () => {
+    const { flow, user } = setup(FOLDED, { shownCount: 4 }, {}, true)
+    const panel = screen.getByRole('region', { name: 'You folded' })
+    expect(screen.queryByRole('form', { name: 'Your answer' })).toBeNull()
+    await user.click(within(panel).getByRole('button', { name: /^Next hand/ }))
+    expect(flow.nextHand).toHaveBeenCalledTimes(1)
+    await user.keyboard('n')
+    expect(flow.nextHand).toHaveBeenCalledTimes(2)
+  })
+
+  it('a hand Hero is still in has no Next hand during the reveal', () => {
+    setup(SIDE, { shownCount: 3 })
+    expect(screen.queryByRole('region', { name: 'You folded' })).toBeNull()
+    expect(screen.getByRole('form', { name: 'Your answer' })).toBeInTheDocument()
+  })
+
+  it('a finished hand Hero folded has no Analyse either, and the result line works as heads-up', () => {
+    setup(FOLDED)
+    expect(screen.getByText('You folded')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Analyse/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /^Next hand/ })).toBeInTheDocument()
+  })
+
+  it('hides bot profiles when show_profile is off', () => {
+    setup(TO_ACT, {}, { show_profile: false })
+    expect(screen.queryAllByRole('button', { name: /^Profile / })).toHaveLength(0)
   })
 })

@@ -68,6 +68,8 @@ export function SessionHands({
     )
   }
   if (loaded.hands.length === 0) return <p className={styles.muted}>No hands yet.</p>
+  // a session is one table size, so the winners' column is for a 5-max session's list
+  const anyFiveMax = loaded.hands.some((h) => h.table_size === 5)
   return (
     <div className={styles.wrap}>
       <table className={styles.table} aria-label="Hands">
@@ -78,12 +80,18 @@ export function SessionHands({
             <th scope="col" className={styles.num}>
               Result
             </th>
-            <th scope="col" className={styles.num}>
-              EV lost
-            </th>
-            <th scope="col">
-              <span className={styles.srOnly}>Analysis</span>
-            </th>
+            {anyFiveMax ? (
+              <th scope="col">Won by</th>
+            ) : (
+              <>
+                <th scope="col" className={styles.num}>
+                  EV lost
+                </th>
+                <th scope="col">
+                  <span className={styles.srOnly}>Analysis</span>
+                </th>
+              </>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -97,21 +105,29 @@ export function SessionHands({
                 <td className={styles.num}>
                   {running ? 'In progress' : signedBbFromBb(h.result_bb!)}
                 </td>
-                <td className={styles.num}>
-                  {!running && h.analysed && h.ev_loss_bb !== null ? formatEvBb(h.ev_loss_bb) : ''}
-                </td>
-                <td className={styles.action}>
-                  {h.decision_count > 0 && !running && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      aria-label={`${verb} hand ${h.hand_no}`}
-                      onClick={() => onOpen(h.id)}
-                    >
-                      {verb}
-                    </Button>
-                  )}
-                </td>
+                {anyFiveMax ? (
+                  <td>{running ? '' : h.winner_names.join(', ')}</td>
+                ) : (
+                  <>
+                    <td className={styles.num}>
+                      {!running && h.analysed && h.ev_loss_bb !== null
+                        ? formatEvBb(h.ev_loss_bb)
+                        : ''}
+                    </td>
+                    <td className={styles.action}>
+                      {h.decision_count > 0 && !running && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`${verb} hand ${h.hand_no}`}
+                          onClick={() => onOpen(h.id)}
+                        >
+                          {verb}
+                        </Button>
+                      )}
+                    </td>
+                  </>
+                )}
               </tr>
             )
           })}

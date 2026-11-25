@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import type { Ref } from 'react'
 import * as client from '../../api/client'
 import type { CustomSizes, PlayHandView, SettingsView, TableView } from '../../api/types'
@@ -10,8 +10,10 @@ import {
   HOLE_STAGGER_MS,
 } from '../../lib/dealTiming'
 import type { Page } from '../../lib/page'
-import { seatsFromView } from '../../lib/seats'
-import { shownTally, tableAt, toActAt } from '../../lib/play'
+import { seatLogAt } from '../../lib/history'
+import type { SeatInfo } from '../../lib/seats'
+import { seatsFromPlayTable, seatsFromView } from '../../lib/seats'
+import { heroFolded, shownTally, tableAt, toActAt } from '../../lib/play'
 import type { Command } from '../../lib/shortcuts'
 import { useShortcuts } from '../../lib/shortcuts'
 import { AnswerPanel } from '../AnswerPanel/AnswerPanel'
@@ -69,6 +71,14 @@ export function PlayPage({
   const showPotOdds = settings?.show_pot_odds ?? true
   const showProfile = settings?.show_profile ?? true
   const handOver = hand !== null && hand.status === 'complete' && !revealing
+  // 5-max, Hero has folded and the bots are still playing the hand out: Next hand is on offer
+  // (and skips the rest), where the heads-up flow always waits for the reveal
+  const skippable =
+    hand !== null &&
+    hand.status === 'complete' &&
+    revealing &&
+    hand.table.table_size === 5 &&
+    heroFolded(hand.table.history)
 
   // "Top up to 100 bb" is chosen per hand: it resets when the next one is dealt
   const [topUp, setTopUp] = useState(false)
@@ -125,7 +135,7 @@ export function PlayPage({
   // Keyboard focus follows the panel: the Next button when the hand ends, else the panel slot
   // (never a text box, which would pause the shortcuts). On a switch to this page it moves here
   // too, as the link that was clicked has just left the page's flow.
-  const handIsOver = handOver
+  const handIsOver = handOver || skippable
   const noSession = session === null
   const wasHidden = useRef(hidden)
   useEffect(() => {
@@ -158,10 +168,10 @@ export function PlayPage({
         document.querySelector<HTMLElement>('[data-play-heading]')?.focus({ preventScroll: true })
       }
     }
-  }, [hidden, handIsOver, hand?.id, analysing, noSession])
+  }, [hidden, handIsOver, handOver, hand?.id, analysing, noSession])
 
   const onCommand = (cmd: Command): boolean => {
-    if (cmd.id !== 'next' || !handOver || analysing !== null || busy) return false
+    if (cmd.id !== 'next' || !(handOver || skippable) || analysing !== null || busy) return false
     flow.nextHand(topUp)
     return true
   }
@@ -204,14 +214,42 @@ export function PlayPage({
 
   const shown = tableAt(hand, shownCount)
   const toAct = toActAt(hand, shownCount)
+  const fiveMax = hand.table.table_size === 5
+  const total = hand.table.history.length
   // who takes the pot shows only once the reveal is over (the whole history is on screen), so
   // the label never gives the result away; until then it is the frame's "Pot x bb"
   const award =
-    handOver && shownCount >= hand.table.history.length && hand.outcome
+    !fiveMax && handOver && shownCount >= total && hand.outcome
       ? { winner: hand.outcome.winner, potChips: hand.table.pot }
       : undefined
   // the bot's cards turn over once the reveal is done, at a showdown only
   const villainCards = handOver ? (hand.outcome?.villain_cards ?? undefined) : undefined
+
+  let seats: SeatInfo[]
+  if (fiveMax) {
+    // Before the last action the seats are drawn from that frame, bots face down. At the end
+    // the settled table shows (no frame), and a finished hand turns the shown seats over.
+    const frame = shownCount < total ? hand.frames[shownCount] : undefined
+    seats = seatsFromPlayTable(shown, {
+      showProfile,
+      frame,
+      revealed: handOver,
+    }).map((seat, i) => ({
+      ...seat,
+      dealDelaysMs: HOLE_DEAL_MS.map((ms) => ms + (seat.isHero ? 0 : HOLE_STAGGER_MS * i)),
+    }))
+  } else {
+    seats = seatsFromView(shown, { showProfile, villainCards }).map((seat) => ({
+      ...seat,
+      dealDelaysMs: HOLE_DEAL_MS.map((ms) => ms + (seat.isHero ? 0 : HOLE_STAGGER_MS)),
+      flip: villainCards !== undefined && !seat.isHero,
+    }))
+  }
+  // the pots as they stand (main, then side pots), from the frame; a settled hand shows its total
+  const pots = fiveMax && !handOver ? hand.frames[Math.min(shownCount, total)]?.pots : undefined
+  const seatLog = fiveMax
+    ? seatLogAt(hand.table, hand.frames, hand.table.history, shownCount)
+    : undefined
 
   return (
     <Root className={layout.main} hidden={hidden} aria-busy={busy || revealing || undefined}>
@@ -224,15 +262,12 @@ export function PlayPage({
             <Table
               // a new hand re-mounts the table, so the cards deal in again
               key={hand.id}
-              seats={seatsFromView(shown, { showProfile, villainCards }).map((seat) => ({
-                ...seat,
-                dealDelaysMs: HOLE_DEAL_MS.map((ms) => ms + (seat.isHero ? 0 : HOLE_STAGGER_MS)),
-                flip: villainCards !== undefined && !seat.isHero,
-              }))}
+              seats={seats}
               centre={
                 <TableCentre
                   board={shown.board}
                   potChips={shown.pot}
+                  pots={pots}
                   potOdds={shown.pot_odds}
                   showPotOdds={showPotOdds}
                   dealFrom={0}
@@ -255,6 +290,14 @@ export function PlayPage({
                   shortcutsOn={shortcutsOn}
                   topUp={topUp}
                   onTopUp={setTopUp}
+                />
+              ) : skippable ? (
+                <PlayingOutPanel
+                  ref={nextRef}
+                  mustRebuy={session.must_rebuy}
+                  busy={busy}
+                  onNext={() => flow.nextHand(false)}
+                  shortcutsOn={shortcutsOn}
                 />
               ) : (
                 <ActionSlot
@@ -295,7 +338,7 @@ export function PlayPage({
               )}
             </Panel>
           </div>
-          <HistoryPanel view={shown} toAct={toAct} className={layout.side} />
+          <HistoryPanel view={shown} toAct={toAct} seatLog={seatLog} className={layout.side} />
         </>
       )}
     </Root>
@@ -334,3 +377,39 @@ function ActionSlot({
     />
   )
 }
+
+/**
+ * In place of the action panel at a 5-max table once Hero has folded and the bots are still
+ * playing: Next hand skips what is left of the hand.
+ */
+const PlayingOutPanel = forwardRef<
+  HTMLButtonElement,
+  {
+    mustRebuy: boolean
+    busy: boolean
+    onNext: () => void
+    shortcutsOn: boolean
+  }
+>(function PlayingOutPanel({ mustRebuy, busy, onNext, shortcutsOn }, ref) {
+  return (
+    <section className={styles.over} aria-label="You folded">
+      <p className={styles.result} role="status">
+        You folded
+      </p>
+      <p className={styles.hands}>The bots are playing the hand out.</p>
+      <div className={styles.actions}>
+        <Button
+          ref={ref}
+          variant="primary"
+          busy={busy}
+          kbd={shortcutsOn ? 'N' : undefined}
+          data-primary-focus=""
+          onClick={onNext}
+          {...(shortcutsOn ? { 'data-shortcut': 'next', 'aria-keyshortcuts': 'N' } : {})}
+        >
+          {mustRebuy ? 'Rebuy and deal' : 'Next hand'}
+        </Button>
+      </div>
+    </section>
+  )
+})

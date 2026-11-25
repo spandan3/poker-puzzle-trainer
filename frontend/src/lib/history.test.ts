@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { ActionLogEntry, PuzzleView, StreetName } from '../api/types'
-import { fixtureNames, playSessionFixture, puzzleFixture } from '../test/fixture'
-import { entryTexts, groupHistory } from './history'
+import {
+  fixtureNames,
+  play5SessionFixture,
+  playSessionFixture,
+  puzzleFixture,
+} from '../test/fixture'
+import { actionLine, entryTexts, groupHistory, seatActionText, seatLogAt } from './history'
 
 function entry(over: Partial<ActionLogEntry>): ActionLogEntry {
   return {
@@ -196,5 +201,63 @@ describe('groupHistory toAct', () => {
 
   it("defaults to 'hero' and accepts a play table", () => {
     expect(groupHistory(table).at(-1)!.toAct).toBe('hero')
+  })
+})
+
+describe('5-max action log', () => {
+  const hand = play5SessionFixture('hero_folded').hand!
+
+  it('words an action for a bot and for Hero', () => {
+    const raise = entry({ kind: 'raise', to: 15, street: 'preflop' })
+    expect(actionLine({ name: 'Bot 2' }, seatActionText(raise, false))).toBe(
+      'Bot 2 raises to 7.5 bb',
+    )
+    const call = entry({ kind: 'call', amount: 4 })
+    expect(actionLine({ name: 'You' }, seatActionText(call, true))).toBe('You call 2 bb')
+    expect(seatActionText(entry({ kind: 'fold' }), true)).toBe('fold')
+    expect(seatActionText(entry({ kind: 'check' }), false)).toBe('checks')
+    expect(seatActionText(entry({ kind: 'raise', to: 40, all_in: true }), false)).toBe(
+      'goes all-in to 20 bb',
+    )
+    expect(seatActionText(entry({ kind: 'raise', to: 40, all_in: true }), true)).toBe(
+      'go all-in to 20 bb',
+    )
+  })
+
+  it('names each entry’s actor from frames[k].to_act_seat and the seat views', () => {
+    const log = seatLogAt(hand.table, hand.frames, hand.table.history, 6)
+    expect(log.entries.map((e) => e.name)).toEqual([
+      'Bot 3',
+      'Bot 4',
+      'You',
+      'Bot 1',
+      'Bot 2',
+      'Bot 2',
+    ])
+    expect(log.entries[1]!.position).toBe('CO')
+    expect(log.entries[2]!.isHero).toBe(true)
+    // next: the actor at frames[6]
+    expect(log.next?.name).toBe('Bot 4')
+  })
+
+  it('nobody is next when the hand is over', () => {
+    const log = seatLogAt(hand.table, hand.frames, hand.table.history, hand.table.history.length)
+    expect(log.entries).toHaveLength(hand.table.history.length)
+    expect(log.next).toBeNull()
+  })
+
+  it('groupHistory shows names, positions and verb phrases when given a log', () => {
+    const log = seatLogAt(hand.table, hand.frames, hand.table.history, 3)
+    const sections = groupHistory(
+      { ...hand.table, history: hand.table.history.slice(0, 3), street: 'preflop' },
+      undefined,
+      'villain',
+      log,
+    )
+    const items = sections[0]!.entries
+    expect(items.map((i) => i.name)).toEqual(['Bot 3', 'Bot 4', 'You'])
+    expect(items[1]!.text).toMatch(/^raises to /)
+    expect(items[2]!.text).toBe('fold')
+    expect(sections[0]!.toActName).toBe(log.next?.name)
   })
 })

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from 'react'
 import type { ActionLogEntry, HeadsUpTable } from '../../api/types'
 import { nowrapUnits } from '../../lib/format'
 import { groupHistory, STREET_LABELS } from '../../lib/history'
+import type { SeatLog } from '../../lib/history'
 import { Card } from '../Card/Card'
 import styles from './HistoryPanel.module.css'
 
@@ -13,6 +14,8 @@ export interface HistoryPanelProps {
   toAct?: 'hero' | 'villain' | null
   /** A new value (the puzzle's id) scrolls the panel back to the end, whatever else is equal. */
   resetKey?: string | number
+  /** A table with several bots: who took each entry and who is next (names, not Hero / Villain). */
+  seatLog?: SeatLog
   className?: string
 }
 
@@ -21,9 +24,16 @@ export interface HistoryPanelProps {
  * Play's current hand (cut to what the reveal has shown) or, beside a Play analysis, the
  * `review.view` of the step picked (the hand up to that decision, with `toAct` "hero").
  */
-export function HistoryPanel({ view, answer, toAct, resetKey, className }: HistoryPanelProps) {
+export function HistoryPanel({
+  view,
+  answer,
+  toAct,
+  resetKey,
+  seatLog,
+  className,
+}: HistoryPanelProps) {
   const base = useId()
-  const sections = groupHistory(view, answer, toAct)
+  const sections = groupHistory(view, answer, toAct, seatLog)
   const panelRef = useRef<HTMLElement>(null)
   const answered = answer !== undefined
   // A long history scrolls inside the panel (the table screens give it a fixed height). Start at
@@ -70,7 +80,7 @@ export function HistoryPanel({ view, answer, toAct, resetKey, className }: Histo
                     <span className={styles.who}>
                       <span className={styles.dot} aria-hidden="true" />
                       <span className={styles.name}>
-                        {item.actor === 'hero' ? 'Hero' : 'Villain'}
+                        {item.name ?? (item.actor === 'hero' ? 'Hero' : 'Villain')}
                       </span>
                       <span className={styles.position}>{item.position}</span>
                     </span>
@@ -95,7 +105,11 @@ export function HistoryPanel({ view, answer, toAct, resetKey, className }: Histo
             {section.toAct && (
               <p className={styles.toAct}>
                 <span className={styles.toActDot} aria-hidden="true" />
-                {section.toAct === 'hero' ? 'Hero' : 'Villain'} to act
+                {section.toActName !== undefined
+                  ? section.toAct === 'hero'
+                    ? 'Your turn'
+                    : `${section.toActName} to act`
+                  : `${section.toAct === 'hero' ? 'Hero' : 'Villain'} to act`}
               </p>
             )}
           </section>

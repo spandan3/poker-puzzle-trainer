@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { PlayOutcome } from '../api/types'
-import { playHandAnalysisFixture, playSessionFixture } from '../test/fixture'
+import { play5SessionFixture, playHandAnalysisFixture, playSessionFixture } from '../test/fixture'
 import { MINUS } from './format'
 import {
+  awardLines,
   awardText,
+  heroFolded,
+  resultLine5,
   resultLine,
   revealShowdownLine,
   shownTally,
@@ -174,5 +177,53 @@ describe('awardText', () => {
     expect(awardText({ winner: 'villain', potChips: 3 })).toBe('Villain takes the 1.5 bb pot')
     expect(awardText({ winner: 'hero', potChips: 12 })).toBe('You take the 6 bb pot')
     expect(awardText({ winner: 'split', potChips: 24 })).toBe('Split pot 12 bb')
+  })
+})
+
+describe('5-max award lines and result', () => {
+  const side = play5SessionFixture('side_pot').hand!
+  const seats = side.table.seats
+
+  it('one line per pot, by the API’s labels and amounts', () => {
+    expect(awardLines(side.outcome!, seats)).toEqual([
+      'Bot 3 takes the main pot, 253.5 bb',
+      'Bot 4 takes the side pot, 12 bb',
+    ])
+  })
+
+  it('Hero takes a pot: "You take"', () => {
+    const o = { ...side.outcome!, pots: [{ ...side.outcome!.pots[0]!, winners: [0], amount: 62 }] }
+    expect(awardLines(o, seats)).toEqual(['You take the main pot, 31 bb'])
+  })
+
+  it('a split names the winners and the share', () => {
+    const o = {
+      ...side.outcome!,
+      pots: [{ amount: 24, eligible: [0, 1, 2], label: 'main pot', winners: [0, 1] }],
+    }
+    expect(awardLines(o, seats)).toEqual(['Main pot split: You, Bot 1, 6 bb each'])
+  })
+
+  it('several side pots keep their numbers', () => {
+    const p = side.outcome!.pots[1]!
+    const o = {
+      ...side.outcome!,
+      pots: [p, { ...p, label: 'side pot 1' }, { ...p, label: 'side pot 2', winners: [0] }],
+    }
+    expect(awardLines(o, seats).map((l) => l.replace(/, .* bb$/, ''))).toEqual([
+      'Bot 4 takes the side pot 1',
+      'Bot 4 takes the side pot 1',
+      'You take the side pot 2',
+    ])
+  })
+
+  it('Hero’s result line: won, lost (MINUS rules are in the amounts), folded', () => {
+    expect(resultLine5(side.outcome!, false)).toBe('You lost 90.5 bb')
+    const won = { ...side.outcome!, hero_delta_chips: 25 }
+    expect(resultLine5(won, false)).toBe('You won 12.5 bb at showdown')
+    const folded = play5SessionFixture('hero_folded').hand!
+    expect(heroFolded(folded.table.history)).toBe(true)
+    expect(resultLine5(folded.outcome!, true)).toBe('You folded')
+    expect(heroFolded(side.table.history)).toBe(false)
   })
 })

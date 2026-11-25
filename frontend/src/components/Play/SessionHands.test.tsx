@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { PlayHandSummary } from '../../api/types'
-import { playHandsFixture } from '../../test/fixture'
+import { play5HandsFixture, playHandsFixture } from '../../test/fixture'
 import type { SessionHandsApi } from './SessionHands'
 import { SessionHands } from './SessionHands'
 
@@ -86,5 +86,31 @@ describe('SessionHands', () => {
     await user.click(screen.getByRole('button', { name: 'Retry' }))
     expect((await findRows()).length).toBe(playHandsFixture().length)
     expect(listPlayHands).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('SessionHands: a 5-max session', () => {
+  it('rows show position, result and the winners, with no Analyse or EV lost', async () => {
+    setup(play5HandsFixture())
+    const rows = await findRows()
+    expect(screen.getByRole('columnheader', { name: 'Won by' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'EV lost' })).toBeNull()
+    expect(rows[0]).toHaveTextContent('Hand 1')
+    expect(rows[0]).toHaveTextContent('CO')
+    expect(rows[0]).toHaveTextContent('+14.5 bb')
+    expect(rows[0]).toHaveTextContent('You')
+    expect(rows[1]).toHaveTextContent('−32.5 bb')
+    expect(rows[1]).toHaveTextContent('Bot 2')
+    expect(screen.queryByRole('button', { name: /Analyse|Review/ })).toBeNull()
+  })
+
+  it('a hand still shown as running reads In progress, with no winner', async () => {
+    const hands = play5HandsFixture()
+    const api: SessionHandsApi = { listPlayHands: vi.fn(async () => hands) }
+    render(<SessionHands sessionId={7} api={api} onOpen={vi.fn()} inProgressId={hands[0]!.id} />)
+    const table = await screen.findByRole('table', { name: 'Hands' })
+    const row = within(table).getAllByRole('row')[1]!
+    expect(row).toHaveTextContent('In progress')
+    expect(row).not.toHaveTextContent('You')
   })
 })

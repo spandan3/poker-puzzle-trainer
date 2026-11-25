@@ -1,6 +1,6 @@
 import { forwardRef } from 'react'
 import type { PlayHandView } from '../../api/types'
-import { resultLine } from '../../lib/play'
+import { awardLines, heroFolded, resultLine, resultLine5 } from '../../lib/play'
 import { Button } from '../ui'
 import styles from './Play.module.css'
 
@@ -27,12 +27,20 @@ export const HandOverPanel = forwardRef<HTMLButtonElement, HandOverPanelProps>(
   ) {
     const outcome = hand.outcome
     const showdown = outcome?.showdown
+    const fiveMax = hand.table.table_size === 5
     return (
       <section className={styles.over} aria-label="Hand over">
         {outcome && (
           <p className={styles.result} role="status">
-            {resultLine(outcome)}
+            {fiveMax ? resultLine5(outcome, heroFolded(hand.table.history)) : resultLine(outcome)}
           </p>
+        )}
+        {fiveMax && outcome && (
+          <ul className={styles.awards} aria-label="Pots">
+            {awardLines(outcome, hand.table.seats).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
         )}
         {showdown && (
           <p className={styles.hands}>
@@ -52,7 +60,7 @@ export const HandOverPanel = forwardRef<HTMLButtonElement, HandOverPanelProps>(
           >
             {mustRebuy ? 'Rebuy and deal' : 'Next hand'}
           </Button>
-          {hand.decision_count > 0 && (
+          {!fiveMax && hand.decision_count > 0 && (
             <Button variant="secondary" onClick={() => onAnalyse(hand.id)}>
               Analyse this hand
             </Button>

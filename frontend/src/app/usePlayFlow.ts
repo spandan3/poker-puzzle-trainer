@@ -4,7 +4,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import * as client from '../api/client'
 import { ApiError } from '../api/client'
-import type { PlayActionChoice, PlaySessionSummary, PlaySessionView } from '../api/types'
+import type { PlayActionChoice, PlaySessionSummary, PlaySessionView, TableSize } from '../api/types'
+import { heroFolded } from '../lib/play'
 
 /** The parts of the API client the flow uses (injectable for tests). */
 export type PlayApi = Pick<
@@ -19,6 +20,15 @@ export type PlayApi = Pick<
 
 /** How long each of the bot's actions stays on screen before the next one appears. */
 export const BOT_PAUSE_MS = 600
+
+/** Reduced motion asked for (false where `matchMedia` is missing). */
+function prefersReducedMotion(): boolean {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  } catch {
+    return false
+  }
+}
 
 export type PlayState =
   | { kind: 'loading' }
@@ -43,7 +53,8 @@ export interface PlayFlow {
   revealing: boolean
   /** A request is in flight. */
   busy: boolean
-  start: () => void
+  /** Starts a session; `tableSize` 2 is heads-up, 5 is 5-max (omitted: the server's default). */
+  start: (tableSize?: TableSize) => void
   /** Hero acts: ignored while revealing or while a request is in flight. */
   act: (choice: PlayActionChoice) => void
   nextHand: (topUp: boolean) => void
@@ -121,8 +132,10 @@ export function usePlayFlow(
         return
       }
       const length = view.hand?.table.history.length ?? 0
+      // 5-max only: reduced motion shows every action at once (heads-up keeps its pause)
+      const instant = view.table_size === 5 && prefersReducedMotion()
       setShownCount((old) => {
-        if (mode === 'whole') return length
+        if (mode === 'whole' || instant) return length
         if (mode === 'fromStart') return 0
         const before = sessionRef.current?.hand?.action_count ?? old
         return Math.min(before + 1, length)
@@ -173,10 +186,13 @@ export function usePlayFlow(
     retry()
   }, [enabled, retry])
 
-  const start = useCallback(() => {
-    if (sessionRef.current !== null) return
-    void request(() => api.startPlaySession(), 'fromStart', "Couldn't start a session")
-  }, [api, request])
+  const start = useCallback(
+    (tableSize?: TableSize) => {
+      if (sessionRef.current !== null) return
+      void request(() => api.startPlaySession(tableSize), 'fromStart', "Couldn't start a session")
+    },
+    [api, request],
+  )
 
   const act = useCallback(
     (choice: PlayActionChoice) => {
@@ -194,7 +210,12 @@ export function usePlayFlow(
   const nextHand = useCallback(
     (topUp: boolean) => {
       const current = sessionRef.current
-      if (!current || current.hand?.status !== 'complete' || revealingRef.current) return
+      if (!current || current.hand?.status !== 'complete') return
+      // The next hand waits for the reveal, except at a 5-max table once Hero has folded: the rest
+      // of that hand is only to watch, so Next hand skips it.
+      const hand = current.hand
+      const skippable = current.table_size === 5 && heroFolded(hand.table.history)
+      if (revealingRef.current && !skippable) return
       void request(
         () => api.nextPlayHand(current.id, { top_up: topUp, expected_hands: current.hands_played }),
         'fromStart',

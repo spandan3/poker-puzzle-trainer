@@ -5,6 +5,7 @@ import type {
   PlayOutcome,
   PlayReveal,
   PlaySessionView,
+  SeatView,
   StreetName,
   TableView,
 } from '../api/types'
@@ -17,6 +18,45 @@ export function resultLine(outcome: PlayOutcome): string {
   const amount = formatBb(Math.abs(outcome.hero_delta_chips))
   const who = outcome.winner === 'hero' ? 'You' : 'Villain'
   return `${who} won ${amount}${outcome.ended_by === 'showdown' ? ' at showdown' : ''}`
+}
+
+/**
+ * The line under a 5-max table when the hand is over, from Hero's side: "You won 31 bb at
+ * showdown", "You lost 6 bb", "You folded". Who took each pot is in `awardLines`.
+ */
+export function resultLine5(outcome: PlayOutcome, heroFolded: boolean): string {
+  if (outcome.ended_by === 'abandoned') return 'Hand ended: you gave up the pot'
+  const amount = formatBb(Math.abs(outcome.hero_delta_chips))
+  const atShowdown = outcome.ended_by === 'showdown' ? ' at showdown' : ''
+  if (outcome.hero_delta_chips > 0) return `You won ${amount}${atShowdown}`
+  if (outcome.hero_delta_chips < 0) return `You lost ${amount}`
+  return heroFolded ? 'You folded' : 'You broke even'
+}
+
+/** Whether Hero has a fold in the history (the bots may still be playing the hand out). */
+export function heroFolded(history: PlayHandView['table']['history']): boolean {
+  return history.some((e) => e.actor === 'hero' && e.kind === 'fold')
+}
+
+/**
+ * One line per pot of a finished 5-max hand, by the API's pot labels: "Bot 3 takes the side pot,
+ * 12 bb", "You take the main pot, 31 bb", "Main pot split: You, Bot 1, 12 bb each". A single side
+ * pot reads "side pot" (the API calls it "side pot 1").
+ */
+export function awardLines(outcome: PlayOutcome, seats: readonly SeatView[]): string[] {
+  const sides = outcome.pots.filter((p) => p.label.startsWith('side pot')).length
+  const name = (seat: number) => seats.find((s) => s.seat === seat)?.name ?? `Seat ${seat}`
+  return outcome.pots.map((pot) => {
+    const label = sides === 1 && pot.label === 'side pot 1' ? 'side pot' : pot.label
+    const winners = pot.winners.map(name)
+    if (winners.length === 1) {
+      const heroWins = seats.find((s) => s.seat === pot.winners[0])?.is_hero === true
+      return `${winners[0]} ${heroWins ? 'take' : 'takes'} the ${label}, ${formatBb(pot.amount)}`
+    }
+    const each = Math.floor(pot.amount / winners.length)
+    const odd = pot.amount % winners.length !== 0
+    return `${label[0]!.toUpperCase()}${label.slice(1)} split: ${winners.join(', ')}, ${formatBb(each)} each${odd ? ' (plus an odd chip)' : ''}`
+  })
 }
 
 /** A net result in chips, shown in bb with its sign: `+12.5 bb`, `MINUS 3 bb`, `0 bb`. */
