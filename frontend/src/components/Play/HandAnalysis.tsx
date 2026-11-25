@@ -26,8 +26,8 @@ export type HandAnalysisApi = AnalysisApi & Pick<typeof client, 'getPlayExplanat
 export interface HandAnalysisProps {
   handId: number
   api?: HandAnalysisApi
-  /** the settings' LLM fields: whether the Why tab asks for a reworded explanation */
-  settings: LlmSettings | null
+  /** the settings' LLM fields (whether the Why tab asks for a reworded explanation) and show_range (the Range tab) */
+  settings: (LlmSettings & { show_range?: boolean }) | null
   /** the Why tab's "Settings" link */
   onNavigate?: (page: Page) => void
   onClose: () => void
@@ -242,7 +242,7 @@ function StepDetails({
   review: DecisionReview
   analysis: Analysis
   api: HandAnalysisApi
-  settings: LlmSettings | null
+  settings: (LlmSettings & { show_range?: boolean }) | null
   onNavigate?: (page: Page) => void
 }) {
   const graded = isGraded(review)
@@ -275,6 +275,7 @@ function StepDetails({
           />
         }
         handTab={<PlayHandTab analysis={analysis} review={review} />}
+        showRange={settings?.show_range ?? false}
       />
     </div>
   )

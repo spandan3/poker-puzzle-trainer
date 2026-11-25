@@ -248,6 +248,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
   )
   const showPotOdds = settings?.show_pot_odds ?? true
   const showProfile = settings?.show_profile ?? true
+  const showRange = settings?.show_range ?? false
 
   return (
     <div className={styles.app}>
@@ -426,6 +427,7 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
                     />
                   }
                   handTab={<HandReveal view={view} result={result} />}
+                  showRange={showRange}
                 />
               </div>
             )}

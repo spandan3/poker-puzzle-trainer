@@ -124,6 +124,12 @@ export function SettingsPage({
                 on={settings.show_profile}
                 onChange={(on) => void onSetting({ show_profile: on })}
               />
+              <Toggle
+                label="Show Villain's range"
+                description="Show the range grid in results and hand analysis. Grading is the same either way."
+                on={settings.show_range}
+                onChange={(on) => void onSetting({ show_range: on })}
+              />
               <div className={styles.divider} />
               <Select
                 label="Villain for new puzzles"

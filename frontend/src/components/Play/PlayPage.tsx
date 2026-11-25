@@ -35,7 +35,7 @@ export interface PlayPageProps {
   /** the settings the Puzzles flow loaded (one source for the whole app) */
   settings: Pick<
     SettingsView,
-    'show_profile' | 'show_pot_odds' | 'llm_status' | 'llm_model' | 'llm_detail'
+    'show_profile' | 'show_pot_odds' | 'show_range' | 'llm_status' | 'llm_model' | 'llm_detail'
   > | null
   /** single-key shortcuts act on this page now (on, the page is shown, no overlay open) */
   shortcutsOn: boolean

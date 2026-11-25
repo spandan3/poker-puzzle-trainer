@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { endOpenSession, expectBarFits, wideFont } from './helpers'
+import { endOpenSession, expectBarFits, showRange, wideFont } from './helpers'
 
 const FACE_UP = { name: / of (spades|hearts|diamonds|clubs)$/ }
 
@@ -14,6 +14,7 @@ test('the API is up and serves the built frontend', async ({ request }) => {
 })
 
 test('a puzzle end to end: answer, submit, verdict, reveal, next', async ({ page }) => {
+  await showRange(page)
   await page.goto('/')
   const hero = page.getByRole('group', { name: /^Hero,/ })
   const villain = page.getByRole('group', { name: /^Villain,/ })
@@ -301,6 +302,7 @@ for (const [width, height] of [
 ] as const) {
   test(`result page: no horizontal scroll at ${width}×${height}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
+    await showRange(page)
     const fixtureText = (name: string) =>
       readFileSync(resolve(import.meta.dirname, `../src/test/fixtures/${name}.json`), 'utf8')
     // the widest options table: a custom size among the standard ones
@@ -575,6 +577,43 @@ for (const [width, height] of [
   }
 }
 
+test('Range tab: absent by default, present after the Settings toggle, and restored', async ({
+  page,
+  request,
+}) => {
+  const detailTabs = page.getByRole('tablist', { name: 'Details' }).getByRole('tab')
+  try {
+    await request.patch('/api/settings', { data: { show_range: false } })
+    await page.goto('/')
+    await page.getByRole('textbox', { name: 'Equity' }).fill('50')
+    await page.keyboard.press('Escape')
+    const action = page.locator('[aria-label="Action"] button:not([aria-disabled])').first()
+    await action.click()
+    const kind = await action.getAttribute('data-kind')
+    if (kind === 'bet' || kind === 'raise') {
+      await page.getByRole('group', { name: 'Size' }).getByRole('button').first().click()
+    }
+    await page.getByRole('button', { name: /^Submit/ }).click()
+    await expect(page.getByRole('region', { name: 'Result' })).toBeVisible()
+    await expect(detailTabs).toHaveText(['Why', 'Options', 'Maths', 'Hand'])
+
+    await page.getByRole('banner').getByRole('link', { name: 'Settings' }).click()
+    const saved = page.waitForResponse(
+      (r) => r.url().endsWith('/api/settings') && r.request().method() === 'PATCH',
+    )
+    const toggle = page.getByRole('switch', { name: /Show Villain's range/ })
+    await expect(toggle).not.toBeChecked()
+    await toggle.click()
+    await saved
+    await expect(toggle).toBeChecked()
+    await page.getByRole('banner').getByRole('link', { name: 'Puzzles' }).click()
+    await expect(detailTabs).toHaveText(['Why', 'Options', 'Maths', 'Range', 'Hand'])
+  } finally {
+    // the database is shared across tests
+    await request.patch('/api/settings', { data: { show_range: false } })
+  }
+})
+
 test('a Settings round trip: Pot odds off survives navigation and a reload, and is restored', async ({
   page,
   request,
@@ -620,6 +659,7 @@ for (const [width, height] of FIT_SIZES) {
     page,
   }) => {
     await page.setViewportSize({ width, height })
+    await showRange(page)
     await page.goto('/')
     await page.getByRole('textbox', { name: 'Equity' }).fill('50')
     await page.keyboard.press('Escape')

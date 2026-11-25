@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { expectBarFits, wideFont } from './helpers'
+import { expectBarFits, showRange, wideFont } from './helpers'
 
 // Every page, at both sizes: no sideways page scroll, a one-row top bar (with a wide font, see
 // `wideFont`) and no text under 11 px except the faces of cards. Play and Progress run on routed
@@ -106,6 +106,7 @@ for (const [width, height] of SIZES) {
     test.use({ viewport: { width, height } })
 
     test('Puzzles: fresh, filled, and every result tab', async ({ page }) => {
+      await showRange(page)
       await routePuzzles(page)
       await page.goto('/')
       await wideFont(page)
@@ -131,6 +132,7 @@ for (const [width, height] of SIZES) {
     })
 
     test('Play: start, hand, hand over, and the analysis', async ({ page }) => {
+      await showRange(page)
       // start: no open session
       await page.route('**/api/play/sessions/current', (r) =>
         r.fulfill(json(JSON.stringify({ detail: 'no open session' }), 404)),

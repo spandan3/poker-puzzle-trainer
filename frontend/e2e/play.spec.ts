@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { endOpenSession } from './helpers'
+import { endOpenSession, showRange } from './helpers'
 
 const FACE_UP = { name: / of (spades|hearts|diamonds|clubs)$/ }
 
@@ -109,6 +109,7 @@ test('a session end to end: start, play hands, tally, next hand, resume, end', a
 test('analyse a hand: progress, summary, every tab, close, and reopen it from the hand list', async ({
   page,
 }) => {
+  await showRange(page)
   await page.goto('/play')
   await page.getByRole('button', { name: 'Start session' }).click()
 

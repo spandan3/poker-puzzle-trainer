@@ -16,6 +16,19 @@ export async function wideFont(page: Page) {
 }
 
 /**
+ * Turns "Show Villain's range" on for this page by editing the settings it loads, so the Range
+ * tab is there without touching the shared database. Call it before `page.goto`.
+ */
+export async function showRange(page: Page) {
+  await page.route('**/api/settings', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback()
+    const response = await route.fetch()
+    const body = (await response.json()) as Record<string, unknown>
+    return route.fulfill({ response, json: { ...body, show_range: true } })
+  })
+}
+
+/**
  * The top bar is one row: nothing overflows it, and every control's box lies inside the bar and
  * the viewport (0.5 px tolerance).
  */

@@ -24,6 +24,8 @@ export interface DecisionDetailsProps {
   whyTab?: ReactNode
   /** the Hand tab's content (puzzle-specific); no Hand tab without it */
   handTab?: ReactNode
+  /** the Range tab is shown only when the "Show Villain's range" setting is on (default off) */
+  showRange?: boolean
 }
 
 export interface DecisionDetailsHandle {
@@ -49,13 +51,13 @@ function writeTab(tab: TabId): void {
 
 /** (Why,) Options, Maths, Range and (when given) Hand, as WAI-ARIA tabs. Why opens first when given. */
 export const DecisionDetails = forwardRef<DecisionDetailsHandle, DecisionDetailsProps>(
-  function DecisionDetails({ decision, whyTab, handTab }, handleRef) {
+  function DecisionDetails({ decision, whyTab, handTab, showRange = false }, handleRef) {
     const baseId = useId()
     const tabs: TabId[] = [
       ...(whyTab === undefined ? [] : (['why'] as const)),
       'options',
       'maths',
-      'range',
+      ...(showRange ? (['range'] as const) : []),
       ...(handTab === undefined ? [] : (['hand'] as const)),
     ]
     const [stored, setStored] = useState(readTab)

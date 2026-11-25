@@ -48,8 +48,16 @@ describe('SettingsPage', () => {
     expect(props.onSetting).toHaveBeenLastCalledWith({ show_pot_odds: false })
     await user.click(screen.getByRole('switch', { name: /Show profile/ }))
     expect(props.onSetting).toHaveBeenLastCalledWith({ show_profile: false })
+    await user.click(screen.getByRole('switch', { name: /Show Villain's range/ }))
+    expect(props.onSetting).toHaveBeenLastCalledWith({ show_range: true })
     await user.selectOptions(screen.getByLabelText('Villain for new puzzles'), 'lag')
     expect(props.onSetting).toHaveBeenLastCalledWith({ profile: 'lag' })
+  })
+
+  it('the range toggle starts off and shows its helper text', () => {
+    setup()
+    expect(screen.getByRole('switch', { name: /Show Villain's range/ })).not.toBeChecked()
+    expect(screen.getByText(/Grading is the same either way/)).toBeVisible()
   })
 
   it('Random sends a null profile, and the select shows the current one', async () => {

@@ -154,8 +154,16 @@ describe('HandAnalysis', () => {
     expect(items[3]).toHaveTextContent('1.47 bb')
   })
 
-  it('clicking a step shows its verdict line and the details tabs', async () => {
+  it('clicking a step shows its verdict line and the details tabs, without Range by default', async () => {
     const { user } = setup(FULL)
+    await screen.findByRole('region', { name: 'Summary' })
+    await user.click(within(steps()).getAllByRole('button')[1]!)
+    const tabs = within(screen.getByRole('tablist', { name: 'Details' })).getAllByRole('tab')
+    expect(tabs.map((t) => t.textContent)).toEqual(['Why', 'Options', 'Maths', 'Hand'])
+  })
+
+  it('shows the Range tab when the setting is on', async () => {
+    const { user } = setup(FULL, { show_range: true })
     await screen.findByRole('region', { name: 'Summary' })
     await user.click(within(steps()).getAllByRole('button')[1]!)
     expect(screen.getByText(/^You: Check · Top EV: /)).toBeInTheDocument()
@@ -164,7 +172,7 @@ describe('HandAnalysis', () => {
   })
 
   it('has no equity guess or range-read score anywhere', async () => {
-    const { user } = setup(FULL)
+    const { user } = setup(FULL, { show_range: true })
     await screen.findByRole('region', { name: 'Summary' })
     for (const name of ['Why', 'Options', 'Maths', 'Range', 'Hand']) {
       await user.click(screen.getByRole('tab', { name }))
