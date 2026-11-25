@@ -204,6 +204,22 @@ describe('5-max award lines and result', () => {
     expect(awardLines(o, seats)).toEqual(['Main pot split: You, Bot 1, 6 bb each'])
   })
 
+  it('odd chips: none, one, or N', () => {
+    const split = (amount: number, winners: number[]) =>
+      awardLines(
+        {
+          ...side.outcome!,
+          pots: [{ amount, eligible: [0, 1, 2], label: 'main pot', winners }],
+        },
+        seats,
+      )[0]
+    expect(split(24, [0, 1, 2])).toBe('Main pot split: You, Bot 1, Bot 2, 4 bb each')
+    expect(split(25, [0, 1])).toBe('Main pot split: You, Bot 1, 6 bb each (plus an odd chip)')
+    expect(split(26, [0, 1, 2])).toBe(
+      'Main pot split: You, Bot 1, Bot 2, 4 bb each (plus 2 odd chips)',
+    )
+  })
+
   it('several side pots keep their numbers', () => {
     const p = side.outcome!.pots[1]!
     const o = {
@@ -224,6 +240,9 @@ describe('5-max award lines and result', () => {
     const folded = play5SessionFixture('hero_folded').hand!
     expect(heroFolded(folded.table.history)).toBe(true)
     expect(resultLine5(folded.outcome!, true)).toBe('You folded')
+    // a blind was posted before the fold: still "You folded", with what it cost
+    const posted = { ...folded.outcome!, hero_delta_chips: -2 }
+    expect(resultLine5(posted, true)).toBe('You folded, lost 1 bb')
     expect(heroFolded(side.table.history)).toBe(false)
   })
 })

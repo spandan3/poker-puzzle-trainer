@@ -29,13 +29,20 @@ export function resultLine5(outcome: PlayOutcome, heroFolded: boolean): string {
   const amount = formatBb(Math.abs(outcome.hero_delta_chips))
   const atShowdown = outcome.ended_by === 'showdown' ? ' at showdown' : ''
   if (outcome.hero_delta_chips > 0) return `You won ${amount}${atShowdown}`
-  if (outcome.hero_delta_chips < 0) return `You lost ${amount}`
+  if (outcome.hero_delta_chips < 0)
+    return `${heroFolded ? 'You folded, lost' : 'You lost'} ${amount}`
   return heroFolded ? 'You folded' : 'You broke even'
 }
 
 /** Whether Hero has a fold in the history (the bots may still be playing the hand out). */
 export function heroFolded(history: PlayHandView['table']['history']): boolean {
   return history.some((e) => e.actor === 'hero' && e.kind === 'fold')
+}
+
+/** The tail of a split line: nothing, "(plus an odd chip)" or "(plus N odd chips)". */
+function oddChips(rem: number): string {
+  if (rem === 0) return ''
+  return rem === 1 ? ' (plus an odd chip)' : ` (plus ${rem} odd chips)`
 }
 
 /**
@@ -54,8 +61,8 @@ export function awardLines(outcome: PlayOutcome, seats: readonly SeatView[]): st
       return `${winners[0]} ${heroWins ? 'take' : 'takes'} the ${label}, ${formatBb(pot.amount)}`
     }
     const each = Math.floor(pot.amount / winners.length)
-    const odd = pot.amount % winners.length !== 0
-    return `${label[0]!.toUpperCase()}${label.slice(1)} split: ${winners.join(', ')}, ${formatBb(each)} each${odd ? ' (plus an odd chip)' : ''}`
+    const rem = pot.amount % winners.length
+    return `${label[0]!.toUpperCase()}${label.slice(1)} split: ${winners.join(', ')}, ${formatBb(each)} each${oddChips(rem)}`
   })
 }
 

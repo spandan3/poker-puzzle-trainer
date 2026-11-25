@@ -8,6 +8,7 @@ import { SHORTCUTS } from '../lib/shortcuts'
 import {
   attemptFixture,
   historyFixture,
+  play5SessionFixture,
   playSessionFixture,
   playSessionsFixture,
   puzzleFixture,
@@ -513,6 +514,17 @@ describe('App', () => {
           expect(screen.queryByRole('dialog', { name: 'End this session?' })).toBeNull()
           expect(screen.getByRole('form', { name: 'Your answer' })).toBeVisible()
           expect(playPosts(calls)).toEqual([])
+        })
+
+        it('in 5-max the bots take the pot', async () => {
+          window.history.replaceState(null, '', '/play')
+          fakeServer({ playSession: play5SessionFixture('hero_to_act') })
+          const { user } = setup()
+          await screen.findByRole('form', { name: 'Your answer' })
+          await user.click(screen.getByRole('button', { name: 'End session' }))
+          const dialog = await screen.findByRole('dialog', { name: 'End this session?' })
+          expect(dialog).toHaveTextContent('given up and the bots take the pot.')
+          expect(dialog).not.toHaveTextContent('Villain')
         })
 
         it('confirming ends the session', async () => {

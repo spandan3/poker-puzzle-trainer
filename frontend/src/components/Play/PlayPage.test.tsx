@@ -672,10 +672,70 @@ describe('PlayPage: 5-max', () => {
     expect(flow.nextHand).toHaveBeenCalledTimes(2)
   })
 
+  it('the page is not aria-busy during a play-out, so its live regions are announced', () => {
+    setup(FOLDED, { shownCount: 4 })
+    expect(screen.getByRole('main')).not.toHaveAttribute('aria-busy')
+    cleanup()
+    setup(SIDE, { shownCount: 3 })
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('when the play-out ends, Next hand takes focus only from nowhere', () => {
+    const play = (focusSessionHands: boolean) => {
+      const flow = (shownCount: number) => (
+        <PlayPage
+          flow={flowFor(FOLDED, { shownCount })}
+          settings={settingsFixture()}
+          shortcutsOn={false}
+        />
+      )
+      const { rerender } = render(flow(4))
+      const other = screen.getByRole('button', { name: /^Session hands/ })
+      if (focusSessionHands) other.focus()
+      rerender(flow(FOLDED.hand!.table.history.length))
+      return other
+    }
+    // focus left on the old Next hand button (now gone): it moves to the new one
+    play(false)
+    expect(screen.getByRole('button', { name: /^Next hand/ })).toHaveFocus()
+    cleanup()
+    // the player moved to another control: it keeps focus
+    const other = play(true)
+    expect(other).toHaveFocus()
+  })
+
   it('a hand Hero is still in has no Next hand during the reveal', () => {
     setup(SIDE, { shownCount: 3 })
     expect(screen.queryByRole('region', { name: 'You folded' })).toBeNull()
     expect(screen.getByRole('form', { name: 'Your answer' })).toBeInTheDocument()
+  })
+
+  it('a fold after posting a blind reads "You folded, lost X bb" at the end', () => {
+    const hand = FOLDED.hand!
+    const posted = {
+      ...FOLDED,
+      hand: { ...hand, outcome: { ...hand.outcome!, hero_delta_chips: -2 } },
+    }
+    setup(posted)
+    expect(screen.getByText('You folded, lost 1 bb')).toBeInTheDocument()
+  })
+
+  it('start panel: 5-max says four bots, the note says the bots, and Home and End pick a mode', async () => {
+    const user = userEvent.setup()
+    render(<StartPanel onStart={vi.fn()} busy={false} past={[]} onOpenHand={vi.fn()} />)
+    const heads = screen.getByRole('radio', { name: 'Heads-up' })
+    const five = screen.getByRole('radio', { name: '5-max' })
+    heads.focus()
+    await user.keyboard('{End}')
+    expect(five).toBeChecked()
+    expect(five).toHaveFocus()
+    expect(screen.getByRole('heading', { name: 'Play against four bots' })).toBeInTheDocument()
+    expect(screen.getByText(/^Pre-flop, the bots respond/)).toBeInTheDocument()
+    await user.keyboard('{Home}')
+    expect(heads).toBeChecked()
+    expect(heads).toHaveFocus()
+    expect(screen.getByRole('heading', { name: 'Play against a bot' })).toBeInTheDocument()
+    expect(screen.getByText(/^Pre-flop, the bot responds/)).toBeInTheDocument()
   })
 
   it('a finished hand Hero folded has no Analyse either, and the result line works as heads-up', () => {

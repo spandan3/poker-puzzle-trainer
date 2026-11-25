@@ -391,6 +391,28 @@ describe('5-max', () => {
     expect(result.current.session?.hand?.status).toBe('in_progress')
   })
 
+  it('Next hand during a play-out: the new hand’s first entry stays hidden for a full pause', async () => {
+    mockReducedMotion(false)
+    const api = fakeApi({
+      currentPlaySession: vi.fn(async () => FIVE_TO_ACT),
+      playAction: vi.fn(async () => FOLDED),
+      nextPlayHand: vi.fn(async () => ({
+        ...FIVE_TO_ACT,
+        hand: { ...FIVE_TO_ACT.hand!, id: FOLDED.hand!.id + 1 },
+      })),
+    })
+    const { result } = await setup(api)
+    await act(async () => result.current.act({ option: 0 }))
+    await flush()
+    await advance(BOT_PAUSE_MS - 10) // the old hand's timer is about to fire
+    await act(async () => result.current.nextHand(false))
+    await advance(9)
+    expect(result.current.session?.hand?.id).toBe(FOLDED.hand!.id + 1)
+    expect(result.current.shownCount).toBe(0)
+    await advance(BOT_PAUSE_MS)
+    expect(result.current.shownCount).toBeLessThanOrEqual(1)
+  })
+
   it('Hero still in the hand: Next hand waits for the reveal', async () => {
     mockReducedMotion(false)
     const api = fakeApi({ startPlaySession: vi.fn(async () => SIDE_POT) })

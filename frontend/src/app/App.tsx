@@ -469,7 +469,11 @@ export function App({ api, progressApi = client, playApi }: AppProps = {}) {
       {confirmEnd && (
         <ConfirmDialog
           title="End this session?"
-          body="The hand in progress is given up and Villain takes the pot."
+          body={
+            play.session?.table_size === 5
+              ? 'The hand in progress is given up and the bots take the pot.'
+              : 'The hand in progress is given up and Villain takes the pot.'
+          }
           confirmLabel="End session"
           cancelLabel="Keep playing"
           onCancel={() => setConfirmEnd(false)}

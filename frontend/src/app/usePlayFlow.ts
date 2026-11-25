@@ -1,4 +1,4 @@
-// The play flow: a cash-game session against one bot. It owns the session and the reveal: when a
+// The play flow: a cash-game session against the bot or bots. It owns the session and the reveal: when a
 // response arrives, the bot's new actions appear one at a time (`BOT_PAUSE_MS` apart) and Hero's
 // controls wait until they have all been shown.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -99,6 +99,7 @@ export function usePlayFlow(
   const [busy, setBusy] = useState(false)
 
   const total = session?.hand?.table.history.length ?? 0
+  const handId = session?.hand?.id ?? null
   const revealing = shownCount < total
 
   // the latest values, for callbacks that must not go stale between renders
@@ -114,9 +115,13 @@ export function usePlayFlow(
   // The bot's actions, one at a time.
   useEffect(() => {
     if (shownCount >= total) return
-    const timer = setTimeout(() => setShownCount((n) => Math.min(n + 1, total)), BOT_PAUSE_MS)
+    // a timer from an earlier hand does nothing, and the hand changing clears it
+    const timer = setTimeout(() => {
+      if ((sessionRef.current?.hand?.id ?? null) !== handId) return
+      setShownCount((n) => Math.min(n + 1, total))
+    }, BOT_PAUSE_MS)
     return () => clearTimeout(timer)
-  }, [shownCount, total])
+  }, [shownCount, total, handId])
 
   const refreshPast = useCallback(() => {
     api.listPlaySessions().then(setPast, () => setPast((old) => old ?? []))

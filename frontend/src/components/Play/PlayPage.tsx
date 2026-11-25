@@ -138,12 +138,19 @@ export function PlayPage({
   const handIsOver = handOver || skippable
   const noSession = session === null
   const wasHidden = useRef(hidden)
+  const wasSkippable = useRef(skippable)
   useEffect(() => {
     const justShown = wasHidden.current && !hidden
     wasHidden.current = hidden
     if (hidden) return
+    // a playout that has just ended: Next hand takes focus only from nowhere (the button that
+    // had it is gone), never from a control the player moved to
+    const playoutEnded = wasSkippable.current && !skippable
+    wasSkippable.current = skippable
     if (handIsOver && nextRef.current) {
-      nextRef.current.focus({ preventScroll: true })
+      const focused = document.activeElement
+      const free = focused === null || focused === document.body || !focused.isConnected
+      if (!playoutEnded || free) nextRef.current.focus({ preventScroll: true })
       return
     }
     const active = document.activeElement
@@ -168,7 +175,7 @@ export function PlayPage({
         document.querySelector<HTMLElement>('[data-play-heading]')?.focus({ preventScroll: true })
       }
     }
-  }, [hidden, handIsOver, handOver, hand?.id, analysing, noSession])
+  }, [hidden, handIsOver, handOver, skippable, hand?.id, analysing, noSession])
 
   const onCommand = (cmd: Command): boolean => {
     if (cmd.id !== 'next' || !(handOver || skippable) || analysing !== null || busy) return false
@@ -252,7 +259,11 @@ export function PlayPage({
     : undefined
 
   return (
-    <Root className={layout.main} hidden={hidden} aria-busy={busy || revealing || undefined}>
+    <Root
+      className={layout.main}
+      hidden={hidden}
+      aria-busy={busy || (revealing && !skippable) || undefined}
+    >
       {heading}
       {analysing !== null ? (
         analysis

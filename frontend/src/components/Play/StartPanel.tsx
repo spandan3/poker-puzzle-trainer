@@ -9,6 +9,8 @@ import styles from './Play.module.css'
 
 export const HELP_NOTE =
   'Pre-flop, the bot responds the same way to a 2.5x and a 3x open or 3-bet, and treats an all-in as a jam. There is no limping and no small 4-bet.'
+export const HELP_NOTE_5 =
+  'Pre-flop, the bots respond the same way to a 2.5x and a 3x open or 3-bet, and treat an all-in as a jam. There is no limping and no small 4-bet.'
 
 export interface StartPanelProps {
   /** Start was clicked, with the mode chosen (2: heads-up, 5: 5-max). */
@@ -63,6 +65,13 @@ export function StartPanel({ onStart, busy, past, onOpenHand, api, refreshKey }:
     writeMode(size)
   }
   const onModeKeys = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault()
+      const edge = e.key === 'Home' ? MODES[0]! : MODES[MODES.length - 1]!
+      pick(edge.size)
+      e.currentTarget.querySelectorAll<HTMLButtonElement>('button')[MODES.indexOf(edge)]?.focus()
+      return
+    }
     const step =
       e.key === 'ArrowRight' || e.key === 'ArrowDown'
         ? 1
@@ -79,7 +88,9 @@ export function StartPanel({ onStart, busy, past, onOpenHand, api, refreshKey }:
   }
   return (
     <section className={styles.start} aria-label="Start a session">
-      <h2 className={styles.startTitle}>Play against a bot</h2>
+      <h2 className={styles.startTitle}>
+        {mode === 2 ? 'Play against a bot' : 'Play against four bots'}
+      </h2>
       <p className={styles.startText}>
         {mode === 2
           ? 'A heads-up cash game, 100 bb deep, against one bot with a random profile. Play full hands, then analyse any hand afterwards.'
@@ -180,7 +191,7 @@ export function StartPanel({ onStart, busy, past, onOpenHand, api, refreshKey }:
         </Panel>
       )}
 
-      <p className={styles.note}>{HELP_NOTE}</p>
+      <p className={styles.note}>{mode === 2 ? HELP_NOTE : HELP_NOTE_5}</p>
     </section>
   )
 }
