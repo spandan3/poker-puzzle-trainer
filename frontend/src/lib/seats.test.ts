@@ -158,6 +158,23 @@ describe('seatsFromPlayTable', () => {
     expect(mid.map((s) => s.allIn)).toEqual([false, false, false, true, false])
   })
 
+  it('without a frame, the all-in tag follows the table: a busted seat is not all-in', () => {
+    const table = {
+      ...side.table,
+      seats: side.table.seats.map((s, i) =>
+        i === 3
+          ? { ...s, stack: 0, all_in: false }
+          : i === 4
+            ? { ...s, stack: 0, all_in: true }
+            : s,
+      ),
+    }
+    const seats = seatsFromPlayTable(table, { showProfile: true })
+    expect(seats.map((s) => s.allIn)).toEqual(table.seats.map((s) => s.all_in))
+    expect(seats[3]!.allIn).toBe(false)
+    expect(seats[4]!.allIn).toBe(true)
+  })
+
   it('shows no bot cards at an earlier frame, unless revealed', () => {
     const mid = seatsFromPlayTable(side.table, { showProfile: true, frame: side.frames[4]! })
     for (const seat of mid.filter((s) => !s.isHero && !s.folded)) {

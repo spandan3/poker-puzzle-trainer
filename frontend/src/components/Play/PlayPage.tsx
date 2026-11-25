@@ -306,9 +306,12 @@ export function PlayPage({
                 <PlayingOutPanel
                   ref={nextRef}
                   mustRebuy={session.must_rebuy}
+                  canTopUp={session.can_top_up}
                   busy={busy}
-                  onNext={() => flow.nextHand(false)}
+                  onNext={() => flow.nextHand(topUp)}
                   shortcutsOn={shortcutsOn}
+                  topUp={topUp}
+                  onTopUp={setTopUp}
                 />
               ) : (
                 <ActionSlot
@@ -397,11 +400,17 @@ const PlayingOutPanel = forwardRef<
   HTMLButtonElement,
   {
     mustRebuy: boolean
+    canTopUp: boolean
     busy: boolean
     onNext: () => void
     shortcutsOn: boolean
+    topUp: boolean
+    onTopUp: (topUp: boolean) => void
   }
->(function PlayingOutPanel({ mustRebuy, busy, onNext, shortcutsOn }, ref) {
+>(function PlayingOutPanel(
+  { mustRebuy, canTopUp, busy, onNext, shortcutsOn, topUp, onTopUp },
+  ref,
+) {
   return (
     <section className={styles.over} aria-label="You folded">
       <p className={styles.result} role="status">
@@ -420,6 +429,12 @@ const PlayingOutPanel = forwardRef<
         >
           {mustRebuy ? 'Rebuy and deal' : 'Next hand'}
         </Button>
+        {canTopUp && (
+          <label className={styles.topUp}>
+            <input type="checkbox" checked={topUp} onChange={(e) => onTopUp(e.target.checked)} />
+            Top up to 100 bb
+          </label>
+        )}
       </div>
     </section>
   )

@@ -87,6 +87,22 @@ interface Failure {
   message: string
 }
 
+/**
+ * The callback of one reveal timer: it shows the next entry only while ``handId`` is still the
+ * hand on screen. React clears the timer when the hand changes, but only some time after the
+ * commit that moved ``currentHandId`` on, and a timer firing in that gap must do nothing.
+ */
+export function guardedReveal(
+  currentHandId: () => number | null,
+  handId: number | null,
+  reveal: () => void,
+): () => void {
+  return () => {
+    if (currentHandId() !== handId) return
+    reveal()
+  }
+}
+
 export function usePlayFlow(
   api: PlayApi = client,
   { enabled = true }: PlayFlowOptions = {},
@@ -116,10 +132,14 @@ export function usePlayFlow(
   useEffect(() => {
     if (shownCount >= total) return
     // a timer from an earlier hand does nothing, and the hand changing clears it
-    const timer = setTimeout(() => {
-      if ((sessionRef.current?.hand?.id ?? null) !== handId) return
-      setShownCount((n) => Math.min(n + 1, total))
-    }, BOT_PAUSE_MS)
+    const timer = setTimeout(
+      guardedReveal(
+        () => sessionRef.current?.hand?.id ?? null,
+        handId,
+        () => setShownCount((n) => Math.min(n + 1, total)),
+      ),
+      BOT_PAUSE_MS,
+    )
     return () => clearTimeout(timer)
   }, [shownCount, total, handId])
 

@@ -6,6 +6,11 @@ villain hand and a random five-card board from the 50 cards left, seeded with
 equity (suit symmetry), so each class is sampled with its first combo. Classes are sorted by
 equity, highest first; equal equities are ordered by label, so the order is stable.
 
+The samples come from ``random.Random(str).sample``: CPython seeds a string through SHA-512 and
+documents the sequence it draws for a seed only loosely, so a new Python release could in
+principle change the numbers. Run ``--check`` after a Python upgrade; to change the file on
+purpose, bump ``VERSION`` below and rewrite it.
+
 The 5-max pre-flop bots (``villain/preflop5.py``) take their buckets as slices of this order.
 
     cd backend && uv run python -m poker_trainer.analysis.hand_ranking            # rewrite the file

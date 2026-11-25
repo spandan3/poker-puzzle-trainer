@@ -672,6 +672,17 @@ describe('PlayPage: 5-max', () => {
     expect(flow.nextHand).toHaveBeenCalledTimes(2)
   })
 
+  it('skipping a play-out honours "Top up to 100 bb", only when it applies', async () => {
+    const { flow, user } = setup({ ...FOLDED, can_top_up: true }, { shownCount: 4 })
+    const panel = screen.getByRole('region', { name: 'You folded' })
+    await user.click(within(panel).getByRole('checkbox', { name: 'Top up to 100 bb' }))
+    await user.click(within(panel).getByRole('button', { name: /^Next hand/ }))
+    expect(flow.nextHand).toHaveBeenCalledWith(true)
+    cleanup()
+    setup({ ...FOLDED, can_top_up: false }, { shownCount: 4 })
+    expect(screen.queryByRole('checkbox', { name: /Top up/ })).toBeNull()
+  })
+
   it('the page is not aria-busy during a play-out, so its live regions are announced', () => {
     setup(FOLDED, { shownCount: 4 })
     expect(screen.getByRole('main')).not.toHaveAttribute('aria-busy')

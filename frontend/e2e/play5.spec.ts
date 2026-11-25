@@ -34,6 +34,8 @@ test.describe('5-max, live', () => {
   test('a 5-max hand to its end: five seats, hidden bot cards, named actions, pot lines', async ({
     page,
   }) => {
+    // the live hand paces the bots' actions, so it takes a while
+    test.setTimeout(120_000)
     await page.goto('/play')
     const modes = page.getByRole('radiogroup', { name: 'Table' })
     await modes.getByRole('radio', { name: '5-max' }).click()
@@ -43,15 +45,15 @@ test.describe('5-max, live', () => {
     )
     await page.getByRole('button', { name: 'Start session' }).click()
 
-    // five seats: Hero and four bots
     const hero = page.getByRole('group', { name: /^You,/ })
     const bots = page.getByRole('group', { name: /^Bot \d,/ })
+    // the bots' cards are face down as the hand starts: look at once, before any reveal ends
+    await expect(bots.getByRole('img', { name: 'face-down card' }).first()).toBeVisible()
+    // five seats: Hero and four bots
     await expect(hero).toHaveCount(1)
     await expect(bots).toHaveCount(4)
     await expect(hero.getByRole('img', FACE_UP)).toHaveCount(2)
 
-    // the bots' cards are face down as the hand starts
-    await expect(bots.getByRole('img', { name: 'face-down card' }).first()).toBeVisible()
     let handEnded = false
     // Hero checks or calls (folds only when neither is on offer) until the hand is over; a bounded
     // number of actions, whatever the deal
@@ -87,7 +89,17 @@ test.describe('5-max, live', () => {
           await page.getByRole('group', { name: 'Size' }).getByRole('button').first().click()
         }
       }
+      const logBefore = await page.getByRole('complementary').innerText()
       await page.getByRole('button', { name: /^Submit/ }).click()
+      // Hero's action reached the log (or the hand ended) before the next loop reads the page
+      await expect
+        .poll(
+          async () =>
+            (await handOver(page).isVisible()) ||
+            (await page.getByRole('complementary').innerText()) !== logBefore,
+          { timeout: 30_000 },
+        )
+        .toBe(true)
       await expect(page.locator('form[aria-label="Your answer"][aria-busy="true"]')).toHaveCount(
         0,
         { timeout: 30_000 },
@@ -105,6 +117,16 @@ test.describe('5-max, live', () => {
     await expect(over.getByRole('list', { name: 'Pots' }).getByRole('listitem')).not.toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Analyse this hand' })).toHaveCount(0)
     await expect(page.getByRole('group', { name: /^(You|Bot \d),/ })).toHaveCount(5)
+    // at a showdown the bots that showed are face up (two cards each) once the reveal is over
+    const current = await page.request.get('/api/play/sessions/current')
+    const outcome = ((await current.json()) as { hand: { outcome: { shown: { seat: number }[] } } })
+      .hand.outcome
+    for (const { seat } of outcome.shown) {
+      if (seat === 0) continue
+      await expect(
+        page.getByRole('group', { name: new RegExp(`^Bot ${seat},`) }).getByRole('img', FACE_UP),
+      ).toHaveCount(2)
+    }
 
     // end the session
     await page.getByRole('button', { name: 'End session' }).click()
@@ -117,7 +139,7 @@ test.describe('5-max, live', () => {
   })
 })
 
-async function routePlay5(page: Page, session: 'hero_to_act' | 'side_pot') {
+async function routePlay5(page: Page, session: 'hero_to_act' | 'side_pot' | 'hero_folded') {
   await page.route('**/api/play/sessions/current', (r) =>
     r.fulfill(json(fixtureJson(`play5_session_${session}`))),
   )
@@ -196,6 +218,15 @@ for (const [width, height] of SIZES) {
       await expect(handOver(page)).toBeVisible()
       await expect(page.getByRole('list', { name: 'Pots' }).getByRole('listitem')).toHaveCount(2)
       await expectFits(page, width, height, `5-max showdown ${at}`)
+    })
+
+    test('Hero folded, two bots in the hand', async ({ page }) => {
+      await routePlay5(page, 'hero_folded')
+      await page.goto('/play')
+      await wideFont(page)
+      await expect(handOver(page)).toBeVisible()
+      await expect(page.getByRole('group', { name: /^Bot \d,/ })).toHaveCount(4)
+      await expectFits(page, width, height, `5-max Hero folded ${at}`)
     })
   })
 }

@@ -17,6 +17,7 @@ from poker_trainer.game.settle import settle_pots
 from poker_trainer.game.state import folded_seats, live_seats
 from poker_trainer.play.hand import SeatBot, hole, holes, outcome5, replay
 from poker_trainer.play.session import START, next_stacks5
+from poker_trainer.villain import preflop5
 from poker_trainer.villain.preflop5 import load_fivemax, load_ranking
 from poker_trainer.villain.profiles import PROFILE_NAMES
 
@@ -365,15 +366,24 @@ def test_bots_profiles_follow_the_setting(play_client):
     assert all(b["profile"] is not None for b in cur["bots"])
 
 
-def test_seat_snapshots_are_used_not_the_live_files(play_client, monkeypatch):
+def test_seat_snapshots_are_used_not_the_live_files(play_client, play_db, monkeypatch):
     v = _start5(play_client)
 
     def boom(*a, **k):
         raise AssertionError("live 5-max data read after the session started")
 
     monkeypatch.setattr(SeatBot, "live", boom)
+    snapshot_version = load_fivemax().version
+    # the live file moves on after the session started: the stamp still names the snapshot's
+    live = replace(load_fivemax(), version=snapshot_version + 100)
+    monkeypatch.setattr(preflop5, "load_fivemax", lambda: live)
+    monkeypatch.setattr(play_service, "load_fivemax", lambda: live, raising=False)
     v = _deal(play_client, _finish(play_client, v))
     assert _finish(play_client, v)["hand"]["status"] == "complete"
+    with play_db() as db:
+        stamps = [h.bot_versions for h in db.scalars(select(PlayHandRow).order_by(PlayHandRow.id))]
+    assert len(stamps) == 2
+    assert all(s["fivemax"] == snapshot_version for s in stamps)
 
 
 # ---------------------------------------------------------------------------

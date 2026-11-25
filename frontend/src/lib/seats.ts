@@ -142,7 +142,7 @@ export function seatsFromPlayTable(view: TableView, opts: PlaySeatsOptions): Sea
         : undefined,
       showProfile: !seat.is_hero && opts.showProfile,
       folded,
-      allIn: stack === 0 && !folded,
+      allIn: frame ? stack === 0 && !folded : seat.all_in,
     }
   })
 }

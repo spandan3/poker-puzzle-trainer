@@ -6,7 +6,7 @@ import { ApiError } from '../api/client'
 import type { PlaySessionView } from '../api/types'
 import { play5SessionFixture, playSessionFixture, playSessionsFixture } from '../test/fixture'
 import type { PlayApi } from './usePlayFlow'
-import { BOT_PAUSE_MS, usePlayFlow } from './usePlayFlow'
+import { BOT_PAUSE_MS, guardedReveal, usePlayFlow } from './usePlayFlow'
 
 const TO_ACT = playSessionFixture('hero_to_act')
 // the hand after Hero's action: the bot's entries 4 to 8 follow, and the hand ends
@@ -411,6 +411,23 @@ describe('5-max', () => {
     expect(result.current.shownCount).toBe(0)
     await advance(BOT_PAUSE_MS)
     expect(result.current.shownCount).toBeLessThanOrEqual(1)
+  })
+
+  it('a reveal timer of an earlier hand does nothing, even if it fires before React clears it', () => {
+    // the window between the commit that puts the new hand on screen and the effect cleanup
+    // that clears the old hand's timer: the hook cannot be driven into it under act, so the
+    // guard the timer runs is tested directly
+    let onScreen: number | null = 7
+    const reveal = vi.fn()
+    const timer = guardedReveal(() => onScreen, 7, reveal)
+    timer()
+    expect(reveal).toHaveBeenCalledTimes(1)
+    onScreen = 8 // the next hand was committed; the old timer fires late
+    timer()
+    expect(reveal).toHaveBeenCalledTimes(1)
+    onScreen = null // the session ended
+    timer()
+    expect(reveal).toHaveBeenCalledTimes(1)
   })
 
   it('Hero still in the hand: Next hand waits for the reveal', async () => {

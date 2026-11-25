@@ -59,7 +59,7 @@ from poker_trainer.puzzle.model import load_config
 from poker_trainer.puzzle.options import custom_action, hero_options
 from poker_trainer.villain import strategy
 from poker_trainer.villain.features import load_thresholds
-from poker_trainer.villain.preflop5 import load_fivemax, load_ranking
+from poker_trainer.villain.preflop5 import load_ranking
 from poker_trainer.villain.profiles import PROFILE_NAMES, Profile, profile_data, profile_from_dict
 from poker_trainer.villain.strategy import STRATEGY_VERSION
 
@@ -320,9 +320,15 @@ def _deal(
     button = sess.next_button
     five = _five_max(sess)
     if five:
-        record = advance_seats(new_record5(button, stacks, rng), _seat_bots(sess))
+        bots = _seat_bots(sess)
+        record = advance_seats(new_record5(button, stacks, rng), bots)
         ranking_version, _ = load_ranking()
-        bot_versions = {"hand_ranking": ranking_version, "fivemax": load_fivemax().version}
+        # the fivemax stamp is the version of the snapshots the bots play with (every seat
+        # sat down in the same session, so there is one value), not the live file's; the
+        # hand ranking is only stamped (live)
+        fivemax_versions = {b.fivemax.version for b in bots.values()}
+        assert len(fivemax_versions) == 1, f"seat snapshots differ in version: {fivemax_versions}"
+        bot_versions = {"hand_ranking": ranking_version, "fivemax": fivemax_versions.pop()}
     else:
         record = advance(new_record(button, (stacks[0], stacks[1]), rng), _profile(sess))
         bot_versions = None

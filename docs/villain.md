@@ -121,12 +121,12 @@ Heads-up play is unchanged by M12. Five-seat bots (Play mode, `table_size` 5) us
 
 `action_distribution` sends pre-flop states with exactly five seats to `preflop5` (3, 4 and 6 seats raise `UnsupportedSpot`). The spot depends on `r`, the number of `RAISE`s pre-flop:
 
-- **Facing a jam** (checked first): no aggressor, or a pre-flop raiser with stack 0, or `r >= 3`. Fold or call with `vs_jam.call`. This holds for bots and Hero, and it makes every later spot fold/call.
+- **Facing a jam** (checked first): no raise is legal, a pre-flop raiser is all-in, or `r >= 3`. Fold or call with `vs_jam.call`. This holds for bots and Hero, and it makes every later spot fold/call.
 - `r == 0`: fold or open (2.5 bb, or 3 bb from the SB), by position.
 - `r == 1`: fold, call, or 3-bet to `(3 + callers) × the open`.
 - `r == 2`: fold, call or jam.
 
-No limps and no small 4-bets: every 4-bet is all-in (invariant 6 still holds).
+No limps and no small 4-bets: every 4-bet is all-in (invariant 6 still holds). A limped pot (a call before any raise) raises `UnsupportedSpot`, and so does a big blind "open" raise (the BB cannot open: no position row for it).
 
 ### Multiway damping (`villain/strategy.py`)
 
@@ -134,18 +134,18 @@ No limps and no small 4-bets: every 4-bet is all-in (invariant 6 still holds).
 
 - Damping is applied to the **category matrix** inside `_unopened` and `_facing`, **before** the "no raise legal: raise moves to call" merge. A test pins this order (facing a jam, a bluff category calls `(call0 + raise0 × bluff^k) × call^k`; moving the damping after the merge fails it).
 - `_unopened`, after the river override and the draw boost: the bet columns of `AIR`, `WEAK_DRAW`, `WEAK` are multiplied by `bluff^k` and those of `MEDIUM` by `thin^k`; the removed mass goes to check. `STRONG_DRAW`, `STRONG` and `NUTS` are untouched.
-- `_facing`, after the continue curve: `MEDIUM`'s raise moves to call; the raise column of `AIR`, `WEAK_DRAW`, `WEAK` is multiplied by `bluff^k`; then the call and raise of every row below `STRONG` (`AIR`, `WEAK_DRAW`, `WEAK`, `MEDIUM`, `STRONG_DRAW`) are multiplied by `call^k`; the removed mass goes to fold. When `street_spr <= 1` the committed rows are skipped (the low-SPR step then runs as before).
-- `action_distribution` and `sample_action` take keyword `fivemax` and `damping` (None reads the live file; `k = 0` never reads it), so play passes each seat's snapshot.
+- `_facing`, after the continue curve: `MEDIUM`'s raise moves to call; the raise column of `AIR`, `WEAK_DRAW`, `WEAK` is multiplied by `bluff^k`; then the call and raise of every row below `STRONG` (`AIR`, `WEAK_DRAW`, `WEAK`, `MEDIUM`, `STRONG_DRAW`) are multiplied by `call^k`; the removed mass goes to fold. When `street_spr <= 1` the `_COMMITTED` rows (`MEDIUM`, `STRONG_DRAW`, `STRONG`, `NUTS`) are skipped, `MEDIUM`'s raise-to-call step included (the low-SPR step then handles them as heads-up).
+- `action_distribution` and `sample_action` take keyword `fivemax` and `damping` (None reads the live file; `k = 0` never reads it). When `fivemax` is passed, `damping` defaults to `fivemax.damping`; play passes each seat's snapshot.
 
 ### Per-seat snapshots
 
-Each bot seat is stored in `play_sessions.seats` as `SeatBot.to_dict()`: its profile, the profile data and a one-profile slice of `fivemax.json` (`version`, `bb_call_mult`, `damping`, the profile's block). Every `advance_seats` / `hero_act_seats` call rebuilds it with `SeatBot.from_dict` (strict validation), so editing a data file never changes a stored hand's replay. `hand_ranking.json` is not snapshotted; it is only version-stamped in `play_hands.bot_versions`.
+Each bot seat is stored in `play_sessions.seats` as `SeatBot.to_dict()`: its profile, the profile data and a one-profile slice of `fivemax.json` (`version`, `bb_call_mult`, `damping`, the profile's block). Every `advance_seats` / `hero_act_seats` call rebuilds it with `SeatBot.from_dict` (strict validation; the rebuilds happen in `play_service._seat_bots`), so editing a data file never changes a stored hand's replay. `hand_ranking.json` is not snapshotted; it is only version-stamped in `play_hands.bot_versions` (`hand_ranking` is the live version; `fivemax` is the version of the seat snapshots the hand was played with, not of the live file).
 
 ### Version rules
 
 - A change to 5-max behaviour bumps `version` in `fivemax.json` or `hand_ranking.json`. **`STRATEGY_VERSION` stays 1**: heads-up is unchanged, and a bump would flag every stored heads-up analysis as "model changed".
-- Regenerate `hand_ranking.json` only with its script, and bump its `version` if the order changes.
-- Heads-up must stay byte-identical: the pins in `tests/villain/test_hu_pins.py` (slow) and the replay digest `test_heads_up_hands_replay_exactly_as_before_m12` guard it.
+- Regenerate `hand_ranking.json` only with its script, and bump its `version` if the order changes: the version is `VERSION` in `analysis/hand_ranking.py` (the script writes it into the file).
+- Heads-up must stay byte-identical: the pins in `tests/villain/test_hu_pins.py` (a fast subset runs by default; the all-states and regenerate tests are slow) and the replay digest `test_heads_up_hands_replay_exactly_as_before_m12` guard it.
 
 ## Backlog
 
