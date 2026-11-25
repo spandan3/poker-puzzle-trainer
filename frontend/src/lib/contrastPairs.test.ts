@@ -36,6 +36,9 @@ for (const fg of [
   TEXT_ON_SURFACE.push([fg, '--color-panel'])
 }
 TEXT_ON_SURFACE.push(
+  // a folded seat's muted name, position and stack on the plate
+  ['--color-text-muted', '--color-seat-bg'],
+  ['--color-text-muted', '--color-seat-bg-top'],
   ['--color-text-on-felt', '--color-felt-light'],
   ['--color-text-on-felt-muted', '--color-felt-light'],
   ['--answer-submit-text', '--answer-submit-bg'],

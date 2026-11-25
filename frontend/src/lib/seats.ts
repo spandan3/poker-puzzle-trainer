@@ -92,6 +92,13 @@ export interface PlaySeatsOptions {
    * replace the view's, so the table can be drawn at any point of the reveal.
    */
   frame?: Pick<TableFrame, 'stacks' | 'street_bets' | 'folded'>
+  /**
+   * Show the cards the view carries for the bots (a showdown). The view holds the hand's final
+   * cards, so a table drawn at an earlier frame must not show them: this defaults to false when a
+   * `frame` is given, and to true otherwise (the view's own table). Pass true for the reveal step
+   * or once the hand is over. A shown bot's cards flip face up (`flip`).
+   */
+  revealed?: boolean
 }
 
 /** Slots of the other seats, clockwise from Hero (who sits at the bottom). */
@@ -103,13 +110,14 @@ const OTHER_SLOTS: Record<number, readonly SeatSlot[]> = {
 /**
  * The seats of a played table (2 or 5 seats) from the API's per-seat views, Hero first. The other
  * seats follow clockwise from Hero (increasing seat index). Cards: Hero's own, and the cards of a
- * seat the API shows (a showdown); any other seat is face down. A folded seat shows no cards.
+ * seat the API shows (a showdown) when `revealed`; any other seat is face down. A folded seat shows no cards.
  */
 export function seatsFromPlayTable(view: TableView, opts: PlaySeatsOptions): SeatInfo[] {
   const n = view.seats.length
   const slots = OTHER_SLOTS[n]
   if (!slots) throw new Error(`no seat layout for ${n} seats`)
   const hero = view.hero_seat
+  const revealed = opts.revealed ?? opts.frame === undefined
   const order = Array.from({ length: n }, (_, i) => (hero + i) % n)
   return order.map((index, i): SeatInfo => {
     const seat = view.seats.find((s) => s.seat === index)
@@ -117,7 +125,7 @@ export function seatsFromPlayTable(view: TableView, opts: PlaySeatsOptions): Sea
     const { frame } = opts
     const stack = frame?.stacks[index] ?? seat.stack
     const folded = frame?.folded[index] ?? seat.folded
-    const known = seat.cards !== null
+    const known = seat.is_hero ? seat.cards !== null : revealed && seat.cards !== null
     return {
       slot: i === 0 ? 'bottom' : slots[i - 1]!,
       name: seat.name,
@@ -127,7 +135,8 @@ export function seatsFromPlayTable(view: TableView, opts: PlaySeatsOptions): Sea
       isHero: seat.is_hero,
       isButton: seat.is_button,
       cards: folded ? [] : known ? [...seat.cards!] : [null, null],
-      faceDown: !known,
+      faceDown: !folded && !known,
+      flip: known && !seat.is_hero && opts.revealed === true ? true : undefined,
       profile: seat.profile
         ? { label: seat.profile.label, description: seat.profile.description }
         : undefined,

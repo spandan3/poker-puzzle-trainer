@@ -124,7 +124,7 @@
 
 .allIn {
   padding: 0.15em 0.3em;
-  font-size: max(0.72em, var(--text-min));
+  font-size: max(0.66em, var(--text-min));
   font-weight: var(--weight-bold);
   text-transform: uppercase;
   white-space: nowrap;
@@ -133,17 +133,29 @@
   border-radius: var(--radius-pill);
 }
 
-/* a folded seat: no cards, a flat plate, and the badge colours (tested on the plate) for its tag */
+/*
+ * A folded seat: no cards, a flat plate and muted text (not whole-plate opacity, which would sink
+ * the text below AA). It keeps its stack, with a small tag in the badge colours (contrast tested
+ * on the plate).
+ */
 
 .seat[data-folded] .plate {
   background: var(--color-seat-bg);
   box-shadow: none;
 }
 
+.seat[data-folded] .name,
+.seat[data-folded] .position,
+.seat[data-folded] .stack {
+  color: var(--color-text-muted);
+}
+
 .folded {
-  padding: 0.15em 0.3em;
-  font-size: max(0.72em, var(--text-min));
+  flex: none;
+  padding: 0.15em 0.25em;
+  font-size: max(0.66em, var(--text-min));
   font-weight: var(--weight-bold);
+  text-transform: uppercase;
   white-space: nowrap;
   color: var(--color-badge-text);
   background: var(--color-badge-bg);

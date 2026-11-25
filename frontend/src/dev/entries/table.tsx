@@ -65,6 +65,7 @@ function fiveMaxTable(
   name: 'hero_to_act' | 'hero_folded' | 'side_pot',
   shownCount?: number,
   settled = false,
+  revealed = false,
 ) {
   const hand = play5SessionFixture(name).hand!
   const index = Math.min(shownCount ?? hand.frames.length - 1, hand.frames.length - 1)
@@ -73,7 +74,11 @@ function fiveMaxTable(
   return (
     <Capped>
       <Table
-        seats={seatsFromPlayTable(view, { showProfile: true, frame: settled ? undefined : frame })}
+        seats={seatsFromPlayTable(view, {
+          showProfile: true,
+          frame: settled ? undefined : frame,
+          revealed,
+        })}
         centre={
           <TableCentre
             board={view.board}
@@ -141,7 +146,7 @@ const entry: GalleryEntry = {
         {fiveMaxTable('side_pot', 4)}
       </Demo>
       <Demo title="5-max, showdown with a side pot: two bots all-in, two folded">
-        {fiveMaxTable('side_pot')}
+        {fiveMaxTable('side_pot', undefined, false, true)}
       </Demo>
       <Demo title="5-max, Hero folded">{fiveMaxTable('hero_folded', undefined, true)}</Demo>
       <Demo title="Five seats (synthetic)">

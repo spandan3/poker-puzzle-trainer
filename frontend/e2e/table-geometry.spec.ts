@@ -204,23 +204,25 @@ for (const [width, height] of SIZES) {
   })
 }
 
-test('table geometry with a wide fallback font, at 1024×768', async ({ page }) => {
-  await page.setViewportSize({ width: 1024, height: 768 })
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.goto('/?gallery')
-  await wideFont(page)
-  const tables = page.locator('#table section[aria-label="Poker table"]')
-  await expect(tables.first()).toBeAttached()
-  const count = await tables.count()
-  for (let i = 0; i < count; i++) {
-    await tables.nth(i).scrollIntoViewIfNeeded()
-    const report = await measure(page, i)
-    const where = `table ${i} (${report.seats} seats, ${report.font}px, wide font)`
-    expect(report.overlaps, where).toEqual([])
-    expect(report.clipped, where).toEqual([])
-    expect(report.stuck, where).toEqual([])
-  }
-})
+for (const [width, height] of SIZES) {
+  test(`table geometry with a wide fallback font, at ${width}×${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/?gallery')
+    await wideFont(page)
+    const tables = page.locator('#table section[aria-label="Poker table"]')
+    await expect(tables.first()).toBeAttached()
+    const count = await tables.count()
+    for (let i = 0; i < count; i++) {
+      await tables.nth(i).scrollIntoViewIfNeeded()
+      const report = await measure(page, i)
+      const where = `table ${i} (${report.seats} seats, ${report.font}px, wide font)`
+      expect(report.overlaps, where).toEqual([])
+      expect(report.clipped, where).toEqual([])
+      expect(report.stuck, where).toEqual([])
+    }
+  })
+}
 
 test('the five-seat gallery tables are all drawn, and their seats keep clear of each other', async ({
   page,
@@ -236,12 +238,12 @@ test('the five-seat gallery tables are all drawn, and their seats keep clear of 
     const report = await measure(page, i)
     if (report.seats !== 5) continue
     fiveSeat++
-    expect(report.clearance, `table ${i}`).toBeGreaterThan(0)
+    expect(report.clearance, `table ${i}`).toBeGreaterThanOrEqual(2)
   }
   // the synthetic table, a running hand, a side-pot jam, a side-pot showdown and a Hero fold
   expect(fiveSeat).toBeGreaterThanOrEqual(6)
   // the side-pot showdown names the pots
-  await expect(page.getByText('Pot 253.5 bb · Side 12 bb')).toBeVisible()
+  await expect(page.getByText('Main 253.5 bb · Side 12 bb')).toBeVisible()
 })
 
 test('the 11px text floor holds with the table at its smallest font', async ({ page }) => {

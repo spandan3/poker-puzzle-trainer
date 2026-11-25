@@ -157,4 +157,44 @@ describe('seatsFromPlayTable', () => {
     const mid = seatsFromPlayTable(side.table, { showProfile: true, frame: side.frames[4]! })
     expect(mid.map((s) => s.allIn)).toEqual([false, false, false, true, false])
   })
+
+  it('shows no bot cards at an earlier frame, unless revealed', () => {
+    const mid = seatsFromPlayTable(side.table, { showProfile: true, frame: side.frames[4]! })
+    for (const seat of mid.filter((s) => !s.isHero && !s.folded)) {
+      expect(seat).toMatchObject({ cards: [null, null], faceDown: true })
+    }
+    for (const seat of mid.filter((s) => s.folded)) {
+      expect(seat).toMatchObject({ cards: [], faceDown: false })
+    }
+    expect(mid[0]!.cards).not.toContain(null)
+    const shown = seatsFromPlayTable(side.table, {
+      showProfile: true,
+      frame: side.frames[5]!,
+      revealed: true,
+    })
+    expect(shown[3]).toMatchObject({ cards: ['As', 'Ac'], faceDown: false, flip: true })
+  })
+
+  it('orders the seats from Hero clockwise when Hero is not in seat 0', () => {
+    const n = 5
+    const hero = 2
+    const view = {
+      ...five.table,
+      hero_seat: hero,
+      seats: five.table.seats.map((s) => ({ ...s, is_hero: s.seat === hero })),
+    }
+    const seats = seatsFromPlayTable(view, { showProfile: true })
+    const names = (i: number) => view.seats.find((s) => s.seat === i)!.name
+    expect(seats.map((s) => s.name)).toEqual(
+      Array.from({ length: n }, (_, i) => names((hero + i) % n)),
+    )
+    expect(seats.map((s) => s.slot)).toEqual([
+      'bottom',
+      'bottom-left',
+      'top-left',
+      'top-right',
+      'bottom-right',
+    ])
+    expect(seats[0]!.isHero).toBe(true)
+  })
 })

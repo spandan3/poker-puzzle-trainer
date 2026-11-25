@@ -13,7 +13,8 @@ export interface SeatProps {
 export function Seat({ seat, className }: SeatProps) {
   const folded = seat.folded === true
   const allIn = !folded && (seat.allIn ?? seat.stackChips === 0)
-  const profile = seat.showProfile ? seat.profile : undefined
+  // a folded seat has no room for the badge beside its stack and tag, and its style no longer matters
+  const profile = seat.showProfile && !folded ? seat.profile : undefined
   return (
     <div
       className={[styles.seat, className].filter(Boolean).join(' ')}
@@ -44,11 +45,7 @@ export function Seat({ seat, className }: SeatProps) {
           <span className={styles.position}>{seat.position}</span>
         </div>
         <div className={styles.row}>
-          {folded ? (
-            <span className={styles.folded}>
-              <span className={styles.srOnly}>Stack {formatBb(seat.stackChips)}, </span>Folded
-            </span>
-          ) : allIn ? (
+          {allIn ? (
             <span className={styles.allIn}>
               <span className={styles.srOnly}>Stack 0 bb, </span>All-in
             </span>
@@ -58,6 +55,7 @@ export function Seat({ seat, className }: SeatProps) {
               {formatBb(seat.stackChips)}
             </span>
           )}
+          {folded && <span className={styles.folded}>Folded</span>}
           {profile && <ProfileBadge profile={profile} />}
         </div>
         {seat.isButton && (

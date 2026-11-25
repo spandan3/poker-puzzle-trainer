@@ -39,5 +39,6 @@ describe('Table', () => {
     expect(found).toHaveLength(5)
     expect(new Set(found).size).toBe(5)
     expect(found.sort()).toEqual([...slots].sort())
+    expect(screen.getAllByRole('img', { name: 'Dealer button' })).toHaveLength(1)
   })
 })

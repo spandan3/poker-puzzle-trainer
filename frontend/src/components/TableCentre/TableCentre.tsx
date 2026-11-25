@@ -33,14 +33,14 @@ export interface TableCentreProps {
 
 const SLOTS = 5
 
-/** "Pot 24 bb", or with side pots "Pot 24 bb · Side 8 bb" ("Side 1 8 bb · Side 2 4 bb" for two). */
+/** "Pot 24 bb", or with side pots "Main 24 bb · Side 8 bb" ("Side 1 8 bb · Side 2 4 bb" for two). */
 export function potText(potChips: number, pots?: number[]): string {
   if (!pots || pots.length < 2) return `Pot ${formatBb(potChips)}`
   const [main, ...sides] = pots
   const side = sides.map(
     (chips, i) => `Side ${sides.length > 1 ? `${i + 1} ` : ''}${formatBb(chips)}`,
   )
-  return [`Pot ${formatBb(main!)}`, ...side].join(' · ')
+  return [`Main ${formatBb(main!)}`, ...side].join(' · ')
 }
 
 /** Board, pot and pot odds, sized to fit the centre budget of the table (22em × 10em). */
