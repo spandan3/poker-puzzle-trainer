@@ -48,7 +48,7 @@ def test_migrate_creates_tables(tmp_path):
         head = ScriptDirectory.from_config(alembic_config(url)).get_current_head()
         with engine.connect() as conn:
             assert MigrationContext.configure(conn).get_current_revision() == head
-        assert head == "0004_play"
+        assert head == "0005_fivemax"
     finally:
         engine.dispose()
 
@@ -93,7 +93,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "9999_batch_probe"
-down_revision = "0004_play"
+down_revision = "0005_fivemax"
 branch_labels = None
 depends_on = None
 
@@ -336,3 +336,76 @@ def test_play_tables_constraints_and_downgrade(tmp_path):
         engine.dispose()
     assert not names & {"play_sessions", "play_hands", "play_decisions"}
     assert "attempts" in names
+
+
+def test_fivemax_upgrade_keeps_heads_up_rows_and_downgrade_works(tmp_path):
+    """0005 adds the 5-max columns; existing heads-up sessions and hands keep their data and get
+    the defaults, and the downgrade drops the columns again."""
+    url = _url(tmp_path / "a.db")
+    command.upgrade(alembic_config(url), "0004_play")
+    engine = make_engine(url)
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "INSERT INTO users (id, name, created_at) VALUES (1, 'local', '2026-01-01')"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO user_settings (user_id, show_pot_odds, show_profile, daily_goal,"
+                " updated_at) VALUES (1, 1, 1, 10, '2026-01-01')"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO play_sessions (id, user_id, created_at, profile, profile_version,"
+                " profile_data, hero_stack, bot_stack, hero_bought_chips, next_button,"
+                " hands_played) VALUES (1, 1, '2026-01-01', 'tag', 1, '{}', 200, 200, 200, 0, 1)"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO play_hands (id, user_id, session_id, hand_no, created_at, button,"
+                " start_stacks, deck, bot_seed, actions, action_count, abandoned, status,"
+                " decision_count, strategy_version, categories_version, config_version)"
+                " VALUES (1, 1, 1, 1, '2026-01-01', 0, '[200, 200]', '[]', 7, '[]', 0, 0,"
+                " 'in_progress', 0, 1, 1, 1)"
+            )
+    finally:
+        engine.dispose()
+
+    migrate(url)
+    engine = make_engine(url)
+    try:
+        with engine.connect() as conn:
+            sess = conn.exec_driver_sql(
+                "SELECT profile, bot_stack, table_size, seats FROM play_sessions"
+            ).one()
+            hand = conn.exec_driver_sql(
+                "SELECT bot_seed, table_size, pots, bot_versions FROM play_hands"
+            ).one()
+            show_range = conn.exec_driver_sql("SELECT show_range FROM user_settings").scalar()
+        insp = inspect(engine)
+        scols = {c["name"]: c for c in insp.get_columns("play_sessions")}
+        hcols = {c["name"]: c for c in insp.get_columns("play_hands")}
+        ucols = {c["name"]: c for c in insp.get_columns("user_settings")}
+    finally:
+        engine.dispose()
+    assert tuple(sess) == ("tag", 200, 2, None)
+    assert tuple(hand) == (7, 2, None, None)
+    assert not show_range
+    assert not scols["table_size"]["nullable"] and scols["seats"]["nullable"]
+    assert not hcols["table_size"]["nullable"]
+    assert hcols["pots"]["nullable"] and hcols["bot_versions"]["nullable"]
+    assert not ucols["show_range"]["nullable"]
+
+    command.downgrade(alembic_config(url), "0004_play")
+    engine = make_engine(url)
+    try:
+        insp = inspect(engine)
+        gone = {
+            "play_sessions": {"table_size", "seats"},
+            "play_hands": {"table_size", "pots", "bot_versions"},
+            "user_settings": {"show_range"},
+        }
+        for table, cols in gone.items():
+            assert not cols & {c["name"] for c in insp.get_columns(table)}, table
+        with engine.connect() as conn:
+            assert conn.exec_driver_sql("SELECT count(*) FROM play_hands").scalar() == 1
+            assert conn.exec_driver_sql("SELECT bot_stack FROM play_sessions").scalar() == 200
+    finally:
+        engine.dispose()

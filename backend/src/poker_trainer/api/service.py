@@ -578,6 +578,7 @@ def settings_view(
     return {
         "show_pot_odds": bool(row.show_pot_odds),
         "show_profile": bool(row.show_profile),
+        "show_range": bool(row.show_range),
         "profile": _known_profile(row.profile),
         "daily_goal": int(row.daily_goal),
         "llm_provider": app_settings.llm_provider,

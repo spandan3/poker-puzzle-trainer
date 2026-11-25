@@ -10,6 +10,7 @@ def test_settings_get_defaults(client):
     body = r.json()
     assert body["show_pot_odds"] is True
     assert body["show_profile"] is True
+    assert body["show_range"] is False
     assert body["profile"] is None
     assert body["daily_goal"] == 10
     assert body["llm_provider"] == "none"
@@ -49,6 +50,9 @@ def test_settings_validation(client):
         {"show_pot_odds": None},
         {"show_pot_odds": 1},
         {"show_profile": "false"},
+        {"show_range": 1},
+        {"show_range": "true"},
+        {"show_range": None},
         {"daily_goal": "10"},
         {"daily_goal": True},
         {"llm_provider": "none"},
@@ -61,6 +65,15 @@ def test_settings_validation(client):
     for body in bad:
         assert client.patch("/api/settings", json=body).status_code == 422, body
     assert client.get("/api/settings").json()["daily_goal"] == 10
+
+
+def test_settings_show_range_patch(client):
+    r = client.patch("/api/settings", json={"show_range": True})
+    assert r.status_code == 200 and r.json()["show_range"] is True
+    assert client.get("/api/settings").json()["show_range"] is True
+    other = client.patch("/api/settings", json={"daily_goal": 12}).json()
+    assert other["show_range"] is True  # omitted: unchanged
+    assert client.patch("/api/settings", json={"show_range": False}).json()["show_range"] is False
 
 
 def test_settings_profile_null_resets(client):

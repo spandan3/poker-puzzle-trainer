@@ -21,6 +21,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -81,6 +82,8 @@ class UserSettings(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     show_pot_odds: Mapped[bool] = mapped_column(default=True)
     show_profile: Mapped[bool] = mapped_column(default=True)
+    # show Villain's range in the decision details (the Range tab); off by default
+    show_range: Mapped[bool] = mapped_column(default=False, server_default=false())
     profile: Mapped[str | None] = mapped_column(String(16))  # None = random
     daily_goal: Mapped[int] = mapped_column(Integer, default=10)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
@@ -174,10 +177,14 @@ class PlaySessionRow(Base):
     profile_version: Mapped[int] = mapped_column(Integer)
     profile_data: Mapped[dict[str, Any]] = mapped_column(JSON)  # the profile as it was dealt
     hero_stack: Mapped[int] = mapped_column(Integer)  # stacks after the last finished hand
-    bot_stack: Mapped[int] = mapped_column(Integer)
+    bot_stack: Mapped[int] = mapped_column(Integer)  # heads-up only; 0 in 5-max (see ``seats``)
     hero_bought_chips: Mapped[int] = mapped_column(Integer, default=200)
     next_button: Mapped[int] = mapped_column(Integer)
     hands_played: Mapped[int] = mapped_column(Integer, default=0)  # finished hands
+    table_size: Mapped[int] = mapped_column(Integer, default=2, server_default="2")  # 2 or 5
+    # 5-max only: per bot seat ``{"seat", "name", "stack", "bot": SeatBot.to_dict()}``. The legacy
+    # ``profile*`` columns then hold Bot 1's snapshot.
+    seats: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
 
 
 class PlayHandRow(Base):
@@ -207,6 +214,10 @@ class PlayHandRow(Base):
     categories_version: Mapped[int] = mapped_column(Integer)
     config_version: Mapped[int] = mapped_column(Integer)
     ev_loss_chips: Mapped[float | None] = mapped_column()  # total, once every decision is stored
+    table_size: Mapped[int] = mapped_column(Integer, default=2, server_default="2")  # 2 or 5
+    pots: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)  # 5-max side-pot awards
+    # ``{"hand_ranking": v, "fivemax": v}``: the data-file versions the bots played with
+    bot_versions: Mapped[dict[str, int] | None] = mapped_column(JSON)
 
 
 class PlayDecisionRow(Base):

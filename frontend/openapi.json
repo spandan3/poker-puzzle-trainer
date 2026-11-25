@@ -2370,6 +2370,11 @@
             "default": true,
             "title": "Show Profile",
             "type": "boolean"
+          },
+          "show_range": {
+            "default": false,
+            "title": "Show Range",
+            "type": "boolean"
           }
         },
         "title": "SettingsPatch",
@@ -2442,11 +2447,16 @@
           "show_profile": {
             "title": "Show Profile",
             "type": "boolean"
+          },
+          "show_range": {
+            "title": "Show Range",
+            "type": "boolean"
           }
         },
         "required": [
           "show_pot_odds",
           "show_profile",
+          "show_range",
           "profile",
           "daily_goal",
           "llm_provider",

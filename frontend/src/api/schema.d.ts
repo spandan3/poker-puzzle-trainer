@@ -1112,6 +1112,11 @@ export interface components {
              * @default true
              */
             show_profile?: boolean;
+            /**
+             * Show Range
+             * @default false
+             */
+            show_range?: boolean;
         };
         /** SettingsView */
         SettingsView: {
@@ -1136,6 +1141,8 @@ export interface components {
             show_pot_odds: boolean;
             /** Show Profile */
             show_profile: boolean;
+            /** Show Range */
+            show_range: boolean;
         };
         /** Showdown */
         Showdown: {

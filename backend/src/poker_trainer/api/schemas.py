@@ -82,6 +82,7 @@ class SettingsPatch(BaseModel):
     # strict: a JSON 1 or "false" is not a toggle, 1.0 or "10" not a goal
     show_pot_odds: Annotated[bool, Field(strict=True)] = True
     show_profile: Annotated[bool, Field(strict=True)] = True
+    show_range: Annotated[bool, Field(strict=True)] = False
     profile: str | None = None
     daily_goal: Annotated[int, Field(ge=1, le=500, strict=True)] = 10
 
@@ -370,6 +371,7 @@ class HistoryPage(_Out):
 class SettingsView(_Out):
     show_pot_odds: bool
     show_profile: bool
+    show_range: bool
     profile: str | None
     daily_goal: int
     llm_provider: str

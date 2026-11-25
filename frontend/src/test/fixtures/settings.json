@@ -28,5 +28,6 @@
     }
   ],
   "show_pot_odds": true,
-  "show_profile": true
+  "show_profile": true,
+  "show_range": false
 }

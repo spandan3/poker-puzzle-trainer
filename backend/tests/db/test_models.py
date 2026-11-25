@@ -84,6 +84,7 @@ def test_default_user_idempotent(sessions):
         st = db.get(UserSettings, 1)
         assert st.show_pot_odds is True
         assert st.show_profile is True
+        assert st.show_range is False
         assert st.profile is None
         assert st.daily_goal == 10
         assert st.updated_at.tzinfo is not None
